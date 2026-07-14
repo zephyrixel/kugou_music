@@ -125,11 +125,11 @@ return unavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String url,  int? bitRate,  int? durationSecs)?  playable,TResult Function( String url,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult Function( int? status,  int? failProcess)?  denied,TResult Function()?  unavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String url,  String? artworkUrl,  int? bitRate,  int? durationSecs)?  playable,TResult Function( String url,  String? artworkUrl,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult Function( int? status,  int? failProcess)?  denied,TResult Function()?  unavailable,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PlaybackResolutionDto_Playable() when playable != null:
-return playable(_that.url,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview() when preview != null:
-return preview(_that.url,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied() when denied != null:
+return playable(_that.url,_that.artworkUrl,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview() when preview != null:
+return preview(_that.url,_that.artworkUrl,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied() when denied != null:
 return denied(_that.status,_that.failProcess);case PlaybackResolutionDto_Unavailable() when unavailable != null:
 return unavailable();case _:
   return orElse();
@@ -149,11 +149,11 @@ return unavailable();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String url,  int? bitRate,  int? durationSecs)  playable,required TResult Function( String url,  int? endMs,  int? bitRate,  int? durationSecs)  preview,required TResult Function( int? status,  int? failProcess)  denied,required TResult Function()  unavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String url,  String? artworkUrl,  int? bitRate,  int? durationSecs)  playable,required TResult Function( String url,  String? artworkUrl,  int? endMs,  int? bitRate,  int? durationSecs)  preview,required TResult Function( int? status,  int? failProcess)  denied,required TResult Function()  unavailable,}) {final _that = this;
 switch (_that) {
 case PlaybackResolutionDto_Playable():
-return playable(_that.url,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview():
-return preview(_that.url,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied():
+return playable(_that.url,_that.artworkUrl,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview():
+return preview(_that.url,_that.artworkUrl,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied():
 return denied(_that.status,_that.failProcess);case PlaybackResolutionDto_Unavailable():
 return unavailable();}
 }
@@ -169,11 +169,11 @@ return unavailable();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String url,  int? bitRate,  int? durationSecs)?  playable,TResult? Function( String url,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult? Function( int? status,  int? failProcess)?  denied,TResult? Function()?  unavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String url,  String? artworkUrl,  int? bitRate,  int? durationSecs)?  playable,TResult? Function( String url,  String? artworkUrl,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult? Function( int? status,  int? failProcess)?  denied,TResult? Function()?  unavailable,}) {final _that = this;
 switch (_that) {
 case PlaybackResolutionDto_Playable() when playable != null:
-return playable(_that.url,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview() when preview != null:
-return preview(_that.url,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied() when denied != null:
+return playable(_that.url,_that.artworkUrl,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview() when preview != null:
+return preview(_that.url,_that.artworkUrl,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied() when denied != null:
 return denied(_that.status,_that.failProcess);case PlaybackResolutionDto_Unavailable() when unavailable != null:
 return unavailable();case _:
   return null;
@@ -187,10 +187,11 @@ return unavailable();case _:
 
 
 class PlaybackResolutionDto_Playable extends PlaybackResolutionDto {
-  const PlaybackResolutionDto_Playable({required this.url, this.bitRate, this.durationSecs}): super._();
-
+  const PlaybackResolutionDto_Playable({required this.url, this.artworkUrl, this.bitRate, this.durationSecs}): super._();
+  
 
  final  String url;
+ final  String? artworkUrl;
  final  int? bitRate;
  final  int? durationSecs;
 
@@ -204,16 +205,16 @@ $PlaybackResolutionDto_PlayableCopyWith<PlaybackResolutionDto_Playable> get copy
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackResolutionDto_Playable&&(identical(other.url, url) || other.url == url)&&(identical(other.bitRate, bitRate) || other.bitRate == bitRate)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackResolutionDto_Playable&&(identical(other.url, url) || other.url == url)&&(identical(other.artworkUrl, artworkUrl) || other.artworkUrl == artworkUrl)&&(identical(other.bitRate, bitRate) || other.bitRate == bitRate)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,url,bitRate,durationSecs);
+int get hashCode => Object.hash(runtimeType,url,artworkUrl,bitRate,durationSecs);
 
 @override
 String toString() {
-  return 'PlaybackResolutionDto.playable(url: $url, bitRate: $bitRate, durationSecs: $durationSecs)';
+  return 'PlaybackResolutionDto.playable(url: $url, artworkUrl: $artworkUrl, bitRate: $bitRate, durationSecs: $durationSecs)';
 }
 
 
@@ -224,7 +225,7 @@ abstract mixin class $PlaybackResolutionDto_PlayableCopyWith<$Res> implements $P
   factory $PlaybackResolutionDto_PlayableCopyWith(PlaybackResolutionDto_Playable value, $Res Function(PlaybackResolutionDto_Playable) _then) = _$PlaybackResolutionDto_PlayableCopyWithImpl;
 @useResult
 $Res call({
- String url, int? bitRate, int? durationSecs
+ String url, String? artworkUrl, int? bitRate, int? durationSecs
 });
 
 
@@ -241,10 +242,11 @@ class _$PlaybackResolutionDto_PlayableCopyWithImpl<$Res>
 
 /// Create a copy of PlaybackResolutionDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? url = null,Object? bitRate = freezed,Object? durationSecs = freezed,}) {
+@pragma('vm:prefer-inline') $Res call({Object? url = null,Object? artworkUrl = freezed,Object? bitRate = freezed,Object? durationSecs = freezed,}) {
   return _then(PlaybackResolutionDto_Playable(
 url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
-as String,bitRate: freezed == bitRate ? _self.bitRate : bitRate // ignore: cast_nullable_to_non_nullable
+as String,artworkUrl: freezed == artworkUrl ? _self.artworkUrl : artworkUrl // ignore: cast_nullable_to_non_nullable
+as String?,bitRate: freezed == bitRate ? _self.bitRate : bitRate // ignore: cast_nullable_to_non_nullable
 as int?,durationSecs: freezed == durationSecs ? _self.durationSecs : durationSecs // ignore: cast_nullable_to_non_nullable
 as int?,
   ));
@@ -257,10 +259,11 @@ as int?,
 
 
 class PlaybackResolutionDto_Preview extends PlaybackResolutionDto {
-  const PlaybackResolutionDto_Preview({required this.url, this.endMs, this.bitRate, this.durationSecs}): super._();
-
+  const PlaybackResolutionDto_Preview({required this.url, this.artworkUrl, this.endMs, this.bitRate, this.durationSecs}): super._();
+  
 
  final  String url;
+ final  String? artworkUrl;
  final  int? endMs;
  final  int? bitRate;
  final  int? durationSecs;
@@ -275,16 +278,16 @@ $PlaybackResolutionDto_PreviewCopyWith<PlaybackResolutionDto_Preview> get copyWi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackResolutionDto_Preview&&(identical(other.url, url) || other.url == url)&&(identical(other.endMs, endMs) || other.endMs == endMs)&&(identical(other.bitRate, bitRate) || other.bitRate == bitRate)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackResolutionDto_Preview&&(identical(other.url, url) || other.url == url)&&(identical(other.artworkUrl, artworkUrl) || other.artworkUrl == artworkUrl)&&(identical(other.endMs, endMs) || other.endMs == endMs)&&(identical(other.bitRate, bitRate) || other.bitRate == bitRate)&&(identical(other.durationSecs, durationSecs) || other.durationSecs == durationSecs));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,url,endMs,bitRate,durationSecs);
+int get hashCode => Object.hash(runtimeType,url,artworkUrl,endMs,bitRate,durationSecs);
 
 @override
 String toString() {
-  return 'PlaybackResolutionDto.preview(url: $url, endMs: $endMs, bitRate: $bitRate, durationSecs: $durationSecs)';
+  return 'PlaybackResolutionDto.preview(url: $url, artworkUrl: $artworkUrl, endMs: $endMs, bitRate: $bitRate, durationSecs: $durationSecs)';
 }
 
 
@@ -295,7 +298,7 @@ abstract mixin class $PlaybackResolutionDto_PreviewCopyWith<$Res> implements $Pl
   factory $PlaybackResolutionDto_PreviewCopyWith(PlaybackResolutionDto_Preview value, $Res Function(PlaybackResolutionDto_Preview) _then) = _$PlaybackResolutionDto_PreviewCopyWithImpl;
 @useResult
 $Res call({
- String url, int? endMs, int? bitRate, int? durationSecs
+ String url, String? artworkUrl, int? endMs, int? bitRate, int? durationSecs
 });
 
 
@@ -312,10 +315,11 @@ class _$PlaybackResolutionDto_PreviewCopyWithImpl<$Res>
 
 /// Create a copy of PlaybackResolutionDto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? url = null,Object? endMs = freezed,Object? bitRate = freezed,Object? durationSecs = freezed,}) {
+@pragma('vm:prefer-inline') $Res call({Object? url = null,Object? artworkUrl = freezed,Object? endMs = freezed,Object? bitRate = freezed,Object? durationSecs = freezed,}) {
   return _then(PlaybackResolutionDto_Preview(
 url: null == url ? _self.url : url // ignore: cast_nullable_to_non_nullable
-as String,endMs: freezed == endMs ? _self.endMs : endMs // ignore: cast_nullable_to_non_nullable
+as String,artworkUrl: freezed == artworkUrl ? _self.artworkUrl : artworkUrl // ignore: cast_nullable_to_non_nullable
+as String?,endMs: freezed == endMs ? _self.endMs : endMs // ignore: cast_nullable_to_non_nullable
 as int?,bitRate: freezed == bitRate ? _self.bitRate : bitRate // ignore: cast_nullable_to_non_nullable
 as int?,durationSecs: freezed == durationSecs ? _self.durationSecs : durationSecs // ignore: cast_nullable_to_non_nullable
 as int?,
@@ -330,7 +334,7 @@ as int?,
 
 class PlaybackResolutionDto_Denied extends PlaybackResolutionDto {
   const PlaybackResolutionDto_Denied({this.status, this.failProcess}): super._();
-
+  
 
  final  int? status;
  final  int? failProcess;
@@ -398,7 +402,7 @@ as int?,
 
 class PlaybackResolutionDto_Unavailable extends PlaybackResolutionDto {
   const PlaybackResolutionDto_Unavailable(): super._();
-
+  
 
 
 

@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sdk.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auth_state`, `cloud_playlist_to_dto`, `from_sdk`, `internal`, `invalid_argument`, `runtime`, `search_playlist_to_dto`, `select_hash`, `song_to_dto`, `stable_song_id`, `validated_search`
+// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `auth_state`, `cloud_playlist_to_dto`, `collect_detail_artwork`, `from_sdk`, `internal`, `invalid_argument`, `nonempty_artwork`, `runtime`, `search_playlist_to_dto`, `select_hash`, `song_to_dto_with_artwork`, `song_to_dto`, `songs_to_dtos_with_artwork`, `stable_song_id`, `validated_search`, `value_u64_for_keys`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
@@ -335,11 +335,13 @@ sealed class PlaybackResolutionDto with _$PlaybackResolutionDto {
 
   const factory PlaybackResolutionDto.playable({
     required String url,
+    String? artworkUrl,
     int? bitRate,
     int? durationSecs,
   }) = PlaybackResolutionDto_Playable;
   const factory PlaybackResolutionDto.preview({
     required String url,
+    String? artworkUrl,
     int? endMs,
     int? bitRate,
     int? durationSecs,

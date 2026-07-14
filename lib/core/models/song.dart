@@ -43,6 +43,34 @@ class Song {
   );
 }
 
+String? normalizeArtworkUrl(String? rawUrl, {int size = 480}) {
+  var value = rawUrl?.trim();
+  if (value == null || value.isEmpty || value == '-') return null;
+
+  value = value
+      .replaceAll(RegExp(r'\{size\}', caseSensitive: false), '$size')
+      .replaceAll(RegExp(r'%7Bsize%7D', caseSensitive: false), '$size')
+      .replaceAll(RegExp(r'\{width\}', caseSensitive: false), '$size')
+      .replaceAll(RegExp(r'\{height\}', caseSensitive: false), '$size');
+  if (value.startsWith('//')) value = 'https:$value';
+
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      !uri.hasAuthority ||
+      (uri.scheme != 'http' && uri.scheme != 'https')) {
+    return null;
+  }
+  final host = uri.host.toLowerCase();
+  final isKugouImageHost =
+      host == 'kugou.com' ||
+      host.endsWith('.kugou.com') ||
+      host == 'kgimg.com' ||
+      host.endsWith('.kgimg.com');
+  return uri.scheme == 'http' && isKugouImageHost
+      ? uri.replace(scheme: 'https').toString()
+      : uri.toString();
+}
+
 class AudioHashes {
   const AudioHashes({
     this.standard,

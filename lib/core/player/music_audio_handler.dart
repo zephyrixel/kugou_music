@@ -25,6 +25,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   final StreamController<String?> _messages = StreamController.broadcast();
   List<Song> _songs = const [];
   int _index = -1;
+  int _loadGeneration = 0;
   Duration? _previewEnd;
   bool _previewStopped = false;
 
@@ -53,6 +54,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   Future<void> _loadCurrent() async {
+    final generation = ++_loadGeneration;
     if (_index < 0 || _index >= _songs.length) return;
     final song = _songs[_index];
     _messages.add(null);
@@ -61,12 +63,14 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     mediaItem.add(_toMediaItem(song));
 
     try {
-      await _resolveAndPlay(song);
+      await _resolveAndPlay(song, generation);
     } on MusicSdkException catch (error) {
+      if (!_isCurrentLoad(generation, song)) return;
       if (error.code == 20028) {
         try {
           await _sdk.registerDevice();
-          await _resolveAndPlay(song);
+          if (!_isCurrentLoad(generation, song)) return;
+          await _resolveAndPlay(song, generation);
           return;
         } catch (_) {
           // Keep the original security challenge as the user-facing error.
@@ -75,15 +79,18 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
       _messages.add(error.toString());
       rethrow;
     } catch (error) {
+      if (!_isCurrentLoad(generation, song)) return;
       _messages.add(error.toString());
       rethrow;
     }
   }
 
-  Future<void> _resolveAndPlay(Song song) async {
+  Future<void> _resolveAndPlay(Song song, int generation) async {
     var resolution = await _sdk.resolve(song);
+    if (!_isCurrentLoad(generation, song)) return;
     if (resolution is DeniedResolution || resolution is UnavailableResolution) {
       resolution = await _sdk.resolve(song, freePreview: true);
+      if (!_isCurrentLoad(generation, song)) return;
     }
     if (resolution is! PlayableResolution) {
       throw const MusicSdkException('当前歌曲暂时无法播放');
@@ -91,10 +98,41 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     if (resolution is PreviewResolution && resolution.endMs != null) {
       _previewEnd = Duration(milliseconds: resolution.endMs!);
     }
+    final resolvedSong = _applyResolvedArtwork(song, resolution, generation);
     await _player.setUrl(resolution.url);
-    await _database.recordPlayed(song);
+    if (!_isCurrentLoad(generation, resolvedSong)) return;
+    await _database.recordPlayed(resolvedSong);
+    if (!_isCurrentLoad(generation, resolvedSong)) return;
     await _player.play();
   }
+
+  Song _applyResolvedArtwork(
+    Song song,
+    PlayableResolution resolution,
+    int generation,
+  ) {
+    final artworkUrl = resolution.artworkUrl?.trim();
+    final normalizedArtworkUrl = normalizeArtworkUrl(artworkUrl);
+    if (normalizedArtworkUrl == null ||
+        normalizedArtworkUrl == normalizeArtworkUrl(song.artworkUrl) ||
+        !_isCurrentLoad(generation, song)) {
+      return song;
+    }
+
+    final resolvedSong = song.copyWith(artworkUrl: artworkUrl);
+    final updatedQueue = [..._songs];
+    updatedQueue[_index] = resolvedSong;
+    _songs = List.unmodifiable(updatedQueue);
+    queue.add(_songs.map(_toMediaItem).toList(growable: false));
+    mediaItem.add(_toMediaItem(resolvedSong));
+    return resolvedSong;
+  }
+
+  bool _isCurrentLoad(int generation, Song song) =>
+      generation == _loadGeneration &&
+      _index >= 0 &&
+      _index < _songs.length &&
+      _songs[_index].id == song.id;
 
   void _enforcePreviewEnd(Duration position) {
     final end = _previewEnd;
@@ -104,16 +142,19 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     _messages.add('试听片段已结束');
   }
 
-  MediaItem _toMediaItem(Song song) => MediaItem(
-    id: song.id,
-    title: song.title,
-    artist: song.artistLabel,
-    album: song.album,
-    duration: song.durationSecs == null
-        ? null
-        : Duration(seconds: song.durationSecs!),
-    artUri: song.artworkUrl == null ? null : Uri.tryParse(song.artworkUrl!),
-  );
+  MediaItem _toMediaItem(Song song) {
+    final artworkUrl = normalizeArtworkUrl(song.artworkUrl);
+    return MediaItem(
+      id: song.id,
+      title: song.title,
+      artist: song.artistLabel,
+      album: song.album,
+      duration: song.durationSecs == null
+          ? null
+          : Duration(seconds: song.durationSecs!),
+      artUri: artworkUrl == null ? null : Uri.parse(artworkUrl),
+    );
+  }
 
   @override
   Future<void> play() => _player.play();
@@ -126,6 +167,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> stop() async {
+    _loadGeneration += 1;
     await _player.stop();
     await super.stop();
   }
@@ -133,6 +175,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> skipToNext() async {
     if (_index + 1 >= _songs.length) {
+      _loadGeneration += 1;
       await _player.pause();
       await _player.seek(Duration.zero);
       return;

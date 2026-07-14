@@ -113,10 +113,7 @@ class KugouMusicSdk implements MusicSdk {
   Future<List<Song>> everydayRecommendations() => _guard(() async {
     final result = await bridge.getEverydayRecommendations();
     await _persistSession();
-    return result.songs
-        .map(_songFromDto)
-        .map((song) => song.copyWith(artworkUrl: result.artworkUrl))
-        .toList(growable: false);
+    return result.songs.map(_songFromDto).toList(growable: false);
   });
 
   @override
@@ -183,17 +180,20 @@ class KugouMusicSdk implements MusicSdk {
     );
     await _persistSession();
     return value.when(
-      playable: (url, bitRate, durationSecs) => PlayableResolution(
+      playable: (url, artworkUrl, bitRate, durationSecs) => PlayableResolution(
         url: url,
+        artworkUrl: artworkUrl,
         bitRate: bitRate,
         durationSecs: durationSecs,
       ),
-      preview: (url, endMs, bitRate, durationSecs) => PreviewResolution(
-        url: url,
-        endMs: endMs,
-        bitRate: bitRate,
-        durationSecs: durationSecs,
-      ),
+      preview: (url, artworkUrl, endMs, bitRate, durationSecs) =>
+          PreviewResolution(
+            url: url,
+            artworkUrl: artworkUrl,
+            endMs: endMs,
+            bitRate: bitRate,
+            durationSecs: durationSecs,
+          ),
       denied: (status, failProcess) =>
           DeniedResolution(status: status, failProcess: failProcess),
       unavailable: UnavailableResolution.new,
@@ -492,10 +492,12 @@ sealed class PlaybackResolution {
 class PlayableResolution extends PlaybackResolution {
   const PlayableResolution({
     required this.url,
+    this.artworkUrl,
     this.bitRate,
     this.durationSecs,
   });
   final String url;
+  final String? artworkUrl;
   final int? bitRate;
   final int? durationSecs;
 }
@@ -503,6 +505,7 @@ class PlayableResolution extends PlaybackResolution {
 class PreviewResolution extends PlayableResolution {
   const PreviewResolution({
     required super.url,
+    super.artworkUrl,
     super.bitRate,
     super.durationSecs,
     this.endMs,

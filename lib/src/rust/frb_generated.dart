@@ -1203,15 +1203,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 0:
         return PlaybackResolutionDto_Playable(
           url: dco_decode_String(raw[1]),
-          bitRate: dco_decode_opt_CastedPrimitive_u_64(raw[2]),
-          durationSecs: dco_decode_opt_CastedPrimitive_u_64(raw[3]),
+          artworkUrl: dco_decode_opt_String(raw[2]),
+          bitRate: dco_decode_opt_CastedPrimitive_u_64(raw[3]),
+          durationSecs: dco_decode_opt_CastedPrimitive_u_64(raw[4]),
         );
       case 1:
         return PlaybackResolutionDto_Preview(
           url: dco_decode_String(raw[1]),
-          endMs: dco_decode_opt_CastedPrimitive_u_64(raw[2]),
-          bitRate: dco_decode_opt_CastedPrimitive_u_64(raw[3]),
-          durationSecs: dco_decode_opt_CastedPrimitive_u_64(raw[4]),
+          artworkUrl: dco_decode_opt_String(raw[2]),
+          endMs: dco_decode_opt_CastedPrimitive_u_64(raw[3]),
+          bitRate: dco_decode_opt_CastedPrimitive_u_64(raw[4]),
+          durationSecs: dco_decode_opt_CastedPrimitive_u_64(raw[5]),
         );
       case 2:
         return PlaybackResolutionDto_Denied(
@@ -1788,17 +1790,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     switch (tag_) {
       case 0:
         var var_url = sse_decode_String(deserializer);
+        var var_artworkUrl = sse_decode_opt_String(deserializer);
         var var_bitRate = sse_decode_opt_CastedPrimitive_u_64(deserializer);
         var var_durationSecs = sse_decode_opt_CastedPrimitive_u_64(
           deserializer,
         );
         return PlaybackResolutionDto_Playable(
           url: var_url,
+          artworkUrl: var_artworkUrl,
           bitRate: var_bitRate,
           durationSecs: var_durationSecs,
         );
       case 1:
         var var_url = sse_decode_String(deserializer);
+        var var_artworkUrl = sse_decode_opt_String(deserializer);
         var var_endMs = sse_decode_opt_CastedPrimitive_u_64(deserializer);
         var var_bitRate = sse_decode_opt_CastedPrimitive_u_64(deserializer);
         var var_durationSecs = sse_decode_opt_CastedPrimitive_u_64(
@@ -1806,6 +1811,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
         return PlaybackResolutionDto_Preview(
           url: var_url,
+          artworkUrl: var_artworkUrl,
           endMs: var_endMs,
           bitRate: var_bitRate,
           durationSecs: var_durationSecs,
@@ -2412,21 +2418,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     switch (self) {
       case PlaybackResolutionDto_Playable(
         url: final url,
+        artworkUrl: final artworkUrl,
         bitRate: final bitRate,
         durationSecs: final durationSecs,
       ):
         sse_encode_i_32(0, serializer);
         sse_encode_String(url, serializer);
+        sse_encode_opt_String(artworkUrl, serializer);
         sse_encode_opt_CastedPrimitive_u_64(bitRate, serializer);
         sse_encode_opt_CastedPrimitive_u_64(durationSecs, serializer);
       case PlaybackResolutionDto_Preview(
         url: final url,
+        artworkUrl: final artworkUrl,
         endMs: final endMs,
         bitRate: final bitRate,
         durationSecs: final durationSecs,
       ):
         sse_encode_i_32(1, serializer);
         sse_encode_String(url, serializer);
+        sse_encode_opt_String(artworkUrl, serializer);
         sse_encode_opt_CastedPrimitive_u_64(endMs, serializer);
         sse_encode_opt_CastedPrimitive_u_64(bitRate, serializer);
         sse_encode_opt_CastedPrimitive_u_64(durationSecs, serializer);

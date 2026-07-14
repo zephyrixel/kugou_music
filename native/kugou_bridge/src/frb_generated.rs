@@ -1263,21 +1263,25 @@ impl SseDecode for crate::api::sdk::PlaybackResolutionDto {
         match tag_ {
             0 => {
                 let mut var_url = <String>::sse_decode(deserializer);
+                let mut var_artworkUrl = <Option<String>>::sse_decode(deserializer);
                 let mut var_bitRate = <Option<u64>>::sse_decode(deserializer);
                 let mut var_durationSecs = <Option<u64>>::sse_decode(deserializer);
                 return crate::api::sdk::PlaybackResolutionDto::Playable {
                     url: var_url,
+                    artwork_url: var_artworkUrl,
                     bit_rate: var_bitRate,
                     duration_secs: var_durationSecs,
                 };
             }
             1 => {
                 let mut var_url = <String>::sse_decode(deserializer);
+                let mut var_artworkUrl = <Option<String>>::sse_decode(deserializer);
                 let mut var_endMs = <Option<u64>>::sse_decode(deserializer);
                 let mut var_bitRate = <Option<u64>>::sse_decode(deserializer);
                 let mut var_durationSecs = <Option<u64>>::sse_decode(deserializer);
                 return crate::api::sdk::PlaybackResolutionDto::Preview {
                     url: var_url,
+                    artwork_url: var_artworkUrl,
                     end_ms: var_endMs,
                     bit_rate: var_bitRate,
                     duration_secs: var_durationSecs,
@@ -1842,23 +1846,27 @@ impl flutter_rust_bridge::IntoDart for crate::api::sdk::PlaybackResolutionDto {
         match self {
             crate::api::sdk::PlaybackResolutionDto::Playable {
                 url,
+                artwork_url,
                 bit_rate,
                 duration_secs,
             } => [
                 0.into_dart(),
                 url.into_into_dart().into_dart(),
+                artwork_url.into_into_dart().into_dart(),
                 bit_rate.into_into_dart().into_dart(),
                 duration_secs.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::api::sdk::PlaybackResolutionDto::Preview {
                 url,
+                artwork_url,
                 end_ms,
                 bit_rate,
                 duration_secs,
             } => [
                 1.into_dart(),
                 url.into_into_dart().into_dart(),
+                artwork_url.into_into_dart().into_dart(),
                 end_ms.into_into_dart().into_dart(),
                 bit_rate.into_into_dart().into_dart(),
                 duration_secs.into_into_dart().into_dart(),
@@ -2456,22 +2464,26 @@ impl SseEncode for crate::api::sdk::PlaybackResolutionDto {
         match self {
             crate::api::sdk::PlaybackResolutionDto::Playable {
                 url,
+                artwork_url,
                 bit_rate,
                 duration_secs,
             } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(url, serializer);
+                <Option<String>>::sse_encode(artwork_url, serializer);
                 <Option<u64>>::sse_encode(bit_rate, serializer);
                 <Option<u64>>::sse_encode(duration_secs, serializer);
             }
             crate::api::sdk::PlaybackResolutionDto::Preview {
                 url,
+                artwork_url,
                 end_ms,
                 bit_rate,
                 duration_secs,
             } => {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(url, serializer);
+                <Option<String>>::sse_encode(artwork_url, serializer);
                 <Option<u64>>::sse_encode(end_ms, serializer);
                 <Option<u64>>::sse_encode(bit_rate, serializer);
                 <Option<u64>>::sse_encode(duration_secs, serializer);

@@ -4,7 +4,11 @@ use kugou_sdk::{
     SearchPlaylist, SearchRequest, Session, SongRef, UserPlaylist,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
+use serde_json::Value;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::OnceLock,
+};
 use tokio::sync::Mutex;
 
 const SESSION_SCHEMA_VERSION: u32 = 1;
@@ -133,11 +137,13 @@ pub struct ResolvePlaybackRequestDto {
 pub enum PlaybackResolutionDto {
     Playable {
         url: String,
+        artwork_url: Option<String>,
         bit_rate: Option<u64>,
         duration_secs: Option<u64>,
     },
     Preview {
         url: String,
+        artwork_url: Option<String>,
         end_ms: Option<u64>,
         bit_rate: Option<u64>,
         duration_secs: Option<u64>,
@@ -373,8 +379,10 @@ pub async fn search_songs(request: SearchRequestDto) -> Result<SongPageDto, Brid
         )
         .await
         .map_err(BridgeError::from_sdk)?;
+    let items =
+        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
     Ok(SongPageDto {
-        items: response.data.items.iter().map(song_to_dto).collect(),
+        items,
         page,
         page_size,
         total: response.data.total,
@@ -418,12 +426,14 @@ pub async fn get_everyday_recommendations() -> Result<RecommendationDto, BridgeE
         .everyday(&mut session)
         .await
         .map_err(BridgeError::from_sdk)?;
+    let songs =
+        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
     Ok(RecommendationDto {
         title: "每日推荐".to_owned(),
         subtitle: response.data.sub_title,
         artwork_url: response.data.cover_img_url,
         creation_date: response.data.creation_date,
-        songs: response.data.items.iter().map(song_to_dto).collect(),
+        songs,
     })
 }
 
@@ -451,14 +461,17 @@ pub async fn resolve_playback(
         .map_err(BridgeError::from_sdk)?;
     let bit_rate = response.data.bit_rate;
     let duration_secs = response.data.duration_secs;
+    let artwork_url = artwork_from_extra(&response.data.extra);
     Ok(match response.data.outcome() {
         PlaybackOutcome::Playable { url } => PlaybackResolutionDto::Playable {
             url,
+            artwork_url,
             bit_rate,
             duration_secs,
         },
         PlaybackOutcome::Preview { url, end_ms } => PlaybackResolutionDto::Preview {
             url,
+            artwork_url,
             end_ms,
             bit_rate,
             duration_secs,
@@ -532,8 +545,9 @@ pub async fn get_cloud_history() -> Result<SongPageDto, BridgeError> {
         .await
         .map_err(BridgeError::from_sdk)?
         .data;
+    let items = songs_to_dtos_with_artwork(&runtime.client, &mut session, &value.items).await;
     Ok(SongPageDto {
-        items: value.items.iter().map(song_to_dto).collect(),
+        items,
         page: 1,
         page_size: value.items.len() as u32,
         total: value.total,
@@ -597,8 +611,9 @@ pub async fn get_playlist_tracks(
             .map_err(BridgeError::from_sdk)?
             .data
     };
+    let items = songs_to_dtos_with_artwork(&runtime.client, &mut session, &value.items).await;
     Ok(SongPageDto {
-        items: value.items.iter().map(song_to_dto).collect(),
+        items,
         page,
         page_size,
         total: value.count,
@@ -813,7 +828,7 @@ fn validated_search(request: &SearchRequestDto) -> Result<(&str, u32, u32), Brid
     ))
 }
 
-fn song_to_dto(song: &SongRef) -> SongDto {
+fn song_to_dto_with_artwork(song: &SongRef, artwork_url: Option<String>) -> SongDto {
     let primary_hash = song.primary_hash().map(str::to_ascii_lowercase);
     SongDto {
         id: stable_song_id(song.mix_song_id, primary_hash.as_deref()),
@@ -821,7 +836,7 @@ fn song_to_dto(song: &SongRef) -> SongDto {
         artist: song.singer.clone(),
         album: song.album.clone(),
         duration_secs: song.duration_secs,
-        artwork_url: None,
+        artwork_url,
         privilege: song.privilege,
         album_id: song.album_id,
         mix_song_id: song.mix_song_id,
@@ -834,6 +849,158 @@ fn song_to_dto(song: &SongRef) -> SongDto {
             super_hash: song.resources.super_hash.clone(),
         },
     }
+}
+
+async fn songs_to_dtos_with_artwork(
+    client: &KugouClient,
+    session: &mut Session,
+    songs: &[SongRef],
+) -> Vec<SongDto> {
+    let mut artwork_by_mix_id = HashMap::new();
+    let mut missing_mix_ids = Vec::new();
+
+    for song in songs {
+        let Some(mix_id) = song.mix_song_id else {
+            continue;
+        };
+        if let Some(artwork) = artwork_from_extra(&song.extra) {
+            artwork_by_mix_id.insert(mix_id, artwork);
+        } else if !missing_mix_ids.contains(&mix_id) {
+            missing_mix_ids.push(mix_id);
+        }
+    }
+
+    // Artwork is optional metadata. Enrich in bounded batches, but never make a
+    // playable song list fail because the detail endpoint is unavailable.
+    for chunk in missing_mix_ids.chunks(40) {
+        if let Ok(response) = client.songs().details_by_mix_ids_raw(session, chunk).await {
+            collect_detail_artwork(&response.data, &mut artwork_by_mix_id);
+        }
+    }
+
+    songs
+        .iter()
+        .map(|song| {
+            let artwork = artwork_from_extra(&song.extra).or_else(|| {
+                song.mix_song_id
+                    .and_then(|id| artwork_by_mix_id.get(&id).cloned())
+            });
+            song_to_dto_with_artwork(song, artwork)
+        })
+        .collect()
+}
+
+fn artwork_from_extra(extra: &BTreeMap<String, Value>) -> Option<String> {
+    artwork_from_object(extra.iter().map(|(key, value)| (key.as_str(), value)))
+}
+
+fn artwork_from_value(value: &Value) -> Option<String> {
+    match value {
+        Value::String(value) => nonempty_artwork(value),
+        Value::Array(values) => values.iter().find_map(artwork_from_value),
+        Value::Object(values) => {
+            artwork_from_object(values.iter().map(|(key, value)| (key.as_str(), value)))
+        }
+        _ => None,
+    }
+}
+
+fn artwork_from_object<'a>(
+    entries: impl Iterator<Item = (&'a str, &'a Value)> + Clone,
+) -> Option<String> {
+    const ARTWORK_KEYS: &[&str] = &[
+        "sizable_cover",
+        "union_cover",
+        "cover_url",
+        "album_cover",
+        "album_img",
+        "album_image",
+        "imgurl",
+        "img_url",
+        "Image",
+        "image",
+        "cover",
+        "pic_url",
+        "pic",
+        "img",
+    ];
+    const CONTAINER_KEYS: &[&str] = &["album_info", "albuminfo", "base", "trans_param", "extra"];
+
+    for key in ARTWORK_KEYS {
+        if let Some(value) = entries
+            .clone()
+            .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
+            && let Some(artwork) = artwork_from_value(value)
+        {
+            return Some(artwork);
+        }
+    }
+    for key in CONTAINER_KEYS {
+        if let Some(value) = entries
+            .clone()
+            .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
+            && let Some(artwork) = artwork_from_value(value)
+        {
+            return Some(artwork);
+        }
+    }
+    None
+}
+
+fn artwork_key_matches(left: &str, right: &str) -> bool {
+    left.bytes()
+        .filter(|byte| byte.is_ascii_alphanumeric())
+        .map(|byte| byte.to_ascii_lowercase())
+        .eq(right
+            .bytes()
+            .filter(|byte| byte.is_ascii_alphanumeric())
+            .map(|byte| byte.to_ascii_lowercase()))
+}
+
+fn nonempty_artwork(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty() && value != "-").then(|| value.to_owned())
+}
+
+fn collect_detail_artwork(value: &Value, output: &mut HashMap<u64, String>) {
+    match value {
+        Value::Array(items) => {
+            for item in items {
+                collect_detail_artwork(item, output);
+            }
+        }
+        Value::Object(object) => {
+            let mix_id = value_u64_for_keys(value, &["album_audio_id", "MixSongID", "mixsongid"])
+                .or_else(|| {
+                    object.get("base").and_then(|base| {
+                        value_u64_for_keys(
+                            base,
+                            &["album_audio_id", "MixSongID", "mixsongid", "ID"],
+                        )
+                    })
+                });
+            if let (Some(mix_id), Some(artwork)) = (mix_id, artwork_from_value(value)) {
+                output.insert(mix_id, artwork);
+            }
+            for key in ["data", "items", "info", "list", "lists"] {
+                if let Some(nested) = object.get(key) {
+                    collect_detail_artwork(nested, output);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn value_u64_for_keys(value: &Value, keys: &[&str]) -> Option<u64> {
+    let object = value.as_object()?;
+    keys.iter().find_map(|key| {
+        let value = object.get(*key)?;
+        value
+            .as_u64()
+            .or_else(|| value.as_str()?.trim().parse().ok())
+            .filter(|value| *value > 0)
+    })
 }
 
 fn search_playlist_to_dto(value: &SearchPlaylist) -> PlaylistSearchHitDto {
@@ -1018,5 +1185,36 @@ mod tests {
         let selected = select_hash(&hashes, AudioQualityDto::Flac).unwrap();
         assert_eq!(selected.0, "STD");
         assert_eq!(selected.1, AudioQuality::Standard);
+    }
+
+    #[test]
+    fn artwork_is_read_from_song_extra() {
+        let mut extra = BTreeMap::new();
+        extra.insert(
+            "sizableCover".to_owned(),
+            Value::String("https://img.kugou.com/{size}/cover.jpg".to_owned()),
+        );
+        assert_eq!(
+            artwork_from_extra(&extra).as_deref(),
+            Some("https://img.kugou.com/{size}/cover.jpg")
+        );
+    }
+
+    #[test]
+    fn detail_artwork_is_mapped_by_mix_song_id() {
+        let detail = serde_json::json!({
+            "data": [{
+                "base": {"album_audio_id": 32155307},
+                "album_info": {
+                    "sizable_cover": "//imge.kugou.com/stdmusic/{size}/cover.jpg"
+                }
+            }]
+        });
+        let mut result = HashMap::new();
+        collect_detail_artwork(&detail, &mut result);
+        assert_eq!(
+            result.get(&32155307).map(String::as_str),
+            Some("//imge.kugou.com/stdmusic/{size}/cover.jpg")
+        );
     }
 }
