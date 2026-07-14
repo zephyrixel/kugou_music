@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:kgmusic/core/cache/artwork_cache.dart';
+import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
 class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
-  MusicAudioHandler(this._sdk, this._database) {
+  MusicAudioHandler(this._sdk, this._database, this._audioCache) {
     _player.playbackEventStream.listen(_broadcastState);
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
@@ -21,6 +23,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
 
   final MusicSdk _sdk;
   final AppDatabase _database;
+  final AudioCacheManager _audioCache;
   final AudioPlayer _player = AudioPlayer();
   final StreamController<String?> _messages = StreamController.broadcast();
   final StreamController<PlaybackQualityState> _qualityStates =
@@ -34,6 +37,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   );
   Duration? _previewEnd;
   bool _previewStopped = false;
+  CachedAudioHandle? _currentAudioHandle;
 
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
@@ -175,19 +179,28 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
       _previewEnd = Duration(milliseconds: resolution.endMs!);
     }
     final resolvedSong = _applyResolvedArtwork(song, resolution, generation);
-    var resumePosition = initialPosition == null
-        ? null
-        : autoPlay
-        ? _player.position
-        : initialPosition;
+    var resumePosition = initialPosition;
     final previewEnd = _previewEnd;
     if (resumePosition != null &&
         previewEnd != null &&
         resumePosition >= previewEnd) {
       resumePosition = Duration.zero;
     }
-    await _player.setUrl(resolution.url, initialPosition: resumePosition);
+    final audioHandle = await _audioCache.sourceFor(resolvedSong, resolution);
+    final previousAudioHandle = _currentAudioHandle;
+    _audioCache.setActive(audioHandle);
+    try {
+      await _player.setAudioSource(
+        audioHandle.source,
+        initialPosition: resumePosition,
+      );
+    } catch (_) {
+      _audioCache.setActive(previousAudioHandle);
+      rethrow;
+    }
+    _currentAudioHandle = audioHandle;
     if (!_isCurrentLoad(generation, resolvedSong)) return;
+    unawaited(_cacheArtwork(resolvedSong, generation));
     _emitQualityState(
       PlaybackQualityState(
         requested: requestedQuality,
@@ -214,6 +227,22 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   void _emitQualityState(PlaybackQualityState state) {
     _qualityState = state;
     _qualityStates.add(state);
+  }
+
+  Future<void> _cacheArtwork(Song song, int generation) async {
+    final artworkUrl = normalizeArtworkUrl(song.artworkUrl, size: 720);
+    if (artworkUrl == null) return;
+    try {
+      final file = await ArtworkCacheService.instance.getFile(
+        url: artworkUrl,
+        cacheId: 'song:${song.id}',
+        pixelSize: 720,
+      );
+      if (!_isCurrentLoad(generation, song)) return;
+      mediaItem.add(_toMediaItem(song, artworkUri: Uri.file(file.path)));
+    } catch (_) {
+      // The remote artwork URI remains usable when local prefetch fails.
+    }
   }
 
   Song _applyResolvedArtwork(
@@ -252,7 +281,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     _messages.add('试听片段已结束');
   }
 
-  MediaItem _toMediaItem(Song song) {
+  MediaItem _toMediaItem(Song song, {Uri? artworkUri}) {
     final artworkUrl = normalizeArtworkUrl(song.artworkUrl);
     return MediaItem(
       id: song.id,
@@ -262,7 +291,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
       duration: song.durationSecs == null
           ? null
           : Duration(seconds: song.durationSecs!),
-      artUri: artworkUrl == null ? null : Uri.parse(artworkUrl),
+      artUri: artworkUri ?? (artworkUrl == null ? null : Uri.parse(artworkUrl)),
     );
   }
 
@@ -278,6 +307,8 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> stop() async {
     _loadGeneration += 1;
+    _audioCache.setActive(null);
+    _currentAudioHandle = null;
     await _player.stop();
     await super.stop();
   }

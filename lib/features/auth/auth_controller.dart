@@ -144,7 +144,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> logout() async {
     await _sdk.logout();
     await _storage.delete(key: _lastRefreshKey);
-    await _database.clearCloudCache();
+    await _database.clearAccountCache();
     snapshot = const AuthSnapshot(
       authenticated: false,
       fingerprintRegistered: false,
@@ -157,7 +157,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _expire(String reason) async {
     await _sdk.logout();
     await _storage.delete(key: _lastRefreshKey);
-    await _database.clearCloudCache();
+    await _database.clearAccountCache();
     snapshot = const AuthSnapshot(
       authenticated: false,
       fingerprintRegistered: false,

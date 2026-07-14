@@ -10,9 +10,9 @@ DTO，而是依赖手写的 `MusicSdk` 接口。这使 SDK 后续新增热门歌
 features/*
     │
     ├── app/providers.dart (依赖装配)
-    │
-    ├── core/native/MusicSdk ── FRB generated bindings ── Rust kugou_bridge
-    │                                                    └── kugou_sdk 0.2.1 / Lite
+    ├── core/cache/MusicRepository ── Drift 响应缓存
+    │       └── core/native/MusicSdk ── FRB generated bindings ── Rust kugou_bridge
+    │                                                        └── kugou_sdk 0.2.1 / Lite
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
     │
@@ -25,7 +25,8 @@ features/*
 - `lib/core/models/`：跨功能使用的稳定领域模型。
 - `lib/core/native/`：SDK 门面、生成 DTO 映射、安全会话持久化。
 - `lib/core/player/`：播放地址解析、试听降级、队列和系统媒体控制。
-- `lib/core/database/`：本地收藏和历史记录；不保存媒体 URL 或会话。
+- `lib/core/cache/`：接口响应、封面与音频文件缓存；不保存临时播放 URL。
+- `lib/core/database/`：本地收藏、历史和可公开的接口响应；不保存会话。
 - `lib/core/design_system/`、`widgets/`：深色荧光绿视觉系统与共享组件。
 - `lib/features/`：按 home/search/library/player 划分的产品功能。
 - `lib/features/auth/`、`account/`、`playlists/`：SMS 登录、账号生命周期与云歌单管理。
@@ -40,6 +41,21 @@ features/*
 4. 切换音质会重新解析临时 URL，同时保留播放位置以及播放/暂停状态，不重复写入历史。
 5. SDK 返回 `preview_end_ms` 时，播放器在该位置自动暂停。
 6. 只在新歌曲地址成功装载后写入最近播放记录。
+7. 播放地址使用 `LockCachingAudioSource` 渐进写入 1 GB LRU 缓存；缓存键由歌曲
+   hash、实际音质和试听状态组成，临时签名 URL 不参与资源身份。
+8. 进度条仅在用户结束拖动时调用一次 `seek`，避免连续 Range 请求。
+
+## 缓存策略
+
+- 推荐、搜索、用户资料、云历史、云歌单及歌单歌曲先返回 Drift 缓存，再向 Lite
+  后端更新；同一缓存键的并发请求会合并。
+- 可重试的网络错误保留旧缓存，认证与业务错误继续上抛。账号缓存按 `user_id`
+  隔离，并在退出时清除。
+- Drift schema v3 使用通用 JSON 响应表，最多保留 500 项和 30 天；本地收藏及
+  播放历史不属于临时缓存。
+- 封面、歌单图片和头像使用统一图片缓存，最多 800 项、保留 30 天；Android
+  媒体通知优先使用已缓存的本地封面。
+- “清理临时缓存”不会删除登录、本地收藏或历史，也不会中断当前播放。
 
 ## 会话与安全
 
@@ -61,7 +77,8 @@ token，`20017/20018` 会清除认证态并要求重新登录。
 - 游客红心写入本地 `library_tracks`。
 - 登录后红心写入 `is_def=2` 的云端「我喜欢」，绝不把 `is_def=1` 默认收藏误认成红心列表。
 - 既有本地收藏不会自动批量上传；本地音乐库与账号云音乐保持独立入口。
-- Drift schema v2 缓存账号歌单与包含 `file_id` 的歌单歌曲；退出登录清理云缓存但保留本地数据。
+- Drift schema v3 缓存账号歌单响应及完整歌曲字段（包括 `file_id`）；退出登录清理
+  账号响应缓存但保留本地数据。
 
 ## 后续迭代
 

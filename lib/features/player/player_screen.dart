@@ -9,6 +9,7 @@ import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_favorite_button.dart';
 import 'package:kgmusic/core/widgets/add_to_playlist_button.dart';
+import 'package:kgmusic/features/player/playback_progress_bar.dart';
 
 class PlayerScreen extends ConsumerWidget {
   const PlayerScreen({super.key});
@@ -40,6 +41,7 @@ class PlayerScreen extends ConsumerWidget {
                 const Spacer(),
                 SongArtwork(
                   url: item.artUri?.toString(),
+                  cacheId: 'song:${item.id}',
                   size: artworkSize,
                   radius: 30,
                 ),
@@ -81,7 +83,11 @@ class PlayerScreen extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: 12),
-                _Progress(handler: handler),
+                PlaybackProgressBar(
+                  durationStream: handler.durationStream,
+                  positionStream: handler.positionStream,
+                  onSeek: handler.seek,
+                ),
                 const SizedBox(height: 18),
                 StreamBuilder<PlaybackState>(
                   stream: handler.playbackState,
@@ -241,48 +247,4 @@ class _QualitySelector extends StatelessWidget {
       }
     }
   }
-}
-
-class _Progress extends StatelessWidget {
-  const _Progress({required this.handler});
-  final MusicAudioHandler handler;
-
-  @override
-  Widget build(BuildContext context) => StreamBuilder<Duration?>(
-    stream: handler.durationStream,
-    builder: (context, durationSnapshot) {
-      final duration = durationSnapshot.data ?? Duration.zero;
-      return StreamBuilder<Duration>(
-        stream: handler.positionStream,
-        builder: (context, positionSnapshot) {
-          final position = positionSnapshot.data ?? Duration.zero;
-          final max = duration.inMilliseconds
-              .toDouble()
-              .clamp(1, double.infinity)
-              .toDouble();
-          final value = position.inMilliseconds
-              .toDouble()
-              .clamp(0, max)
-              .toDouble();
-          return Column(
-            children: [
-              Slider(
-                value: value,
-                max: max,
-                onChanged: (next) =>
-                    handler.seek(Duration(milliseconds: next.round())),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(formatDuration(position)),
-                  Text(formatDuration(duration)),
-                ],
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
 }

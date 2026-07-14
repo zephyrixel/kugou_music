@@ -514,14 +514,17 @@ extension AudioQualityInfo on AudioQuality {
   };
 
   bool isAvailableFor(Song song) {
-    final hash = switch (this) {
+    return hashFor(song)?.trim().isNotEmpty == true;
+  }
+
+  String? hashFor(Song song) {
+    return switch (this) {
       AudioQuality.standard => song.hashes.standard,
       AudioQuality.high => song.hashes.high,
       AudioQuality.flac => song.hashes.flac,
       AudioQuality.hiRes => song.hashes.hiRes,
       AudioQuality.superQuality => song.hashes.superHash,
     };
-    return hash?.trim().isNotEmpty == true;
   }
 }
 

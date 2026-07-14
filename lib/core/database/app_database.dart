@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
 
 part 'app_database.g.dart';
 
@@ -15,6 +14,7 @@ class LibraryTracks extends Table {
   IntColumn get privilege => integer().nullable()();
   IntColumn get albumId => integer().nullable()();
   IntColumn get mixSongId => integer().nullable()();
+  IntColumn get fileId => integer().nullable()();
   TextColumn get hashStandard => text().nullable()();
   TextColumn get hashHigh => text().nullable()();
   TextColumn get hashFlac => text().nullable()();
@@ -28,54 +28,37 @@ class LibraryTracks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-class CachedCloudPlaylists extends Table {
-  IntColumn get accountUserId => integer()();
-  IntColumn get listId => integer()();
-  TextColumn get globalCollectionId => text().nullable()();
-  TextColumn get name => text()();
-  TextColumn get intro => text().nullable()();
-  TextColumn get artworkUrl => text().nullable()();
-  IntColumn get trackCount => integer().nullable()();
-  IntColumn get listType => integer().nullable()();
-  IntColumn get creatorUserId => integer().nullable()();
-  TextColumn get creatorName => text().nullable()();
-  BoolColumn get isPrivate => boolean()();
-  BoolColumn get isMyFavorite => boolean()();
-  BoolColumn get isDefaultCollect => boolean()();
-  TextColumn get tags => text().nullable()();
-  DateTimeColumn get syncedAt => dateTime()();
+class CachedResponses extends Table {
+  TextColumn get cacheKey => text()();
+  IntColumn get accountUserId => integer().nullable()();
+  IntColumn get codecVersion => integer()();
+  TextColumn get payload => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get lastAccessedAt => dateTime()();
 
   @override
-  Set<Column<Object>> get primaryKey => {accountUserId, listId};
+  Set<Column<Object>> get primaryKey => {cacheKey};
 }
 
-class CachedCloudTracks extends Table {
-  IntColumn get accountUserId => integer()();
-  IntColumn get listId => integer()();
-  TextColumn get songId => text()();
-  IntColumn get fileId => integer().nullable()();
-  IntColumn get position => integer()();
-  DateTimeColumn get syncedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {accountUserId, listId, songId};
-}
-
-@DriftDatabase(tables: [LibraryTracks, CachedCloudPlaylists, CachedCloudTracks])
+@DriftDatabase(tables: [LibraryTracks, CachedResponses])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'kgmusic'));
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) => migrator.createAll(),
     onUpgrade: (migrator, from, to) async {
-      if (from < 2) {
-        await migrator.createTable(cachedCloudPlaylists);
-        await migrator.createTable(cachedCloudTracks);
+      if (from < 3) {
+        await migrator.addColumn(libraryTracks, libraryTracks.fileId);
+        await migrator.createTable(cachedResponses);
+        if (from >= 2) {
+          await migrator.deleteTable('cached_cloud_tracks');
+          await migrator.deleteTable('cached_cloud_playlists');
+        }
       }
     },
   );
@@ -123,115 +106,76 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<void> cacheCloudPlaylists(
-    int userId,
-    List<CloudPlaylist> playlists,
-  ) async {
-    final now = DateTime.now();
-    await transaction(() async {
-      await (delete(
-        cachedCloudPlaylists,
-      )..where((row) => row.accountUserId.equals(userId))).go();
-      await batch((batch) {
-        batch.insertAllOnConflictUpdate(
-          cachedCloudPlaylists,
-          playlists
-              .where((item) => item.listId != null)
-              .map(
-                (item) => CachedCloudPlaylistsCompanion.insert(
-                  accountUserId: userId,
-                  listId: item.listId!,
-                  globalCollectionId: Value(item.globalCollectionId),
-                  name: item.name,
-                  intro: Value(item.intro),
-                  artworkUrl: Value(item.artworkUrl),
-                  trackCount: Value(item.count),
-                  listType: Value(item.listType),
-                  creatorUserId: Value(item.creatorUserId),
-                  creatorName: Value(item.creatorName),
-                  isPrivate: item.isPrivate,
-                  isMyFavorite: item.isMyFavorite,
-                  isDefaultCollect: item.isDefaultCollect,
-                  tags: Value(item.tags),
-                  syncedAt: now,
-                ),
-              ),
-        );
-      });
-    });
+  Future<CachedResponse?> readCachedResponse(String cacheKey) async {
+    final row = await (select(
+      cachedResponses,
+    )..where((item) => item.cacheKey.equals(cacheKey))).getSingleOrNull();
+    if (row == null) return null;
+    await (update(cachedResponses)
+          ..where((item) => item.cacheKey.equals(cacheKey)))
+        .write(CachedResponsesCompanion(lastAccessedAt: Value(DateTime.now())));
+    return row;
   }
 
-  Stream<List<CloudPlaylist>> watchCachedCloudPlaylists(int userId) =>
-      (select(cachedCloudPlaylists)
-            ..where((row) => row.accountUserId.equals(userId))
-            ..orderBy([(row) => OrderingTerm.asc(row.listId)]))
-          .watch()
-          .map(
-            (rows) => rows
-                .map(
-                  (row) => CloudPlaylist(
-                    listId: row.listId,
-                    globalCollectionId: row.globalCollectionId,
-                    name: row.name,
-                    intro: row.intro,
-                    artworkUrl: row.artworkUrl,
-                    count: row.trackCount,
-                    listType: row.listType,
-                    creatorUserId: row.creatorUserId,
-                    creatorName: row.creatorName,
-                    isPrivate: row.isPrivate,
-                    isMyFavorite: row.isMyFavorite,
-                    isDefaultCollect: row.isDefaultCollect,
-                    tags: row.tags,
-                  ),
-                )
-                .toList(growable: false),
-          );
-
-  Future<void> cacheCloudTracks(
-    int userId,
-    int listId,
-    List<Song> songs,
-  ) async {
+  Future<void> writeCachedResponse({
+    required String cacheKey,
+    required int? accountUserId,
+    required int codecVersion,
+    required String payload,
+  }) async {
     final now = DateTime.now();
-    await transaction(() async {
-      await (delete(cachedCloudTracks)..where(
-            (row) =>
-                row.accountUserId.equals(userId) & row.listId.equals(listId),
-          ))
-          .go();
-      for (var index = 0; index < songs.length; index++) {
-        final song = songs[index];
-        final existing = await (select(
-          libraryTracks,
-        )..where((row) => row.id.equals(song.id))).getSingleOrNull();
-        await into(libraryTracks).insertOnConflictUpdate(
-          _companion(
-            song,
-            favorite: existing?.favorite ?? false,
-            lastPlayedAt: existing?.lastPlayedAt,
-            playCount: existing?.playCount ?? 0,
-          ),
-        );
-        await into(cachedCloudTracks).insertOnConflictUpdate(
-          CachedCloudTracksCompanion.insert(
-            accountUserId: userId,
-            listId: listId,
-            songId: song.id,
-            fileId: Value(song.fileId),
-            position: index,
-            syncedAt: now,
-          ),
-        );
-      }
-    });
+    await into(cachedResponses).insertOnConflictUpdate(
+      CachedResponsesCompanion.insert(
+        cacheKey: cacheKey,
+        accountUserId: Value(accountUserId),
+        codecVersion: codecVersion,
+        payload: payload,
+        updatedAt: now,
+        lastAccessedAt: now,
+      ),
+    );
+    await pruneResponseCache();
   }
 
-  Future<void> clearCloudCache() async {
-    await transaction(() async {
-      await delete(cachedCloudTracks).go();
-      await delete(cachedCloudPlaylists).go();
-    });
+  Future<void> deleteCachedResponse(String cacheKey) => (delete(
+    cachedResponses,
+  )..where((item) => item.cacheKey.equals(cacheKey))).go();
+
+  Future<void> deleteCachedResponsePrefix(String prefix) => (delete(
+    cachedResponses,
+  )..where((item) => item.cacheKey.like('$prefix%'))).go();
+
+  Future<void> clearAccountCache({int? userId}) {
+    final query = delete(cachedResponses);
+    query.where(
+      (item) => userId == null
+          ? item.accountUserId.isNotNull()
+          : item.accountUserId.equals(userId),
+    );
+    return query.go();
+  }
+
+  Future<void> clearResponseCache() => delete(cachedResponses).go();
+
+  Future<void> pruneResponseCache({
+    int maxEntries = 500,
+    Duration retention = const Duration(days: 30),
+  }) async {
+    final cutoff = DateTime.now().subtract(retention);
+    await (delete(
+      cachedResponses,
+    )..where((item) => item.lastAccessedAt.isSmallerThanValue(cutoff))).go();
+    final rows = await (select(
+      cachedResponses,
+    )..orderBy([(item) => OrderingTerm.desc(item.lastAccessedAt)])).get();
+    if (rows.length <= maxEntries) return;
+    final staleKeys = rows
+        .skip(maxEntries)
+        .map((item) => item.cacheKey)
+        .toList();
+    await (delete(
+      cachedResponses,
+    )..where((item) => item.cacheKey.isIn(staleKeys))).go();
   }
 
   LibraryTracksCompanion _companion(
@@ -249,6 +193,7 @@ class AppDatabase extends _$AppDatabase {
     privilege: Value(song.privilege),
     albumId: Value(song.albumId),
     mixSongId: Value(song.mixSongId),
+    fileId: Value(song.fileId),
     hashStandard: Value(song.hashes.standard),
     hashHigh: Value(song.hashes.high),
     hashFlac: Value(song.hashes.flac),
@@ -270,6 +215,7 @@ Song _rowToSong(LibraryTrack row) => Song(
   privilege: row.privilege,
   albumId: row.albumId,
   mixSongId: row.mixSongId,
+  fileId: row.fileId,
   hashes: AudioHashes(
     standard: row.hashStandard,
     high: row.hashHigh,

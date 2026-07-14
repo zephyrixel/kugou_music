@@ -85,16 +85,18 @@ Future<void> toggleSongFavorite(
     final isLiked = liked ?? cloudFavorites.any((item) => item.id == song.id);
     final playlist = await ref.read(myFavoritePlaylistProvider.future);
     if (playlist?.listId == null) throw Exception('账号没有可用的“我喜欢”歌单');
+    final userId = ref.read(authControllerProvider).snapshot.userId;
+    if (userId == null) throw Exception('登录状态已失效');
     if (isLiked) {
       final cached = cloudFavorites.firstWhere((item) => item.id == song.id);
       if (cached.fileId == null) throw Exception('缺少云端 fileId，请刷新“我喜欢”后重试');
       await ref
-          .read(musicSdkProvider)
-          .removeSongFromPlaylist(playlist!.listId!, cached.fileId!);
+          .read(musicRepositoryProvider)
+          .removeSongFromPlaylist(userId, playlist!.listId!, cached.fileId!);
     } else {
       await ref
-          .read(musicSdkProvider)
-          .addSongToPlaylist(playlist!.listId!, song);
+          .read(musicRepositoryProvider)
+          .addSongToPlaylist(userId, playlist!.listId!, song);
     }
     ref.invalidate(myFavoriteSongsProvider);
   } catch (error) {

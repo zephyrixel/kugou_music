@@ -56,7 +56,11 @@ Future<void> showAddToCloudPlaylist(
       ),
     );
     if (selected == null) return;
-    await ref.read(musicSdkProvider).addSongToPlaylist(selected, song);
+    final userId = ref.read(authControllerProvider).snapshot.userId;
+    if (userId == null) return;
+    await ref
+        .read(musicRepositoryProvider)
+        .addSongToPlaylist(userId, selected, song);
     ref.invalidate(myFavoriteSongsProvider);
     ref.invalidate(cloudPlaylistsProvider);
     if (context.mounted) {

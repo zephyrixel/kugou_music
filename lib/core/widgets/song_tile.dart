@@ -22,7 +22,7 @@ class SongTile extends StatelessWidget {
     horizontalTitleGap: 12,
     onTap: onTap,
     leading: index == null
-        ? SongArtwork(url: song.artworkUrl)
+        ? SongArtwork(url: song.artworkUrl, cacheId: 'song:${song.id}')
         : SizedBox(
             width: 32,
             child: Text(

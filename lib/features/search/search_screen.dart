@@ -51,21 +51,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _search(String keyword) async {
+    final requestedKind = _kind;
+    final normalizedKeyword = keyword.trim();
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      if (_kind == _SearchKind.songs) {
-        final result = await ref.read(musicSdkProvider).search(keyword.trim());
-        if (!mounted || keyword != _controller.text) return;
-        setState(() => _songs = result.songs);
+      final repository = ref.read(musicRepositoryProvider);
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      if (requestedKind == _SearchKind.songs) {
+        await for (final result in repository.search(
+          normalizedKeyword,
+          userId: userId,
+        )) {
+          if (!_isCurrentSearch(keyword, requestedKind)) return;
+          setState(() => _songs = result.songs);
+        }
       } else {
-        final result = await ref
-            .read(musicSdkProvider)
-            .searchPlaylists(keyword.trim());
-        if (!mounted || keyword != _controller.text) return;
-        setState(() => _playlists = result.items);
+        await for (final result in repository.searchPlaylists(
+          normalizedKeyword,
+          userId: userId,
+        )) {
+          if (!_isCurrentSearch(keyword, requestedKind)) return;
+          setState(() => _playlists = result.items);
+        }
       }
     } catch (error) {
       if (!mounted) return;
@@ -74,6 +84,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  bool _isCurrentSearch(String keyword, _SearchKind kind) =>
+      mounted && keyword == _controller.text && kind == _kind;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -162,7 +175,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 horizontal: 20,
                 vertical: 5,
               ),
-              leading: SongArtwork(url: playlist.artworkUrl),
+              leading: SongArtwork(
+                url: playlist.artworkUrl,
+                cacheId:
+                    'playlist:${playlist.globalCollectionId ?? playlist.specialId}',
+              ),
               title: Text(
                 playlist.name,
                 maxLines: 1,

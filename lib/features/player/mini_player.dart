@@ -28,6 +28,7 @@ class MiniPlayer extends ConsumerWidget {
                   const SizedBox(width: 12),
                   SongArtwork(
                     url: item.artUri?.toString(),
+                    cacheId: 'song:${item.id}',
                     size: 48,
                     radius: 12,
                   ),

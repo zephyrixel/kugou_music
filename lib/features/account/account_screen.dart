@@ -60,7 +60,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
-    if (!auth.authenticated) return _GuestAccount(message: auth.message);
+    if (!auth.authenticated) {
+      return _GuestAccount(
+        message: auth.message,
+        onClearCache: () => _clearCaches(context, ref),
+      );
+    }
     final profile = ref.watch(userProfileProvider);
     final vip = ref.watch(userVipProvider);
     final playlists = ref.watch(cloudPlaylistsProvider);
@@ -97,8 +102,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'logout') _confirmLogout(context, ref);
+                  if (value == 'clear_cache') _clearCaches(context, ref);
                 },
                 itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'clear_cache', child: Text('清理临时缓存')),
                   PopupMenuItem(value: 'logout', child: Text('退出登录')),
                 ],
               ),
@@ -177,8 +184,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 }
 
 class _GuestAccount extends StatelessWidget {
-  const _GuestAccount({this.message});
+  const _GuestAccount({this.message, required this.onClearCache});
   final String? message;
+  final VoidCallback onClearCache;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -187,7 +195,21 @@ class _GuestAccount extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('我的', style: Theme.of(context).textTheme.headlineLarge),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '我的',
+                  style: Theme.of(context).textTheme.headlineLarge,
+                ),
+              ),
+              IconButton(
+                tooltip: '清理临时缓存',
+                onPressed: onClearCache,
+                icon: const Icon(Icons.cleaning_services_outlined),
+              ),
+            ],
+          ),
           const Spacer(),
           const Icon(
             Icons.person_outline_rounded,
@@ -248,7 +270,12 @@ class _ProfileCard extends StatelessWidget {
       error: (error, _) => Text(error.toString()),
       data: (user) => Row(
         children: [
-          SongArtwork(url: user.avatarUrl, size: 72, radius: 36),
+          SongArtwork(
+            url: user.avatarUrl,
+            cacheId: 'user:${user.userId ?? user.username ?? user.displayName}',
+            size: 72,
+            radius: 36,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -319,7 +346,10 @@ class _PlaylistRow extends StatelessWidget {
   Widget build(BuildContext context) => ListTile(
     contentPadding: const EdgeInsets.symmetric(vertical: 3),
     onTap: () => context.push('/playlist', extra: playlist),
-    leading: SongArtwork(url: playlist.artworkUrl),
+    leading: SongArtwork(
+      url: playlist.artworkUrl,
+      cacheId: 'playlist:${playlist.listId ?? playlist.globalCollectionId}',
+    ),
     title: Text(playlist.name),
     subtitle: Text(
       '${playlist.count ?? 0} 首${playlist.isMyFavorite
@@ -387,8 +417,12 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
   if (accepted != true || name.text.trim().isEmpty) return;
   try {
     await ref
-        .read(musicSdkProvider)
-        .createPlaylist(name.text.trim(), private: private);
+        .read(musicRepositoryProvider)
+        .createPlaylist(
+          ref.read(authControllerProvider).snapshot.userId!,
+          name.text.trim(),
+          private: private,
+        );
     ref.invalidate(cloudPlaylistsProvider);
   } catch (error) {
     if (context.mounted) {
@@ -418,4 +452,39 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     ),
   );
   if (accepted == true) await ref.read(authControllerProvider).logout();
+}
+
+Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
+  final accepted = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('清理临时缓存？'),
+      content: const Text('会清理歌曲文件、图片和接口缓存，本地收藏、播放历史与登录状态会保留。'),
+      actions: [
+        TextButton(
+          onPressed: () => context.pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => context.pop(true),
+          child: const Text('清理'),
+        ),
+      ],
+    ),
+  );
+  if (accepted != true) return;
+  try {
+    await ref.read(cacheCoordinatorProvider).clearTransientCaches();
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('临时缓存已清理')));
+    }
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('清理缓存失败：$error')));
+    }
+  }
 }

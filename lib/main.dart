@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/app/app.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
@@ -16,8 +17,9 @@ Future<void> main() async {
   final database = AppDatabase();
   final sdk = KugouMusicSdk(const FlutterSecureStorage());
   await sdk.initialize();
+  final audioCache = await AudioCacheManager.create();
   final audioHandler = await AudioService.init<MusicAudioHandler>(
-    builder: () => MusicAudioHandler(sdk, database),
+    builder: () => MusicAudioHandler(sdk, database, audioCache),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.zephyrixel.kgmusic.playback',
       androidNotificationChannelName: 'KGMusic 播放',
@@ -30,6 +32,7 @@ Future<void> main() async {
       overrides: [
         musicSdkProvider.overrideWithValue(sdk),
         databaseProvider.overrideWithValue(database),
+        audioCacheProvider.overrideWithValue(audioCache),
         audioHandlerProvider.overrideWithValue(audioHandler),
       ],
       child: KgMusicApp(),

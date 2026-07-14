@@ -8,6 +8,7 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/cloud_playlist.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
@@ -32,6 +33,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
   int? _total;
   int _nextPage = 1;
   int _loadGeneration = 0;
+  final Map<int, SearchPage> _pages = {};
   bool _initialLoading = true;
   bool _loadingMore = false;
   bool _hasMore = true;
@@ -79,6 +81,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     setState(() {
       if (reset) {
         _songs = const [];
+        _pages.clear();
         _initialError = null;
         _loadMoreError = null;
         _total = null;
@@ -93,68 +96,76 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     });
 
     try {
-      final sdk = ref.read(musicSdkProvider);
-      final page = cloud != null
-          ? await sdk.playlistTracks(
-              cloud!,
-              page: requestedPage,
-              pageSize: _pageSize,
-            )
-          : await sdk.publicPlaylistTracks(
-              search!.globalCollectionId!,
-              page: requestedPage,
-              pageSize: _pageSize,
-            );
-      if (!mounted || generation != _loadGeneration) return;
-
-      final merged = reset ? <Song>[] : <Song>[..._songs];
-      final knownSongIds = merged.map((song) => song.id).toSet();
-      for (final song in page.songs) {
-        if (knownSongIds.add(song.id)) merged.add(song);
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      final pages = cloud != null
+          ? ref
+                .read(musicRepositoryProvider)
+                .playlistTracks(
+                  userId!,
+                  cloud!,
+                  page: requestedPage,
+                  pageSize: _pageSize,
+                )
+          : ref
+                .read(musicRepositoryProvider)
+                .publicPlaylistTracks(
+                  search!.globalCollectionId!,
+                  userId: userId,
+                  page: requestedPage,
+                  pageSize: _pageSize,
+                );
+      await for (final page in pages) {
+        if (!mounted || generation != _loadGeneration) return;
+        _pages[page.page] = page;
+        final merged = <Song>[];
+        final knownSongIds = <String>{};
+        final snapshots = _pages.values.toList()
+          ..sort((a, b) => a.page.compareTo(b.page));
+        for (final snapshot in snapshots) {
+          for (final song in snapshot.songs) {
+            if (knownSongIds.add(song.id)) merged.add(song);
+          }
+        }
+        final total = page.total ?? _total;
+        setState(() {
+          _songs = List.unmodifiable(merged);
+          _total = total;
+          _nextPage = _pages.keys.isEmpty
+              ? 1
+              : _pages.keys.reduce((a, b) => a > b ? a : b) + 1;
+          _hasMore = canLoadNextPage(
+            loadedItemCount: merged.length,
+            lastPageItemCount: page.songs.length,
+            pageSize: page.pageSize,
+            total: total,
+          );
+          _initialLoading = false;
+          _loadingMore = true;
+        });
       }
-      final total = page.total ?? _total;
-      final previousCount = reset ? 0 : _songs.length;
-      setState(() {
-        _songs = List.unmodifiable(merged);
-        _total = total;
-        _nextPage = page.page + 1;
-        _hasMore =
-            merged.length > previousCount &&
-            canLoadNextPage(
-              loadedItemCount: merged.length,
-              lastPageItemCount: page.songs.length,
-              pageSize: page.pageSize,
-              total: total,
-            );
-        _initialLoading = false;
-        _loadingMore = false;
-      });
-      try {
-        await _cacheLoadedSongs();
-      } catch (_) {
-        // A local cache failure must not discard a successfully loaded page.
+      if (mounted) {
+        setState(() => _loadingMore = false);
       }
       _loadAgainIfViewportIsShort();
     } catch (error) {
       if (!mounted || generation != _loadGeneration) return;
+      final authenticationFailed =
+          error is MusicSdkException &&
+          (error.expired || error.authenticationRequired);
       setState(() {
+        if (authenticationFailed) {
+          _pages.clear();
+          _songs = const [];
+        }
         if (reset) {
           _initialError = error;
           _initialLoading = false;
         } else {
           _loadMoreError = error;
-          _loadingMore = false;
         }
+        _loadingMore = false;
       });
     }
-  }
-
-  Future<void> _cacheLoadedSongs() async {
-    final userId = ref.read(authControllerProvider).snapshot.userId;
-    if (cloud?.listId == null || userId == null) return;
-    await ref
-        .read(databaseProvider)
-        .cacheCloudTracks(userId, cloud!.listId!, _songs);
   }
 
   void _loadAgainIfViewportIsShort() {
@@ -200,6 +211,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
             child: _Header(
               title: title,
               artwork: artwork,
+              cacheId:
+                  'playlist:${cloud?.listId ?? search?.globalCollectionId}',
               count:
                   _total ?? cloud?.count ?? search?.songCount ?? _songs.length,
             ),
@@ -289,7 +302,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       return;
     }
     try {
-      await ref.read(musicSdkProvider).collectPlaylist(search!);
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      if (userId == null) return;
+      await ref.read(musicRepositoryProvider).collectPlaylist(userId, search!);
       ref.invalidate(cloudPlaylistsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
@@ -307,9 +322,11 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
 
   Future<void> _remove(Song song) async {
     try {
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      if (userId == null) return;
       await ref
-          .read(musicSdkProvider)
-          .removeSongFromPlaylist(cloud!.listId!, song.fileId!);
+          .read(musicRepositoryProvider)
+          .removeSongFromPlaylist(userId, cloud!.listId!, song.fileId!);
       ref.invalidate(myFavoriteSongsProvider);
       await _reload();
     } catch (error) {
@@ -372,9 +389,12 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     );
     if (accepted != true) return;
     try {
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      if (userId == null) return;
       await ref
-          .read(musicSdkProvider)
+          .read(musicRepositoryProvider)
           .editPlaylist(
+            userId,
             PlaylistEditInput(
               listId: cloud!.listId!,
               name: name.text.trim(),
@@ -414,7 +434,9 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     );
     if (accepted != true) return;
     try {
-      await ref.read(musicSdkProvider).deletePlaylist(cloud!);
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      if (userId == null) return;
+      await ref.read(musicRepositoryProvider).deletePlaylist(userId, cloud!);
       ref.invalidate(cloudPlaylistsProvider);
       if (mounted) context.pop();
     } catch (error) {
@@ -457,17 +479,19 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.title,
     required this.artwork,
+    required this.cacheId,
     required this.count,
   });
   final String title;
   final String? artwork;
+  final String cacheId;
   final int count;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
     child: Row(
       children: [
-        SongArtwork(url: artwork, size: 118, radius: 24),
+        SongArtwork(url: artwork, cacheId: cacheId, size: 118, radius: 24),
         const SizedBox(width: 20),
         Expanded(
           child: Column(

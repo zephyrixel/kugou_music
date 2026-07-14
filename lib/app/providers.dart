@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show ChangeNotifierProvider;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kgmusic/core/cache/audio_cache.dart';
+import 'package:kgmusic/core/cache/cache_coordinator.dart';
+import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
@@ -20,8 +23,24 @@ final databaseProvider = Provider<AppDatabase>(
   (ref) => throw UnimplementedError('databaseProvider must be overridden'),
 );
 
+final musicRepositoryProvider = Provider<MusicRepository>(
+  (ref) =>
+      MusicRepository(ref.watch(musicSdkProvider), ref.watch(databaseProvider)),
+);
+
 final audioHandlerProvider = Provider<MusicAudioHandler>(
   (ref) => throw UnimplementedError('audioHandlerProvider must be overridden'),
+);
+
+final audioCacheProvider = Provider<AudioCacheManager>(
+  (ref) => throw UnimplementedError('audioCacheProvider must be overridden'),
+);
+
+final cacheCoordinatorProvider = Provider<CacheCoordinator>(
+  (ref) => CacheCoordinator(
+    ref.watch(databaseProvider),
+    ref.watch(audioCacheProvider),
+  ),
 );
 
 final secureStorageProvider = Provider<FlutterSecureStorage>(
@@ -38,9 +57,12 @@ final authControllerProvider = ChangeNotifierProvider<AuthController>((ref) {
   return controller;
 });
 
-final dailyRecommendationsProvider = FutureProvider<List<Song>>(
-  (ref) => ref.watch(musicSdkProvider).everydayRecommendations(),
-);
+final dailyRecommendationsProvider = StreamProvider<List<Song>>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  return ref
+      .watch(musicRepositoryProvider)
+      .everydayRecommendations(userId: auth.snapshot.userId);
+});
 
 final favoritesProvider = StreamProvider<List<Song>>(
   (ref) => ref.watch(databaseProvider).watchFavorites(),
@@ -50,14 +72,18 @@ final historyProvider = StreamProvider<List<Song>>(
   (ref) => ref.watch(databaseProvider).watchHistory(),
 );
 
-final userProfileProvider = FutureProvider<UserProfile>((ref) {
-  ref.watch(authControllerProvider);
-  return ref.watch(musicSdkProvider).userProfile();
+final userProfileProvider = StreamProvider<UserProfile>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  final userId = auth.snapshot.userId;
+  if (userId == null) return const Stream.empty();
+  return ref.watch(musicRepositoryProvider).userProfile(userId);
 });
 
-final userVipProvider = FutureProvider<UserVip>((ref) {
-  ref.watch(authControllerProvider);
-  return ref.watch(musicSdkProvider).userVip();
+final userVipProvider = StreamProvider<UserVip>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  final userId = auth.snapshot.userId;
+  if (userId == null) return const Stream.empty();
+  return ref.watch(musicRepositoryProvider).userVip(userId);
 });
 
 final cloudPlaylistsProvider =
@@ -68,14 +94,51 @@ final cloudPlaylistsProvider =
 class CloudPlaylistsController extends AsyncNotifier<CloudPlaylistPage> {
   bool _loadingMore = false;
   int _lastPageItemCount = 0;
+  int _generation = 0;
+  final Map<int, CloudPlaylistPage> _pages = {};
 
   @override
   Future<CloudPlaylistPage> build() async {
+    final generation = ++_generation;
+    _loadingMore = false;
+    _pages.clear();
     final auth = ref.watch(authControllerProvider);
-    final result = await ref.watch(musicSdkProvider).cloudPlaylists();
-    _lastPageItemCount = result.items.length;
-    await _cache(auth.snapshot.userId, result.items);
-    return result;
+    final userId = auth.snapshot.userId;
+    if (userId == null) {
+      return const CloudPlaylistPage(items: [], page: 1, pageSize: 50);
+    }
+    final iterator = StreamIterator(
+      ref.watch(musicRepositoryProvider).cloudPlaylists(userId),
+    );
+    ref.onDispose(iterator.cancel);
+    if (!await iterator.moveNext()) {
+      return const CloudPlaylistPage(items: [], page: 1, pageSize: 50);
+    }
+    final result = iterator.current;
+    _pages[result.page] = result;
+    _updateLastPageItemCount();
+    unawaited(_consumeFirstPage(iterator, generation));
+    return _aggregatePages();
+  }
+
+  Future<void> _consumeFirstPage(
+    StreamIterator<CloudPlaylistPage> iterator,
+    int generation,
+  ) async {
+    try {
+      await Future<void>.delayed(Duration.zero);
+      while (await iterator.moveNext()) {
+        if (!ref.mounted || generation != _generation) return;
+        final fresh = iterator.current;
+        _pages[fresh.page] = fresh;
+        _updateLastPageItemCount();
+        state = AsyncData(_aggregatePages());
+      }
+    } catch (error, stackTrace) {
+      if (ref.mounted && generation == _generation) {
+        state = AsyncError(error, stackTrace);
+      }
+    }
   }
 
   Future<void> loadMore() async {
@@ -91,48 +154,80 @@ class CloudPlaylistsController extends AsyncNotifier<CloudPlaylistPage> {
     }
 
     _loadingMore = true;
+    final generation = _generation;
     try {
-      final next = await ref
-          .read(musicSdkProvider)
-          .cloudPlaylists(page: current.page + 1, pageSize: current.pageSize);
-      _lastPageItemCount = next.items.length;
-      final merged = <CloudPlaylist>[...current.items];
-      final known = current.items.map(_playlistKey).toSet();
-      for (final playlist in next.items) {
-        if (known.add(_playlistKey(playlist))) merged.add(playlist);
+      final userId = ref.read(authControllerProvider).snapshot.userId;
+      if (userId == null) return;
+      final requestedPage = _pages.keys.isEmpty
+          ? 1
+          : _pages.keys.reduce((a, b) => a > b ? a : b) + 1;
+      await for (final next
+          in ref
+              .read(musicRepositoryProvider)
+              .cloudPlaylists(
+                userId,
+                page: requestedPage,
+                pageSize: current.pageSize,
+              )) {
+        if (!ref.mounted || generation != _generation) return;
+        _pages[next.page] = next;
+        _updateLastPageItemCount();
+        state = AsyncData(_aggregatePages());
       }
-      if (merged.length == current.items.length) _lastPageItemCount = 0;
-      final result = CloudPlaylistPage(
-        items: List.unmodifiable(merged),
-        page: next.page,
-        pageSize: next.pageSize,
-        total: next.total ?? current.total,
-        totalVersion: next.totalVersion ?? current.totalVersion,
-      );
-      await _cache(
-        ref.read(authControllerProvider).snapshot.userId,
-        result.items,
-      );
-      state = AsyncData(result);
     } finally {
-      _loadingMore = false;
+      if (generation == _generation) _loadingMore = false;
     }
-  }
-
-  Future<void> _cache(int? userId, List<CloudPlaylist> playlists) async {
-    if (userId == null) return;
-    await ref.read(databaseProvider).cacheCloudPlaylists(userId, playlists);
   }
 
   String _playlistKey(CloudPlaylist playlist) =>
       playlist.listId?.toString() ??
       playlist.globalCollectionId ??
       playlist.name;
+
+  CloudPlaylistPage _aggregatePages() {
+    final snapshots = _pages.values.toList()
+      ..sort((a, b) => a.page.compareTo(b.page));
+    if (snapshots.isEmpty) {
+      return const CloudPlaylistPage(items: [], page: 1, pageSize: 50);
+    }
+    final items = <CloudPlaylist>[];
+    final known = <String>{};
+    for (final snapshot in snapshots) {
+      for (final playlist in snapshot.items) {
+        if (known.add(_playlistKey(playlist))) items.add(playlist);
+      }
+    }
+    final latest = snapshots.last;
+    return CloudPlaylistPage(
+      items: List.unmodifiable(items),
+      page: latest.page,
+      pageSize: latest.pageSize,
+      total: latest.total ?? snapshots.first.total,
+      totalVersion: latest.totalVersion ?? snapshots.first.totalVersion,
+    );
+  }
+
+  void _updateLastPageItemCount() {
+    if (_pages.isEmpty) {
+      _lastPageItemCount = 0;
+      return;
+    }
+    final lastPage = _pages.keys.reduce((a, b) => a > b ? a : b);
+    final earlierKeys = <String>{};
+    for (final entry in _pages.entries) {
+      if (entry.key >= lastPage) continue;
+      earlierKeys.addAll(entry.value.items.map(_playlistKey));
+    }
+    _lastPageItemCount = _pages[lastPage]!.items
+        .where((item) => !earlierKeys.contains(_playlistKey(item)))
+        .length;
+  }
 }
 
-final cloudHistoryProvider = FutureProvider<List<Song>>((ref) {
-  ref.watch(authControllerProvider);
-  return ref.watch(musicSdkProvider).cloudHistory();
+final cloudHistoryProvider = StreamProvider<List<Song>>((ref) {
+  final userId = ref.watch(authControllerProvider).snapshot.userId;
+  if (userId == null) return const Stream.empty();
+  return ref.watch(musicRepositoryProvider).cloudHistory(userId);
 });
 
 final myFavoritePlaylistProvider = FutureProvider<CloudPlaylist?>((ref) async {
@@ -143,16 +238,13 @@ final myFavoritePlaylistProvider = FutureProvider<CloudPlaylist?>((ref) async {
   return null;
 });
 
-final myFavoriteSongsProvider = FutureProvider<List<Song>>((ref) async {
+final myFavoriteSongsProvider = StreamProvider<List<Song>>((ref) async* {
   final auth = ref.watch(authControllerProvider);
   final playlist = await ref.watch(myFavoritePlaylistProvider.future);
-  if (playlist == null) return const [];
-  final result = await ref.watch(musicSdkProvider).playlistTracks(playlist);
   final userId = auth.snapshot.userId;
-  if (userId != null && playlist.listId != null) {
-    await ref
-        .read(databaseProvider)
-        .cacheCloudTracks(userId, playlist.listId!, result.songs);
+  if (playlist == null || userId == null) return;
+  await for (final result
+      in ref.watch(musicRepositoryProvider).playlistTracks(userId, playlist)) {
+    yield result.songs;
   }
-  return result.songs;
 });
