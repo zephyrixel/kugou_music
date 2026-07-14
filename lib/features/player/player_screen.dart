@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_favorite_button.dart';
@@ -29,6 +30,9 @@ class PlayerScreen extends ConsumerWidget {
           final currentSong = index >= 0 && index < handler.songs.length
               ? handler.songs[index]
               : null;
+          final artworkSize = (MediaQuery.sizeOf(context).height * 0.36)
+              .clamp(200.0, 300.0)
+              .toDouble();
           return Padding(
             padding: const EdgeInsets.fromLTRB(28, 16, 28, 34),
             child: Column(
@@ -36,7 +40,7 @@ class PlayerScreen extends ConsumerWidget {
                 const Spacer(),
                 SongArtwork(
                   url: item.artUri?.toString(),
-                  size: 300,
+                  size: artworkSize,
                   radius: 30,
                 ),
                 const Spacer(),
@@ -66,7 +70,17 @@ class PlayerScreen extends ConsumerWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: 20),
+                if (currentSong != null) ...[
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _QualitySelector(
+                      handler: handler,
+                      song: currentSong,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
                 _Progress(handler: handler),
                 const SizedBox(height: 18),
                 StreamBuilder<PlaybackState>(
@@ -110,6 +124,122 @@ class PlayerScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+}
+
+class _QualitySelector extends StatelessWidget {
+  const _QualitySelector({required this.handler, required this.song});
+
+  final MusicAudioHandler handler;
+  final Song song;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<PlaybackQualityState>(
+    stream: handler.qualityStateStream,
+    initialData: handler.qualityState,
+    builder: (context, snapshot) {
+      final state = snapshot.data ?? handler.qualityState;
+      return PopupMenuButton<AudioQuality>(
+        tooltip: '切换播放音质',
+        enabled: !state.switching,
+        onSelected: (quality) => _switchQuality(context, quality),
+        itemBuilder: (context) => AudioQuality.values
+            .map((quality) {
+              final available = quality.isAvailableFor(song);
+              return PopupMenuItem<AudioQuality>(
+                value: quality,
+                enabled: available,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 32,
+                      child: Icon(
+                        state.requested == quality
+                            ? Icons.check_circle_rounded
+                            : Icons.radio_button_unchecked_rounded,
+                        color: state.requested == quality
+                            ? KgColors.accent
+                            : KgColors.textMuted,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(quality.label),
+                          Text(
+                            available
+                                ? quality.detail
+                                : '${quality.detail} · 无可用资源',
+                            style: const TextStyle(
+                              color: KgColors.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            })
+            .toList(growable: false),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: KgColors.elevated,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (state.switching)
+                const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                const Icon(Icons.graphic_eq_rounded, size: 18),
+              const SizedBox(width: 8),
+              Text(_qualityLabel(state)),
+              const SizedBox(width: 4),
+              const Icon(Icons.arrow_drop_down_rounded, size: 20),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  String _qualityLabel(PlaybackQualityState state) {
+    if (state.switching) return '正在切换到 ${state.requested.label}';
+    final actual = state.actual ?? state.requested;
+    final bitRate = state.bitRateKbps;
+    final parts = <String>[
+      if (state.preview) '试听',
+      actual.label,
+      if (bitRate != null) '$bitRate kbps',
+      if (state.fellBack) '已回退',
+    ];
+    return parts.join(' · ');
+  }
+
+  Future<void> _switchQuality(
+    BuildContext context,
+    AudioQuality quality,
+  ) async {
+    try {
+      await handler.setPlaybackQuality(quality);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('切换音质失败：$error')));
+      }
+    }
   }
 }
 

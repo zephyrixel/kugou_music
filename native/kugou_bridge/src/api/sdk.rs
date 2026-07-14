@@ -108,7 +108,7 @@ pub struct SongDto {
     pub hashes: AudioHashesDto,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AudioHashesDto {
     pub standard: Option<String>,
     pub high: Option<String>,
@@ -117,7 +117,7 @@ pub struct AudioHashesDto {
     pub super_hash: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AudioQualityDto {
     Standard,
     High,
@@ -138,12 +138,14 @@ pub enum PlaybackResolutionDto {
     Playable {
         url: String,
         artwork_url: Option<String>,
+        quality: AudioQualityDto,
         bit_rate: Option<u64>,
         duration_secs: Option<u64>,
     },
     Preview {
         url: String,
         artwork_url: Option<String>,
+        quality: AudioQualityDto,
         end_ms: Option<u64>,
         bit_rate: Option<u64>,
         duration_secs: Option<u64>,
@@ -462,16 +464,19 @@ pub async fn resolve_playback(
     let bit_rate = response.data.bit_rate;
     let duration_secs = response.data.duration_secs;
     let artwork_url = artwork_from_extra(&response.data.extra);
+    let quality = audio_quality_to_dto(actual_quality);
     Ok(match response.data.outcome() {
         PlaybackOutcome::Playable { url } => PlaybackResolutionDto::Playable {
             url,
             artwork_url,
+            quality,
             bit_rate,
             duration_secs,
         },
         PlaybackOutcome::Preview { url, end_ms } => PlaybackResolutionDto::Preview {
             url,
             artwork_url,
+            quality,
             end_ms,
             bit_rate,
             duration_secs,
@@ -828,25 +833,57 @@ fn validated_search(request: &SearchRequestDto) -> Result<(&str, u32, u32), Brid
     ))
 }
 
-fn song_to_dto_with_artwork(song: &SongRef, artwork_url: Option<String>) -> SongDto {
+#[derive(Debug, Clone, Default)]
+#[flutter_rust_bridge::frb(ignore)]
+struct SongDetailEnrichment {
+    artwork_url: Option<String>,
+    hashes: AudioHashesDto,
+}
+
+fn song_to_dto_with_enrichment(
+    song: &SongRef,
+    enrichment: Option<&SongDetailEnrichment>,
+) -> SongDto {
     let primary_hash = song.primary_hash().map(str::to_ascii_lowercase);
+    let detail_hashes = enrichment.map(|value| &value.hashes);
     SongDto {
         id: stable_song_id(song.mix_song_id, primary_hash.as_deref()),
         title: song.display_name().to_owned(),
         artist: song.singer.clone(),
         album: song.album.clone(),
         duration_secs: song.duration_secs,
-        artwork_url,
+        artwork_url: artwork_from_extra(&song.extra)
+            .or_else(|| enrichment.and_then(|value| value.artwork_url.clone())),
         privilege: song.privilege,
         album_id: song.album_id,
         mix_song_id: song.mix_song_id,
         file_id: song.file_id,
         hashes: AudioHashesDto {
-            standard: song.resources.standard.clone(),
-            high: song.resources.high.clone(),
-            flac: song.resources.flac.clone(),
-            hi_res: song.resources.hires.clone(),
-            super_hash: song.resources.super_hash.clone(),
+            standard: song
+                .resources
+                .standard
+                .clone()
+                .or_else(|| detail_hashes.and_then(|hashes| hashes.standard.clone())),
+            high: song
+                .resources
+                .high
+                .clone()
+                .or_else(|| detail_hashes.and_then(|hashes| hashes.high.clone())),
+            flac: song
+                .resources
+                .flac
+                .clone()
+                .or_else(|| detail_hashes.and_then(|hashes| hashes.flac.clone())),
+            hi_res: song
+                .resources
+                .hires
+                .clone()
+                .or_else(|| detail_hashes.and_then(|hashes| hashes.hi_res.clone())),
+            super_hash: song
+                .resources
+                .super_hash
+                .clone()
+                .or_else(|| detail_hashes.and_then(|hashes| hashes.super_hash.clone())),
         },
     }
 }
@@ -856,36 +893,33 @@ async fn songs_to_dtos_with_artwork(
     session: &mut Session,
     songs: &[SongRef],
 ) -> Vec<SongDto> {
-    let mut artwork_by_mix_id = HashMap::new();
-    let mut missing_mix_ids = Vec::new();
+    let mut enrichment_by_mix_id = HashMap::new();
+    let mut mix_ids = Vec::new();
 
     for song in songs {
         let Some(mix_id) = song.mix_song_id else {
             continue;
         };
-        if let Some(artwork) = artwork_from_extra(&song.extra) {
-            artwork_by_mix_id.insert(mix_id, artwork);
-        } else if !missing_mix_ids.contains(&mix_id) {
-            missing_mix_ids.push(mix_id);
+        if !mix_ids.contains(&mix_id) {
+            mix_ids.push(mix_id);
         }
     }
 
-    // Artwork is optional metadata. Enrich in bounded batches, but never make a
-    // playable song list fail because the detail endpoint is unavailable.
-    for chunk in missing_mix_ids.chunks(40) {
+    // Cover art and higher-quality hashes are optional metadata. Enrich in
+    // bounded batches, but never make the base song list fail with details.
+    for chunk in mix_ids.chunks(40) {
         if let Ok(response) = client.songs().details_by_mix_ids_raw(session, chunk).await {
-            collect_detail_artwork(&response.data, &mut artwork_by_mix_id);
+            collect_detail_enrichment(&response.data, &mut enrichment_by_mix_id);
         }
     }
 
     songs
         .iter()
         .map(|song| {
-            let artwork = artwork_from_extra(&song.extra).or_else(|| {
-                song.mix_song_id
-                    .and_then(|id| artwork_by_mix_id.get(&id).cloned())
-            });
-            song_to_dto_with_artwork(song, artwork)
+            let enrichment = song
+                .mix_song_id
+                .and_then(|id| enrichment_by_mix_id.get(&id));
+            song_to_dto_with_enrichment(song, enrichment)
         })
         .collect()
 }
@@ -962,11 +996,11 @@ fn nonempty_artwork(value: &str) -> Option<String> {
     (!value.is_empty() && value != "-").then(|| value.to_owned())
 }
 
-fn collect_detail_artwork(value: &Value, output: &mut HashMap<u64, String>) {
+fn collect_detail_enrichment(value: &Value, output: &mut HashMap<u64, SongDetailEnrichment>) {
     match value {
         Value::Array(items) => {
             for item in items {
-                collect_detail_artwork(item, output);
+                collect_detail_enrichment(item, output);
             }
         }
         Value::Object(object) => {
@@ -979,17 +1013,65 @@ fn collect_detail_artwork(value: &Value, output: &mut HashMap<u64, String>) {
                         )
                     })
                 });
-            if let (Some(mix_id), Some(artwork)) = (mix_id, artwork_from_value(value)) {
-                output.insert(mix_id, artwork);
+            if let Some(mix_id) = mix_id {
+                output.insert(
+                    mix_id,
+                    SongDetailEnrichment {
+                        artwork_url: artwork_from_value(value),
+                        hashes: audio_hashes_from_detail(value),
+                    },
+                );
             }
             for key in ["data", "items", "info", "list", "lists"] {
                 if let Some(nested) = object.get(key) {
-                    collect_detail_artwork(nested, output);
+                    collect_detail_enrichment(nested, output);
                 }
             }
         }
         _ => {}
     }
+}
+
+fn audio_hashes_from_detail(value: &Value) -> AudioHashesDto {
+    let audio_info = value
+        .as_object()
+        .and_then(|object| object_value_for_key(object, "audio_info"));
+    let find = |keys: &[&str]| {
+        string_for_keys(value, keys)
+            .or_else(|| audio_info.and_then(|audio_info| string_for_keys(audio_info, keys)))
+    };
+    AudioHashesDto {
+        standard: find(&["FileHash", "filehash", "hash", "hash_128"]),
+        high: find(&["HQFileHash", "hq_hash", "hash_320", "320hash"]),
+        flac: find(&["SQFileHash", "sq_hash", "hash_flac", "sqhash"]),
+        hi_res: find(&["ResFileHash", "hash_high", "hash_hires"]),
+        super_hash: find(&["SuperFileHash", "super_hash", "hash_super"]),
+    }
+}
+
+fn object_value_for_key<'a>(
+    object: &'a serde_json::Map<String, Value>,
+    key: &str,
+) -> Option<&'a Value> {
+    object
+        .iter()
+        .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
+}
+
+fn string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
+    let object = value.as_object()?;
+    keys.iter().find_map(|key| {
+        object.iter().find_map(|(name, value)| {
+            if !artwork_key_matches(name, key) {
+                return None;
+            }
+            value
+                .as_str()
+                .map(str::trim)
+                .filter(|value| !value.is_empty() && *value != "-")
+                .map(str::to_owned)
+        })
+    })
 }
 
 fn value_u64_for_keys(value: &Value, keys: &[&str]) -> Option<u64> {
@@ -1083,6 +1165,17 @@ fn select_hash(
         hash.filter(|value| !value.trim().is_empty())
             .map(|value| ((*value).clone(), *actual_quality))
     })
+}
+
+fn audio_quality_to_dto(quality: AudioQuality) -> AudioQualityDto {
+    match quality {
+        AudioQuality::Standard => AudioQualityDto::Standard,
+        AudioQuality::High => AudioQualityDto::High,
+        AudioQuality::Flac => AudioQualityDto::Flac,
+        AudioQuality::HiRes => AudioQualityDto::HiRes,
+        AudioQuality::Super => AudioQualityDto::Super,
+        _ => AudioQualityDto::Standard,
+    }
 }
 
 impl BridgeError {
@@ -1185,6 +1278,7 @@ mod tests {
         let selected = select_hash(&hashes, AudioQualityDto::Flac).unwrap();
         assert_eq!(selected.0, "STD");
         assert_eq!(selected.1, AudioQuality::Standard);
+        assert_eq!(audio_quality_to_dto(selected.1), AudioQualityDto::Standard);
     }
 
     #[test]
@@ -1201,20 +1295,31 @@ mod tests {
     }
 
     #[test]
-    fn detail_artwork_is_mapped_by_mix_song_id() {
+    fn detail_artwork_and_quality_hashes_are_mapped_by_mix_song_id() {
         let detail = serde_json::json!({
             "data": [{
                 "base": {"album_audio_id": 32155307},
+                "audio_info": {
+                    "hash": "STD",
+                    "hash_320": "HQ",
+                    "hash_flac": "FLAC",
+                    "hash_high": "HIRES"
+                },
                 "album_info": {
                     "sizable_cover": "//imge.kugou.com/stdmusic/{size}/cover.jpg"
                 }
             }]
         });
         let mut result = HashMap::new();
-        collect_detail_artwork(&detail, &mut result);
+        collect_detail_enrichment(&detail, &mut result);
+        let enrichment = result.get(&32155307).unwrap();
         assert_eq!(
-            result.get(&32155307).map(String::as_str),
+            enrichment.artwork_url.as_deref(),
             Some("//imge.kugou.com/stdmusic/{size}/cover.jpg")
         );
+        assert_eq!(enrichment.hashes.standard.as_deref(), Some("STD"));
+        assert_eq!(enrichment.hashes.high.as_deref(), Some("HQ"));
+        assert_eq!(enrichment.hashes.flac.as_deref(), Some("FLAC"));
+        assert_eq!(enrichment.hashes.hi_res.as_deref(), Some("HIRES"));
     }
 }

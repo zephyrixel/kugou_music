@@ -23,15 +23,23 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   final AppDatabase _database;
   final AudioPlayer _player = AudioPlayer();
   final StreamController<String?> _messages = StreamController.broadcast();
+  final StreamController<PlaybackQualityState> _qualityStates =
+      StreamController.broadcast(sync: true);
   List<Song> _songs = const [];
   int _index = -1;
   int _loadGeneration = 0;
+  AudioQuality _preferredQuality = AudioQuality.standard;
+  PlaybackQualityState _qualityState = const PlaybackQualityState(
+    requested: AudioQuality.standard,
+  );
   Duration? _previewEnd;
   bool _previewStopped = false;
 
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
   Stream<String?> get messages => _messages.stream;
+  Stream<PlaybackQualityState> get qualityStateStream => _qualityStates.stream;
+  PlaybackQualityState get qualityState => _qualityState;
   Duration get position => _player.position;
   List<Song> get songs => List.unmodifiable(_songs);
   int get currentIndex => _index;
@@ -53,43 +61,111 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     await _loadCurrent();
   }
 
-  Future<void> _loadCurrent() async {
+  Future<void> setPlaybackQuality(AudioQuality quality) async {
+    if (quality == _preferredQuality &&
+        _qualityState.actual == quality &&
+        !_qualityState.switching) {
+      return;
+    }
+
+    if (_index < 0 || _index >= _songs.length) {
+      _preferredQuality = quality;
+      _emitQualityState(PlaybackQualityState(requested: quality));
+      return;
+    }
+
+    final previousQuality = _preferredQuality;
+    final previousState = _qualityState;
+    final resumePosition = _player.position;
+    final resumePlaying = _player.playing;
+    _preferredQuality = quality;
+    try {
+      await _loadCurrent(
+        initialPosition: resumePosition,
+        autoPlay: resumePlaying,
+        recordHistory: false,
+      );
+    } catch (_) {
+      if (_preferredQuality == quality) {
+        _preferredQuality = previousQuality;
+        _emitQualityState(previousState);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _loadCurrent({
+    Duration? initialPosition,
+    bool autoPlay = true,
+    bool recordHistory = true,
+  }) async {
     final generation = ++_loadGeneration;
     if (_index < 0 || _index >= _songs.length) return;
     final song = _songs[_index];
+    final requestedQuality = _preferredQuality;
     _messages.add(null);
     _previewEnd = null;
     _previewStopped = false;
     mediaItem.add(_toMediaItem(song));
+    _emitQualityState(
+      PlaybackQualityState(requested: requestedQuality, switching: true),
+    );
 
     try {
-      await _resolveAndPlay(song, generation);
+      await _resolveAndPlay(
+        song,
+        generation,
+        requestedQuality,
+        initialPosition: initialPosition,
+        autoPlay: autoPlay,
+        recordHistory: recordHistory,
+      );
     } on MusicSdkException catch (error) {
       if (!_isCurrentLoad(generation, song)) return;
       if (error.code == 20028) {
         try {
           await _sdk.registerDevice();
           if (!_isCurrentLoad(generation, song)) return;
-          await _resolveAndPlay(song, generation);
+          await _resolveAndPlay(
+            song,
+            generation,
+            requestedQuality,
+            initialPosition: initialPosition,
+            autoPlay: autoPlay,
+            recordHistory: recordHistory,
+          );
           return;
         } catch (_) {
           // Keep the original security challenge as the user-facing error.
         }
       }
+      _finishQualityLoadWithError(requestedQuality);
       _messages.add(error.toString());
       rethrow;
     } catch (error) {
       if (!_isCurrentLoad(generation, song)) return;
+      _finishQualityLoadWithError(requestedQuality);
       _messages.add(error.toString());
       rethrow;
     }
   }
 
-  Future<void> _resolveAndPlay(Song song, int generation) async {
-    var resolution = await _sdk.resolve(song);
+  Future<void> _resolveAndPlay(
+    Song song,
+    int generation,
+    AudioQuality requestedQuality, {
+    Duration? initialPosition,
+    required bool autoPlay,
+    required bool recordHistory,
+  }) async {
+    var resolution = await _sdk.resolve(song, quality: requestedQuality);
     if (!_isCurrentLoad(generation, song)) return;
     if (resolution is DeniedResolution || resolution is UnavailableResolution) {
-      resolution = await _sdk.resolve(song, freePreview: true);
+      resolution = await _sdk.resolve(
+        song,
+        quality: requestedQuality,
+        freePreview: true,
+      );
       if (!_isCurrentLoad(generation, song)) return;
     }
     if (resolution is! PlayableResolution) {
@@ -99,11 +175,45 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
       _previewEnd = Duration(milliseconds: resolution.endMs!);
     }
     final resolvedSong = _applyResolvedArtwork(song, resolution, generation);
-    await _player.setUrl(resolution.url);
+    var resumePosition = initialPosition == null
+        ? null
+        : autoPlay
+        ? _player.position
+        : initialPosition;
+    final previewEnd = _previewEnd;
+    if (resumePosition != null &&
+        previewEnd != null &&
+        resumePosition >= previewEnd) {
+      resumePosition = Duration.zero;
+    }
+    await _player.setUrl(resolution.url, initialPosition: resumePosition);
     if (!_isCurrentLoad(generation, resolvedSong)) return;
-    await _database.recordPlayed(resolvedSong);
+    _emitQualityState(
+      PlaybackQualityState(
+        requested: requestedQuality,
+        actual: resolution is PreviewResolution
+            ? AudioQuality.standard
+            : resolution.quality,
+        bitRate: resolution.bitRate,
+        preview: resolution is PreviewResolution,
+      ),
+    );
+    if (recordHistory) await _database.recordPlayed(resolvedSong);
     if (!_isCurrentLoad(generation, resolvedSong)) return;
-    await _player.play();
+    if (autoPlay) {
+      await _player.play();
+    } else {
+      await _player.pause();
+    }
+  }
+
+  void _finishQualityLoadWithError(AudioQuality requestedQuality) {
+    _emitQualityState(PlaybackQualityState(requested: requestedQuality));
+  }
+
+  void _emitQualityState(PlaybackQualityState state) {
+    _qualityState = state;
+    _qualityStates.add(state);
   }
 
   Song _applyResolvedArtwork(
@@ -223,4 +333,28 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
       ),
     );
   }
+}
+
+class PlaybackQualityState {
+  const PlaybackQualityState({
+    required this.requested,
+    this.actual,
+    this.bitRate,
+    this.switching = false,
+    this.preview = false,
+  });
+
+  final AudioQuality requested;
+  final AudioQuality? actual;
+  final int? bitRate;
+  final bool switching;
+  final bool preview;
+
+  int? get bitRateKbps {
+    final value = bitRate;
+    if (value == null || value <= 0) return null;
+    return value >= 10000 ? value ~/ 1000 : value;
+  }
+
+  bool get fellBack => actual != null && actual != requested;
 }

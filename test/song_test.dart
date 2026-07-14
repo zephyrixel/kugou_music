@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/player/music_audio_handler.dart';
 
 void main() {
   test('duration formatter uses music time notation', () {
@@ -30,5 +32,28 @@ void main() {
     expect(normalizeArtworkUrl(''), isNull);
     expect(normalizeArtworkUrl('/local/cover.jpg'), isNull);
     expect(normalizeArtworkUrl('file:///tmp/cover.jpg'), isNull);
+  });
+
+  test('audio quality availability follows exact resource hashes', () {
+    const song = Song(
+      id: 'quality',
+      title: 'Quality',
+      hashes: AudioHashes(standard: 'STD', high: 'HQ', flac: 'FLAC'),
+    );
+    expect(AudioQuality.standard.isAvailableFor(song), isTrue);
+    expect(AudioQuality.high.isAvailableFor(song), isTrue);
+    expect(AudioQuality.flac.isAvailableFor(song), isTrue);
+    expect(AudioQuality.hiRes.isAvailableFor(song), isFalse);
+    expect(AudioQuality.superQuality.isAvailableFor(song), isFalse);
+  });
+
+  test('playback quality state reports bitrate and fallback', () {
+    const state = PlaybackQualityState(
+      requested: AudioQuality.flac,
+      actual: AudioQuality.high,
+      bitRate: 320000,
+    );
+    expect(state.bitRateKbps, 320);
+    expect(state.fellBack, isTrue);
   });
 }

@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -298028128;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -310144552;
 
 // Section: executor
 
@@ -80,6 +80,39 @@ fn wire__crate__api__sdk__add_song_to_playlist_impl(
                     })()
                     .await,
                 )
+            }
+        },
+    )
+}
+fn wire__crate__api__sdk__audio_hashes_dto_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "audio_hashes_dto_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::sdk::AudioHashesDto::default())?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -1264,11 +1297,13 @@ impl SseDecode for crate::api::sdk::PlaybackResolutionDto {
             0 => {
                 let mut var_url = <String>::sse_decode(deserializer);
                 let mut var_artworkUrl = <Option<String>>::sse_decode(deserializer);
+                let mut var_quality = <crate::api::sdk::AudioQualityDto>::sse_decode(deserializer);
                 let mut var_bitRate = <Option<u64>>::sse_decode(deserializer);
                 let mut var_durationSecs = <Option<u64>>::sse_decode(deserializer);
                 return crate::api::sdk::PlaybackResolutionDto::Playable {
                     url: var_url,
                     artwork_url: var_artworkUrl,
+                    quality: var_quality,
                     bit_rate: var_bitRate,
                     duration_secs: var_durationSecs,
                 };
@@ -1276,12 +1311,14 @@ impl SseDecode for crate::api::sdk::PlaybackResolutionDto {
             1 => {
                 let mut var_url = <String>::sse_decode(deserializer);
                 let mut var_artworkUrl = <Option<String>>::sse_decode(deserializer);
+                let mut var_quality = <crate::api::sdk::AudioQualityDto>::sse_decode(deserializer);
                 let mut var_endMs = <Option<u64>>::sse_decode(deserializer);
                 let mut var_bitRate = <Option<u64>>::sse_decode(deserializer);
                 let mut var_durationSecs = <Option<u64>>::sse_decode(deserializer);
                 return crate::api::sdk::PlaybackResolutionDto::Preview {
                     url: var_url,
                     artwork_url: var_artworkUrl,
+                    quality: var_quality,
                     end_ms: var_endMs,
                     bit_rate: var_bitRate,
                     duration_secs: var_durationSecs,
@@ -1619,37 +1656,40 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__sdk__add_song_to_playlist_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__sdk__collect_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__sdk__create_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__sdk__delete_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__sdk__edit_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__sdk__export_session_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__sdk__get_everyday_recommendations_impl(
+        2 => {
+            wire__crate__api__sdk__audio_hashes_dto_default_impl(port, ptr, rust_vec_len, data_len)
+        }
+        3 => wire__crate__api__sdk__collect_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__sdk__create_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__sdk__delete_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__sdk__edit_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__sdk__export_session_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__sdk__get_everyday_recommendations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__sdk__get_playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__sdk__import_session_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__sdk__logout_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__sdk__refresh_login_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__sdk__register_device_impl(port, ptr, rust_vec_len, data_len),
-        22 => {
+        12 => wire__crate__api__sdk__get_playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__sdk__import_session_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__sdk__logout_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__sdk__refresh_login_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__sdk__register_device_impl(port, ptr, rust_vec_len, data_len),
+        23 => {
             wire__crate__api__sdk__remove_song_from_playlist_impl(port, ptr, rust_vec_len, data_len)
         }
-        23 => wire__crate__api__sdk__resolve_playback_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__sdk__resolve_playback_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1662,7 +1702,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        12 => wire__crate__api__sdk__get_sdk_capabilities_impl(ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__sdk__get_sdk_capabilities_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1847,12 +1887,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::sdk::PlaybackResolutionDto {
             crate::api::sdk::PlaybackResolutionDto::Playable {
                 url,
                 artwork_url,
+                quality,
                 bit_rate,
                 duration_secs,
             } => [
                 0.into_dart(),
                 url.into_into_dart().into_dart(),
                 artwork_url.into_into_dart().into_dart(),
+                quality.into_into_dart().into_dart(),
                 bit_rate.into_into_dart().into_dart(),
                 duration_secs.into_into_dart().into_dart(),
             ]
@@ -1860,6 +1902,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sdk::PlaybackResolutionDto {
             crate::api::sdk::PlaybackResolutionDto::Preview {
                 url,
                 artwork_url,
+                quality,
                 end_ms,
                 bit_rate,
                 duration_secs,
@@ -1867,6 +1910,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sdk::PlaybackResolutionDto {
                 1.into_dart(),
                 url.into_into_dart().into_dart(),
                 artwork_url.into_into_dart().into_dart(),
+                quality.into_into_dart().into_dart(),
                 end_ms.into_into_dart().into_dart(),
                 bit_rate.into_into_dart().into_dart(),
                 duration_secs.into_into_dart().into_dart(),
@@ -2465,18 +2509,21 @@ impl SseEncode for crate::api::sdk::PlaybackResolutionDto {
             crate::api::sdk::PlaybackResolutionDto::Playable {
                 url,
                 artwork_url,
+                quality,
                 bit_rate,
                 duration_secs,
             } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(url, serializer);
                 <Option<String>>::sse_encode(artwork_url, serializer);
+                <crate::api::sdk::AudioQualityDto>::sse_encode(quality, serializer);
                 <Option<u64>>::sse_encode(bit_rate, serializer);
                 <Option<u64>>::sse_encode(duration_secs, serializer);
             }
             crate::api::sdk::PlaybackResolutionDto::Preview {
                 url,
                 artwork_url,
+                quality,
                 end_ms,
                 bit_rate,
                 duration_secs,
@@ -2484,6 +2531,7 @@ impl SseEncode for crate::api::sdk::PlaybackResolutionDto {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(url, serializer);
                 <Option<String>>::sse_encode(artwork_url, serializer);
+                <crate::api::sdk::AudioQualityDto>::sse_encode(quality, serializer);
                 <Option<u64>>::sse_encode(end_ms, serializer);
                 <Option<u64>>::sse_encode(bit_rate, serializer);
                 <Option<u64>>::sse_encode(duration_secs, serializer);

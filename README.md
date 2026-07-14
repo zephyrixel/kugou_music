@@ -8,6 +8,7 @@ KGMusic 是一个 Android-first 的 Flutter 音乐客户端，使用 Rust
 
 - Lite 每日推荐与歌曲搜索
 - Rust 侧播放地址解析，Flutter `just_audio` 负责实际播放
+- 播放器支持标准、320K、FLAC、Hi-Res 与 DSD 音质切换，并显示实际回退结果
 - 完整播放失败时自动尝试 128k 免费试听，并限制试听结束时间
 - 播放队列、迷你播放器、全屏播放器和系统媒体通知
 - Drift 本地收藏与最近播放记录
