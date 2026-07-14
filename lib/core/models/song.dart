@@ -10,6 +10,7 @@ class Song {
     this.privilege,
     this.albumId,
     this.mixSongId,
+    this.fileId,
   });
 
   final String id;
@@ -21,6 +22,7 @@ class Song {
   final int? privilege;
   final int? albumId;
   final int? mixSongId;
+  final int? fileId;
   final AudioHashes hashes;
 
   String get artistLabel =>
@@ -36,6 +38,7 @@ class Song {
     privilege: privilege,
     albumId: albumId,
     mixSongId: mixSongId,
+    fileId: fileId,
     hashes: hashes,
   );
 }

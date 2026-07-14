@@ -17,7 +17,7 @@ class LibraryScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
             child: Text(
-              '音乐库',
+              '本地音乐库',
               style: Theme.of(context).textTheme.headlineLarge,
             ),
           ),
@@ -65,6 +65,12 @@ class _SongStream extends ConsumerWidget {
                   tooltip: '切换收藏',
                   onPressed: () =>
                       ref.read(databaseProvider).toggleFavorite(songs[index]),
+                  constraints: const BoxConstraints.tightFor(
+                    width: 40,
+                    height: 40,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  iconSize: 20,
                   icon: const Icon(Icons.favorite_rounded),
                 ),
               ),

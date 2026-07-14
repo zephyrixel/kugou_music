@@ -4,6 +4,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -84,6 +85,7 @@ class HomeScreen extends ConsumerWidget {
                       song: songs[index],
                       index: index + 1,
                       onTap: () => _play(context, ref, songs[index], songs),
+                      trailing: SongTileActions(song: songs[index]),
                     ),
                   ),
           ),

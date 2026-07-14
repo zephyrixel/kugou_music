@@ -61,24 +61,39 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     mediaItem.add(_toMediaItem(song));
 
     try {
-      var resolution = await _sdk.resolve(song);
-      if (resolution is DeniedResolution ||
-          resolution is UnavailableResolution) {
-        resolution = await _sdk.resolve(song, freePreview: true);
+      await _resolveAndPlay(song);
+    } on MusicSdkException catch (error) {
+      if (error.code == 20028) {
+        try {
+          await _sdk.registerDevice();
+          await _resolveAndPlay(song);
+          return;
+        } catch (_) {
+          // Keep the original security challenge as the user-facing error.
+        }
       }
-      if (resolution is! PlayableResolution) {
-        throw const MusicSdkException('当前歌曲暂时无法播放');
-      }
-      if (resolution is PreviewResolution && resolution.endMs != null) {
-        _previewEnd = Duration(milliseconds: resolution.endMs!);
-      }
-      await _player.setUrl(resolution.url);
-      await _database.recordPlayed(song);
-      await _player.play();
+      _messages.add(error.toString());
+      rethrow;
     } catch (error) {
       _messages.add(error.toString());
       rethrow;
     }
+  }
+
+  Future<void> _resolveAndPlay(Song song) async {
+    var resolution = await _sdk.resolve(song);
+    if (resolution is DeniedResolution || resolution is UnavailableResolution) {
+      resolution = await _sdk.resolve(song, freePreview: true);
+    }
+    if (resolution is! PlayableResolution) {
+      throw const MusicSdkException('当前歌曲暂时无法播放');
+    }
+    if (resolution is PreviewResolution && resolution.endMs != null) {
+      _previewEnd = Duration(milliseconds: resolution.endMs!);
+    }
+    await _player.setUrl(resolution.url);
+    await _database.recordPlayed(song);
+    await _player.play();
   }
 
   void _enforcePreviewEnd(Duration position) {

@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1332007897;
+  int get rustContentHash => -298028128;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,11 +78,53 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<void> crateApiSdkAddSongToPlaylist({
+    required int listId,
+    required SongDto song,
+  });
+
+  Future<PlaylistMutationDto> crateApiSdkCollectCloudPlaylist({
+    required String globalCollectionId,
+    int? ownerUserId,
+    String? name,
+  });
+
+  Future<PlaylistMutationDto> crateApiSdkCreateCloudPlaylist({
+    required String name,
+    required bool private,
+  });
+
+  Future<void> crateApiSdkDeleteCloudPlaylist({
+    required int listId,
+    required bool collected,
+  });
+
+  Future<void> crateApiSdkEditCloudPlaylist({
+    required PlaylistEditInputDto input,
+  });
+
   Future<String> crateApiSdkExportSession();
+
+  Future<AuthStateDto> crateApiSdkGetAuthState();
+
+  Future<SongPageDto> crateApiSdkGetCloudHistory();
+
+  Future<CloudPlaylistPageDto> crateApiSdkGetCloudPlaylists({
+    required int page,
+    required int pageSize,
+  });
 
   Future<RecommendationDto> crateApiSdkGetEverydayRecommendations();
 
+  Future<SongPageDto> crateApiSdkGetPlaylistTracks({
+    required PlaylistTracksRequestDto request,
+  });
+
   SdkCapabilitiesDto crateApiSdkGetSdkCapabilities();
+
+  Future<UserProfileDto> crateApiSdkGetUserProfile();
+
+  Future<UserVipDto> crateApiSdkGetUserVip();
 
   Future<void> crateApiSdkImportSession({required String value});
 
@@ -90,13 +132,35 @@ abstract class RustLibApi extends BaseApi {
 
   Future<SdkCapabilitiesDto> crateApiSdkInitializeSdk();
 
+  Future<SmsLoginResultDto> crateApiSdkLoginBySms({
+    required String mobile,
+    required String code,
+  });
+
+  Future<AuthStateDto> crateApiSdkLogout();
+
+  Future<AuthStateDto> crateApiSdkRefreshLogin();
+
+  Future<AuthStateDto> crateApiSdkRegisterDevice();
+
+  Future<void> crateApiSdkRemoveSongFromPlaylist({
+    required int listId,
+    required int fileId,
+  });
+
   Future<PlaybackResolutionDto> crateApiSdkResolvePlayback({
     required ResolvePlaybackRequestDto request,
   });
 
-  Future<SearchPageDto> crateApiSdkSearchSongs({
-    required SearchSongsRequestDto request,
+  Future<PlaylistSearchPageDto> crateApiSdkSearchPlaylists({
+    required SearchRequestDto request,
   });
+
+  Future<SongPageDto> crateApiSdkSearchSongs({
+    required SearchRequestDto request,
+  });
+
+  Future<void> crateApiSdkSendSmsCode({required String mobile});
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -108,6 +172,181 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<void> crateApiSdkAddSongToPlaylist({
+    required int listId,
+    required SongDto song,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_CastedPrimitive_u_64(listId, serializer);
+          sse_encode_box_autoadd_song_dto(song, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkAddSongToPlaylistConstMeta,
+        argValues: [listId, song],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkAddSongToPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "add_song_to_playlist",
+        argNames: ["listId", "song"],
+      );
+
+  @override
+  Future<PlaylistMutationDto> crateApiSdkCollectCloudPlaylist({
+    required String globalCollectionId,
+    int? ownerUserId,
+    String? name,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(globalCollectionId, serializer);
+          sse_encode_opt_CastedPrimitive_u_64(ownerUserId, serializer);
+          sse_encode_opt_String(name, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_playlist_mutation_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkCollectCloudPlaylistConstMeta,
+        argValues: [globalCollectionId, ownerUserId, name],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkCollectCloudPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "collect_cloud_playlist",
+        argNames: ["globalCollectionId", "ownerUserId", "name"],
+      );
+
+  @override
+  Future<PlaylistMutationDto> crateApiSdkCreateCloudPlaylist({
+    required String name,
+    required bool private,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(name, serializer);
+          sse_encode_bool(private, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_playlist_mutation_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkCreateCloudPlaylistConstMeta,
+        argValues: [name, private],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkCreateCloudPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "create_cloud_playlist",
+        argNames: ["name", "private"],
+      );
+
+  @override
+  Future<void> crateApiSdkDeleteCloudPlaylist({
+    required int listId,
+    required bool collected,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_CastedPrimitive_u_64(listId, serializer);
+          sse_encode_bool(collected, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkDeleteCloudPlaylistConstMeta,
+        argValues: [listId, collected],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkDeleteCloudPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "delete_cloud_playlist",
+        argNames: ["listId", "collected"],
+      );
+
+  @override
+  Future<void> crateApiSdkEditCloudPlaylist({
+    required PlaylistEditInputDto input,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_playlist_edit_input_dto(input, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkEditCloudPlaylistConstMeta,
+        argValues: [input],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkEditCloudPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "edit_cloud_playlist",
+        argNames: ["input"],
+      );
+
+  @override
   Future<String> crateApiSdkExportSession() {
     return handler.executeNormal(
       NormalTask(
@@ -116,7 +355,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 6,
             port: port_,
           );
         },
@@ -135,6 +374,95 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "export_session", argNames: []);
 
   @override
+  Future<AuthStateDto> crateApiSdkGetAuthState() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_auth_state_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetAuthStateConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetAuthStateConstMeta =>
+      const TaskConstMeta(debugName: "get_auth_state", argNames: []);
+
+  @override
+  Future<SongPageDto> crateApiSdkGetCloudHistory() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_song_page_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetCloudHistoryConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetCloudHistoryConstMeta =>
+      const TaskConstMeta(debugName: "get_cloud_history", argNames: []);
+
+  @override
+  Future<CloudPlaylistPageDto> crateApiSdkGetCloudPlaylists({
+    required int page,
+    required int pageSize,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_u_32(page, serializer);
+          sse_encode_u_32(pageSize, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_cloud_playlist_page_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetCloudPlaylistsConstMeta,
+        argValues: [page, pageSize],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetCloudPlaylistsConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_cloud_playlists",
+        argNames: ["page", "pageSize"],
+      );
+
+  @override
   Future<RecommendationDto> crateApiSdkGetEverydayRecommendations() {
     return handler.executeNormal(
       NormalTask(
@@ -143,7 +471,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 10,
             port: port_,
           );
         },
@@ -165,12 +493,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<SongPageDto> crateApiSdkGetPlaylistTracks({
+    required PlaylistTracksRequestDto request,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_playlist_tracks_request_dto(
+            request,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_song_page_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetPlaylistTracksConstMeta,
+        argValues: [request],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetPlaylistTracksConstMeta =>
+      const TaskConstMeta(
+        debugName: "get_playlist_tracks",
+        argNames: ["request"],
+      );
+
+  @override
   SdkCapabilitiesDto crateApiSdkGetSdkCapabilities() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_sdk_capabilities_dto,
@@ -187,6 +551,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_sdk_capabilities", argNames: []);
 
   @override
+  Future<UserProfileDto> crateApiSdkGetUserProfile() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_user_profile_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetUserProfileConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetUserProfileConstMeta =>
+      const TaskConstMeta(debugName: "get_user_profile", argNames: []);
+
+  @override
+  Future<UserVipDto> crateApiSdkGetUserVip() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 14,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_user_vip_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetUserVipConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetUserVipConstMeta =>
+      const TaskConstMeta(debugName: "get_user_vip", argNames: []);
+
+  @override
   Future<void> crateApiSdkImportSession({required String value}) {
     return handler.executeNormal(
       NormalTask(
@@ -196,7 +614,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 15,
             port: port_,
           );
         },
@@ -223,7 +641,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 16,
             port: port_,
           );
         },
@@ -250,7 +668,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 17,
             port: port_,
           );
         },
@@ -269,6 +687,156 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "initialize_sdk", argNames: []);
 
   @override
+  Future<SmsLoginResultDto> crateApiSdkLoginBySms({
+    required String mobile,
+    required String code,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mobile, serializer);
+          sse_encode_String(code, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 18,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sms_login_result_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkLoginBySmsConstMeta,
+        argValues: [mobile, code],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkLoginBySmsConstMeta => const TaskConstMeta(
+    debugName: "login_by_sms",
+    argNames: ["mobile", "code"],
+  );
+
+  @override
+  Future<AuthStateDto> crateApiSdkLogout() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_auth_state_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkLogoutConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkLogoutConstMeta =>
+      const TaskConstMeta(debugName: "logout", argNames: []);
+
+  @override
+  Future<AuthStateDto> crateApiSdkRefreshLogin() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_auth_state_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkRefreshLoginConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkRefreshLoginConstMeta =>
+      const TaskConstMeta(debugName: "refresh_login", argNames: []);
+
+  @override
+  Future<AuthStateDto> crateApiSdkRegisterDevice() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_auth_state_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkRegisterDeviceConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkRegisterDeviceConstMeta =>
+      const TaskConstMeta(debugName: "register_device", argNames: []);
+
+  @override
+  Future<void> crateApiSdkRemoveSongFromPlaylist({
+    required int listId,
+    required int fileId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_CastedPrimitive_u_64(listId, serializer);
+          sse_encode_CastedPrimitive_u_64(fileId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkRemoveSongFromPlaylistConstMeta,
+        argValues: [listId, fileId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkRemoveSongFromPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "remove_song_from_playlist",
+        argNames: ["listId", "fileId"],
+      );
+
+  @override
   Future<PlaybackResolutionDto> crateApiSdkResolvePlayback({
     required ResolvePlaybackRequestDto request,
   }) {
@@ -283,7 +851,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 23,
             port: port_,
           );
         },
@@ -302,23 +870,53 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "resolve_playback", argNames: ["request"]);
 
   @override
-  Future<SearchPageDto> crateApiSdkSearchSongs({
-    required SearchSongsRequestDto request,
+  Future<PlaylistSearchPageDto> crateApiSdkSearchPlaylists({
+    required SearchRequestDto request,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_search_songs_request_dto(request, serializer);
+          sse_encode_box_autoadd_search_request_dto(request, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 24,
             port: port_,
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_search_page_dto,
+          decodeSuccessData: sse_decode_playlist_search_page_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkSearchPlaylistsConstMeta,
+        argValues: [request],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkSearchPlaylistsConstMeta =>
+      const TaskConstMeta(debugName: "search_playlists", argNames: ["request"]);
+
+  @override
+  Future<SongPageDto> crateApiSdkSearchSongs({
+    required SearchRequestDto request,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_search_request_dto(request, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_song_page_dto,
           decodeErrorData: sse_decode_bridge_error,
         ),
         constMeta: kCrateApiSdkSearchSongsConstMeta,
@@ -330,6 +928,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSdkSearchSongsConstMeta =>
       const TaskConstMeta(debugName: "search_songs", argNames: ["request"]);
+
+  @override
+  Future<void> crateApiSdkSendSmsCode({required String mobile}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(mobile, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkSendSmsCodeConstMeta,
+        argValues: [mobile],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkSendSmsCodeConstMeta =>
+      const TaskConstMeta(debugName: "send_sms_code", argNames: ["mobile"]);
 
   @protected
   int dco_decode_CastedPrimitive_i_64(dynamic raw) {
@@ -375,9 +1001,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AuthStateDto dco_decode_auth_state_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return AuthStateDto(
+      authenticated: dco_decode_bool(arr[0]),
+      userId: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
+      vipType: dco_decode_opt_box_autoadd_u_32(arr[2]),
+      fingerprintRegistered: dco_decode_bool(arr[3]),
+    );
+  }
+
+  @protected
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as bool;
+  }
+
+  @protected
+  PlaylistEditInputDto dco_decode_box_autoadd_playlist_edit_input_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_playlist_edit_input_dto(raw);
+  }
+
+  @protected
+  PlaylistTracksRequestDto dco_decode_box_autoadd_playlist_tracks_request_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_playlist_tracks_request_dto(raw);
   }
 
   @protected
@@ -389,11 +1051,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SearchSongsRequestDto dco_decode_box_autoadd_search_songs_request_dto(
-    dynamic raw,
-  ) {
+  SearchRequestDto dco_decode_box_autoadd_search_request_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_search_songs_request_dto(raw);
+    return dco_decode_search_request_dto(raw);
+  }
+
+  @protected
+  SongDto dco_decode_box_autoadd_song_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_song_dto(raw);
+  }
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -417,6 +1089,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CloudPlaylistDto dco_decode_cloud_playlist_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    return CloudPlaylistDto(
+      listId: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
+      globalCollectionId: dco_decode_opt_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      intro: dco_decode_opt_String(arr[3]),
+      artworkUrl: dco_decode_opt_String(arr[4]),
+      count: dco_decode_opt_CastedPrimitive_u_64(arr[5]),
+      listType: dco_decode_opt_box_autoadd_u_32(arr[6]),
+      creatorUserId: dco_decode_opt_CastedPrimitive_u_64(arr[7]),
+      creatorName: dco_decode_opt_String(arr[8]),
+      isPrivate: dco_decode_bool(arr[9]),
+      isMyFavorite: dco_decode_bool(arr[10]),
+      isDefaultCollect: dco_decode_bool(arr[11]),
+      tags: dco_decode_opt_String(arr[12]),
+    );
+  }
+
+  @protected
+  CloudPlaylistPageDto dco_decode_cloud_playlist_page_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return CloudPlaylistPageDto(
+      items: dco_decode_list_cloud_playlist_dto(arr[0]),
+      page: dco_decode_u_32(arr[1]),
+      pageSize: dco_decode_u_32(arr[2]),
+      total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+      totalVersion: dco_decode_opt_CastedPrimitive_u_64(arr[4]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -426,6 +1136,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 dco_decode_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeI64(raw);
+  }
+
+  @protected
+  List<CloudPlaylistDto> dco_decode_list_cloud_playlist_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_cloud_playlist_dto).toList();
+  }
+
+  @protected
+  List<PlaylistSearchHitDto> dco_decode_list_playlist_search_hit_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_playlist_search_hit_dto)
+        .toList();
   }
 
   @protected
@@ -459,6 +1185,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_bool(raw);
+  }
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
   PlaybackResolutionDto dco_decode_playback_resolution_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -485,6 +1223,85 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       default:
         throw Exception("unreachable");
     }
+  }
+
+  @protected
+  PlaylistEditInputDto dco_decode_playlist_edit_input_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return PlaylistEditInputDto(
+      listId: dco_decode_CastedPrimitive_u_64(arr[0]),
+      name: dco_decode_opt_String(arr[1]),
+      private: dco_decode_opt_box_autoadd_bool(arr[2]),
+      intro: dco_decode_opt_String(arr[3]),
+      tags: dco_decode_opt_String(arr[4]),
+      totalVersion: dco_decode_opt_CastedPrimitive_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  PlaylistMutationDto dco_decode_playlist_mutation_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PlaylistMutationDto(
+      listId: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
+      globalCollectionId: dco_decode_opt_String(arr[1]),
+      name: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  PlaylistSearchHitDto dco_decode_playlist_search_hit_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return PlaylistSearchHitDto(
+      specialId: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
+      globalCollectionId: dco_decode_opt_String(arr[1]),
+      name: dco_decode_String(arr[2]),
+      intro: dco_decode_opt_String(arr[3]),
+      artworkUrl: dco_decode_opt_String(arr[4]),
+      songCount: dco_decode_opt_CastedPrimitive_u_64(arr[5]),
+      playCount: dco_decode_opt_CastedPrimitive_u_64(arr[6]),
+      collectCount: dco_decode_opt_CastedPrimitive_u_64(arr[7]),
+      creatorName: dco_decode_opt_String(arr[8]),
+      creatorUserId: dco_decode_opt_CastedPrimitive_u_64(arr[9]),
+      tags: dco_decode_opt_String(arr[10]),
+    );
+  }
+
+  @protected
+  PlaylistSearchPageDto dco_decode_playlist_search_page_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return PlaylistSearchPageDto(
+      items: dco_decode_list_playlist_search_hit_dto(arr[0]),
+      page: dco_decode_u_32(arr[1]),
+      pageSize: dco_decode_u_32(arr[2]),
+      total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  PlaylistTracksRequestDto dco_decode_playlist_tracks_request_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return PlaylistTracksRequestDto(
+      listId: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
+      globalCollectionId: dco_decode_opt_String(arr[1]),
+      owned: dco_decode_bool(arr[2]),
+      page: dco_decode_u_32(arr[3]),
+      pageSize: dco_decode_u_32(arr[4]),
+    );
   }
 
   @protected
@@ -521,41 +1338,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SdkCapabilitiesDto dco_decode_sdk_capabilities_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return SdkCapabilitiesDto(
       platform: dco_decode_String(arr[0]),
       songSearch: dco_decode_bool(arr[1]),
-      dailyRecommendation: dco_decode_bool(arr[2]),
-      rank: dco_decode_bool(arr[3]),
-      trendingPlaylists: dco_decode_bool(arr[4]),
-      lyrics: dco_decode_bool(arr[5]),
-      qrAuth: dco_decode_bool(arr[6]),
-      cloudLibrary: dco_decode_bool(arr[7]),
+      playlistSearch: dco_decode_bool(arr[2]),
+      dailyRecommendation: dco_decode_bool(arr[3]),
+      smsAuth: dco_decode_bool(arr[4]),
+      cloudLibrary: dco_decode_bool(arr[5]),
+      playlistMutations: dco_decode_bool(arr[6]),
     );
   }
 
   @protected
-  SearchPageDto dco_decode_search_page_dto(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
-    return SearchPageDto(
-      items: dco_decode_list_song_dto(arr[0]),
-      page: dco_decode_u_32(arr[1]),
-      pageSize: dco_decode_u_32(arr[2]),
-      total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
-    );
-  }
-
-  @protected
-  SearchSongsRequestDto dco_decode_search_songs_request_dto(dynamic raw) {
+  SearchRequestDto dco_decode_search_request_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
     if (arr.length != 3)
       throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return SearchSongsRequestDto(
+    return SearchRequestDto(
       keyword: dco_decode_String(arr[0]),
       page: dco_decode_u_32(arr[1]),
       pageSize: dco_decode_u_32(arr[2]),
@@ -563,11 +1365,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SmsLoginResultDto dco_decode_sms_login_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SmsLoginResultDto(
+      auth: dco_decode_auth_state_dto(arr[0]),
+      fingerprintWarning: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
   SongDto dco_decode_song_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return SongDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_String(arr[1]),
@@ -578,7 +1392,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       privilege: dco_decode_opt_CastedPrimitive_i_64(arr[6]),
       albumId: dco_decode_opt_CastedPrimitive_u_64(arr[7]),
       mixSongId: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
-      hashes: dco_decode_audio_hashes_dto(arr[9]),
+      fileId: dco_decode_opt_CastedPrimitive_u_64(arr[9]),
+      hashes: dco_decode_audio_hashes_dto(arr[10]),
+    );
+  }
+
+  @protected
+  SongPageDto dco_decode_song_page_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SongPageDto(
+      items: dco_decode_list_song_dto(arr[0]),
+      page: dco_decode_u_32(arr[1]),
+      pageSize: dco_decode_u_32(arr[2]),
+      total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
     );
   }
 
@@ -604,6 +1433,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void dco_decode_unit(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return;
+  }
+
+  @protected
+  UserProfileDto dco_decode_user_profile_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return UserProfileDto(
+      userId: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
+      displayName: dco_decode_String(arr[1]),
+      username: dco_decode_opt_String(arr[2]),
+      avatarUrl: dco_decode_opt_String(arr[3]),
+      gender: dco_decode_opt_CastedPrimitive_i_64(arr[4]),
+      birthday: dco_decode_opt_String(arr[5]),
+      city: dco_decode_opt_String(arr[6]),
+      province: dco_decode_opt_String(arr[7]),
+      signature: dco_decode_opt_String(arr[8]),
+      followingCount: dco_decode_opt_CastedPrimitive_u_64(arr[9]),
+      fanCount: dco_decode_opt_CastedPrimitive_u_64(arr[10]),
+      visitorCount: dco_decode_opt_CastedPrimitive_u_64(arr[11]),
+    );
+  }
+
+  @protected
+  UserVipDto dco_decode_user_vip_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return UserVipDto(
+      vipType: dco_decode_opt_CastedPrimitive_i_64(arr[0]),
+      musicPackageType: dco_decode_opt_CastedPrimitive_i_64(arr[1]),
+      yearlyType: dco_decode_opt_CastedPrimitive_i_64(arr[2]),
+      vipEndTime: dco_decode_opt_String(arr[3]),
+      musicEndTime: dco_decode_opt_String(arr[4]),
+      yearlyEndTime: dco_decode_opt_String(arr[5]),
+      productType: dco_decode_opt_String(arr[6]),
+    );
   }
 
   @protected
@@ -652,9 +1520,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AuthStateDto sse_decode_auth_state_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_authenticated = sse_decode_bool(deserializer);
+    var var_userId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_vipType = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_fingerprintRegistered = sse_decode_bool(deserializer);
+    return AuthStateDto(
+      authenticated: var_authenticated,
+      userId: var_userId,
+      vipType: var_vipType,
+      fingerprintRegistered: var_fingerprintRegistered,
+    );
+  }
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bool(deserializer));
+  }
+
+  @protected
+  PlaylistEditInputDto sse_decode_box_autoadd_playlist_edit_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_playlist_edit_input_dto(deserializer));
+  }
+
+  @protected
+  PlaylistTracksRequestDto sse_decode_box_autoadd_playlist_tracks_request_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_playlist_tracks_request_dto(deserializer));
   }
 
   @protected
@@ -666,11 +1571,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SearchSongsRequestDto sse_decode_box_autoadd_search_songs_request_dto(
+  SearchRequestDto sse_decode_box_autoadd_search_request_dto(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_search_songs_request_dto(deserializer));
+    return (sse_decode_search_request_dto(deserializer));
+  }
+
+  @protected
+  SongDto sse_decode_box_autoadd_song_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_song_dto(deserializer));
+  }
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_32(deserializer));
   }
 
   @protected
@@ -696,6 +1613,58 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  CloudPlaylistDto sse_decode_cloud_playlist_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_listId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_globalCollectionId = sse_decode_opt_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_intro = sse_decode_opt_String(deserializer);
+    var var_artworkUrl = sse_decode_opt_String(deserializer);
+    var var_count = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_listType = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_creatorUserId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_creatorName = sse_decode_opt_String(deserializer);
+    var var_isPrivate = sse_decode_bool(deserializer);
+    var var_isMyFavorite = sse_decode_bool(deserializer);
+    var var_isDefaultCollect = sse_decode_bool(deserializer);
+    var var_tags = sse_decode_opt_String(deserializer);
+    return CloudPlaylistDto(
+      listId: var_listId,
+      globalCollectionId: var_globalCollectionId,
+      name: var_name,
+      intro: var_intro,
+      artworkUrl: var_artworkUrl,
+      count: var_count,
+      listType: var_listType,
+      creatorUserId: var_creatorUserId,
+      creatorName: var_creatorName,
+      isPrivate: var_isPrivate,
+      isMyFavorite: var_isMyFavorite,
+      isDefaultCollect: var_isDefaultCollect,
+      tags: var_tags,
+    );
+  }
+
+  @protected
+  CloudPlaylistPageDto sse_decode_cloud_playlist_page_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_cloud_playlist_dto(deserializer);
+    var var_page = sse_decode_u_32(deserializer);
+    var var_pageSize = sse_decode_u_32(deserializer);
+    var var_total = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_totalVersion = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return CloudPlaylistPageDto(
+      items: var_items,
+      page: var_page,
+      pageSize: var_pageSize,
+      total: var_total,
+      totalVersion: var_totalVersion,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -705,6 +1674,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getPlatformInt64();
+  }
+
+  @protected
+  List<CloudPlaylistDto> sse_decode_list_cloud_playlist_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <CloudPlaylistDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_cloud_playlist_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<PlaylistSearchHitDto> sse_decode_list_playlist_search_hit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <PlaylistSearchHitDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_playlist_search_hit_dto(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -760,6 +1757,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bool(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   PlaybackResolutionDto sse_decode_playback_resolution_dto(
     SseDeserializer deserializer,
   ) {
@@ -806,6 +1825,109 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PlaylistEditInputDto sse_decode_playlist_edit_input_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_listId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_name = sse_decode_opt_String(deserializer);
+    var var_private = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_intro = sse_decode_opt_String(deserializer);
+    var var_tags = sse_decode_opt_String(deserializer);
+    var var_totalVersion = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return PlaylistEditInputDto(
+      listId: var_listId,
+      name: var_name,
+      private: var_private,
+      intro: var_intro,
+      tags: var_tags,
+      totalVersion: var_totalVersion,
+    );
+  }
+
+  @protected
+  PlaylistMutationDto sse_decode_playlist_mutation_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_listId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_globalCollectionId = sse_decode_opt_String(deserializer);
+    var var_name = sse_decode_opt_String(deserializer);
+    return PlaylistMutationDto(
+      listId: var_listId,
+      globalCollectionId: var_globalCollectionId,
+      name: var_name,
+    );
+  }
+
+  @protected
+  PlaylistSearchHitDto sse_decode_playlist_search_hit_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_specialId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_globalCollectionId = sse_decode_opt_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_intro = sse_decode_opt_String(deserializer);
+    var var_artworkUrl = sse_decode_opt_String(deserializer);
+    var var_songCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_playCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_collectCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_creatorName = sse_decode_opt_String(deserializer);
+    var var_creatorUserId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_tags = sse_decode_opt_String(deserializer);
+    return PlaylistSearchHitDto(
+      specialId: var_specialId,
+      globalCollectionId: var_globalCollectionId,
+      name: var_name,
+      intro: var_intro,
+      artworkUrl: var_artworkUrl,
+      songCount: var_songCount,
+      playCount: var_playCount,
+      collectCount: var_collectCount,
+      creatorName: var_creatorName,
+      creatorUserId: var_creatorUserId,
+      tags: var_tags,
+    );
+  }
+
+  @protected
+  PlaylistSearchPageDto sse_decode_playlist_search_page_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_playlist_search_hit_dto(deserializer);
+    var var_page = sse_decode_u_32(deserializer);
+    var var_pageSize = sse_decode_u_32(deserializer);
+    var var_total = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return PlaylistSearchPageDto(
+      items: var_items,
+      page: var_page,
+      pageSize: var_pageSize,
+      total: var_total,
+    );
+  }
+
+  @protected
+  PlaylistTracksRequestDto sse_decode_playlist_tracks_request_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_listId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_globalCollectionId = sse_decode_opt_String(deserializer);
+    var var_owned = sse_decode_bool(deserializer);
+    var var_page = sse_decode_u_32(deserializer);
+    var var_pageSize = sse_decode_u_32(deserializer);
+    return PlaylistTracksRequestDto(
+      listId: var_listId,
+      globalCollectionId: var_globalCollectionId,
+      owned: var_owned,
+      page: var_page,
+      pageSize: var_pageSize,
+    );
+  }
+
+  @protected
   RecommendationDto sse_decode_recommendation_dto(
     SseDeserializer deserializer,
   ) {
@@ -846,51 +1968,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_platform = sse_decode_String(deserializer);
     var var_songSearch = sse_decode_bool(deserializer);
+    var var_playlistSearch = sse_decode_bool(deserializer);
     var var_dailyRecommendation = sse_decode_bool(deserializer);
-    var var_rank = sse_decode_bool(deserializer);
-    var var_trendingPlaylists = sse_decode_bool(deserializer);
-    var var_lyrics = sse_decode_bool(deserializer);
-    var var_qrAuth = sse_decode_bool(deserializer);
+    var var_smsAuth = sse_decode_bool(deserializer);
     var var_cloudLibrary = sse_decode_bool(deserializer);
+    var var_playlistMutations = sse_decode_bool(deserializer);
     return SdkCapabilitiesDto(
       platform: var_platform,
       songSearch: var_songSearch,
+      playlistSearch: var_playlistSearch,
       dailyRecommendation: var_dailyRecommendation,
-      rank: var_rank,
-      trendingPlaylists: var_trendingPlaylists,
-      lyrics: var_lyrics,
-      qrAuth: var_qrAuth,
+      smsAuth: var_smsAuth,
       cloudLibrary: var_cloudLibrary,
+      playlistMutations: var_playlistMutations,
     );
   }
 
   @protected
-  SearchPageDto sse_decode_search_page_dto(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_items = sse_decode_list_song_dto(deserializer);
-    var var_page = sse_decode_u_32(deserializer);
-    var var_pageSize = sse_decode_u_32(deserializer);
-    var var_total = sse_decode_opt_CastedPrimitive_u_64(deserializer);
-    return SearchPageDto(
-      items: var_items,
-      page: var_page,
-      pageSize: var_pageSize,
-      total: var_total,
-    );
-  }
-
-  @protected
-  SearchSongsRequestDto sse_decode_search_songs_request_dto(
-    SseDeserializer deserializer,
-  ) {
+  SearchRequestDto sse_decode_search_request_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_keyword = sse_decode_String(deserializer);
     var var_page = sse_decode_u_32(deserializer);
     var var_pageSize = sse_decode_u_32(deserializer);
-    return SearchSongsRequestDto(
+    return SearchRequestDto(
       keyword: var_keyword,
       page: var_page,
       pageSize: var_pageSize,
+    );
+  }
+
+  @protected
+  SmsLoginResultDto sse_decode_sms_login_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_auth = sse_decode_auth_state_dto(deserializer);
+    var var_fingerprintWarning = sse_decode_opt_String(deserializer);
+    return SmsLoginResultDto(
+      auth: var_auth,
+      fingerprintWarning: var_fingerprintWarning,
     );
   }
 
@@ -906,6 +2022,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_privilege = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     var var_albumId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_mixSongId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_fileId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_hashes = sse_decode_audio_hashes_dto(deserializer);
     return SongDto(
       id: var_id,
@@ -917,7 +2034,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       privilege: var_privilege,
       albumId: var_albumId,
       mixSongId: var_mixSongId,
+      fileId: var_fileId,
       hashes: var_hashes,
+    );
+  }
+
+  @protected
+  SongPageDto sse_decode_song_page_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_song_dto(deserializer);
+    var var_page = sse_decode_u_32(deserializer);
+    var var_pageSize = sse_decode_u_32(deserializer);
+    var var_total = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return SongPageDto(
+      items: var_items,
+      page: var_page,
+      pageSize: var_pageSize,
+      total: var_total,
     );
   }
 
@@ -942,6 +2075,60 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_decode_unit(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  UserProfileDto sse_decode_user_profile_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_userId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_displayName = sse_decode_String(deserializer);
+    var var_username = sse_decode_opt_String(deserializer);
+    var var_avatarUrl = sse_decode_opt_String(deserializer);
+    var var_gender = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_birthday = sse_decode_opt_String(deserializer);
+    var var_city = sse_decode_opt_String(deserializer);
+    var var_province = sse_decode_opt_String(deserializer);
+    var var_signature = sse_decode_opt_String(deserializer);
+    var var_followingCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_fanCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_visitorCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return UserProfileDto(
+      userId: var_userId,
+      displayName: var_displayName,
+      username: var_username,
+      avatarUrl: var_avatarUrl,
+      gender: var_gender,
+      birthday: var_birthday,
+      city: var_city,
+      province: var_province,
+      signature: var_signature,
+      followingCount: var_followingCount,
+      fanCount: var_fanCount,
+      visitorCount: var_visitorCount,
+    );
+  }
+
+  @protected
+  UserVipDto sse_decode_user_vip_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_vipType = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_musicPackageType = sse_decode_opt_CastedPrimitive_i_64(
+      deserializer,
+    );
+    var var_yearlyType = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_vipEndTime = sse_decode_opt_String(deserializer);
+    var var_musicEndTime = sse_decode_opt_String(deserializer);
+    var var_yearlyEndTime = sse_decode_opt_String(deserializer);
+    var var_productType = sse_decode_opt_String(deserializer);
+    return UserVipDto(
+      vipType: var_vipType,
+      musicPackageType: var_musicPackageType,
+      yearlyType: var_yearlyType,
+      vipEndTime: var_vipEndTime,
+      musicEndTime: var_musicEndTime,
+      yearlyEndTime: var_yearlyEndTime,
+      productType: var_productType,
+    );
   }
 
   @protected
@@ -985,9 +2172,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_auth_state_dto(AuthStateDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.authenticated, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.userId, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.vipType, serializer);
+    sse_encode_bool(self.fingerprintRegistered, serializer);
+  }
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_playlist_edit_input_dto(
+    PlaylistEditInputDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_playlist_edit_input_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_playlist_tracks_request_dto(
+    PlaylistTracksRequestDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_playlist_tracks_request_dto(self, serializer);
   }
 
   @protected
@@ -1000,12 +2220,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_search_songs_request_dto(
-    SearchSongsRequestDto self,
+  void sse_encode_box_autoadd_search_request_dto(
+    SearchRequestDto self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_search_songs_request_dto(self, serializer);
+    sse_encode_search_request_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_song_dto(SongDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_song_dto(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self, serializer);
   }
 
   @protected
@@ -1027,6 +2259,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_cloud_playlist_dto(
+    CloudPlaylistDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_u_64(self.listId, serializer);
+    sse_encode_opt_String(self.globalCollectionId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.intro, serializer);
+    sse_encode_opt_String(self.artworkUrl, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.count, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.listType, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.creatorUserId, serializer);
+    sse_encode_opt_String(self.creatorName, serializer);
+    sse_encode_bool(self.isPrivate, serializer);
+    sse_encode_bool(self.isMyFavorite, serializer);
+    sse_encode_bool(self.isDefaultCollect, serializer);
+    sse_encode_opt_String(self.tags, serializer);
+  }
+
+  @protected
+  void sse_encode_cloud_playlist_page_dto(
+    CloudPlaylistPageDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_cloud_playlist_dto(self.items, serializer);
+    sse_encode_u_32(self.page, serializer);
+    sse_encode_u_32(self.pageSize, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.totalVersion, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -1036,6 +2302,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putPlatformInt64(self);
+  }
+
+  @protected
+  void sse_encode_list_cloud_playlist_dto(
+    List<CloudPlaylistDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_cloud_playlist_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_playlist_search_hit_dto(
+    List<PlaylistSearchHitDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_playlist_search_hit_dto(item, serializer);
+    }
   }
 
   @protected
@@ -1094,6 +2384,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bool(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_playback_resolution_dto(
     PlaybackResolutionDto self,
     SseSerializer serializer,
@@ -1133,6 +2443,75 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_playlist_edit_input_dto(
+    PlaylistEditInputDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.listId, serializer);
+    sse_encode_opt_String(self.name, serializer);
+    sse_encode_opt_box_autoadd_bool(self.private, serializer);
+    sse_encode_opt_String(self.intro, serializer);
+    sse_encode_opt_String(self.tags, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.totalVersion, serializer);
+  }
+
+  @protected
+  void sse_encode_playlist_mutation_dto(
+    PlaylistMutationDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_u_64(self.listId, serializer);
+    sse_encode_opt_String(self.globalCollectionId, serializer);
+    sse_encode_opt_String(self.name, serializer);
+  }
+
+  @protected
+  void sse_encode_playlist_search_hit_dto(
+    PlaylistSearchHitDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_u_64(self.specialId, serializer);
+    sse_encode_opt_String(self.globalCollectionId, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_String(self.intro, serializer);
+    sse_encode_opt_String(self.artworkUrl, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.songCount, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.playCount, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.collectCount, serializer);
+    sse_encode_opt_String(self.creatorName, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.creatorUserId, serializer);
+    sse_encode_opt_String(self.tags, serializer);
+  }
+
+  @protected
+  void sse_encode_playlist_search_page_dto(
+    PlaylistSearchPageDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_playlist_search_hit_dto(self.items, serializer);
+    sse_encode_u_32(self.page, serializer);
+    sse_encode_u_32(self.pageSize, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
+  }
+
+  @protected
+  void sse_encode_playlist_tracks_request_dto(
+    PlaylistTracksRequestDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_u_64(self.listId, serializer);
+    sse_encode_opt_String(self.globalCollectionId, serializer);
+    sse_encode_bool(self.owned, serializer);
+    sse_encode_u_32(self.page, serializer);
+    sse_encode_u_32(self.pageSize, serializer);
+  }
+
+  @protected
   void sse_encode_recommendation_dto(
     RecommendationDto self,
     SseSerializer serializer,
@@ -1164,35 +2543,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.platform, serializer);
     sse_encode_bool(self.songSearch, serializer);
+    sse_encode_bool(self.playlistSearch, serializer);
     sse_encode_bool(self.dailyRecommendation, serializer);
-    sse_encode_bool(self.rank, serializer);
-    sse_encode_bool(self.trendingPlaylists, serializer);
-    sse_encode_bool(self.lyrics, serializer);
-    sse_encode_bool(self.qrAuth, serializer);
+    sse_encode_bool(self.smsAuth, serializer);
     sse_encode_bool(self.cloudLibrary, serializer);
+    sse_encode_bool(self.playlistMutations, serializer);
   }
 
   @protected
-  void sse_encode_search_page_dto(
-    SearchPageDto self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_list_song_dto(self.items, serializer);
-    sse_encode_u_32(self.page, serializer);
-    sse_encode_u_32(self.pageSize, serializer);
-    sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
-  }
-
-  @protected
-  void sse_encode_search_songs_request_dto(
-    SearchSongsRequestDto self,
+  void sse_encode_search_request_dto(
+    SearchRequestDto self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.keyword, serializer);
     sse_encode_u_32(self.page, serializer);
     sse_encode_u_32(self.pageSize, serializer);
+  }
+
+  @protected
+  void sse_encode_sms_login_result_dto(
+    SmsLoginResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_auth_state_dto(self.auth, serializer);
+    sse_encode_opt_String(self.fingerprintWarning, serializer);
   }
 
   @protected
@@ -1207,7 +2583,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_CastedPrimitive_i_64(self.privilege, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.albumId, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.mixSongId, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.fileId, serializer);
     sse_encode_audio_hashes_dto(self.hashes, serializer);
+  }
+
+  @protected
+  void sse_encode_song_page_dto(SongPageDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_song_dto(self.items, serializer);
+    sse_encode_u_32(self.page, serializer);
+    sse_encode_u_32(self.pageSize, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
   }
 
   @protected
@@ -1231,5 +2617,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_unit(void self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+  }
+
+  @protected
+  void sse_encode_user_profile_dto(
+    UserProfileDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_u_64(self.userId, serializer);
+    sse_encode_String(self.displayName, serializer);
+    sse_encode_opt_String(self.username, serializer);
+    sse_encode_opt_String(self.avatarUrl, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.gender, serializer);
+    sse_encode_opt_String(self.birthday, serializer);
+    sse_encode_opt_String(self.city, serializer);
+    sse_encode_opt_String(self.province, serializer);
+    sse_encode_opt_String(self.signature, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.followingCount, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.fanCount, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.visitorCount, serializer);
+  }
+
+  @protected
+  void sse_encode_user_vip_dto(UserVipDto self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_i_64(self.vipType, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.musicPackageType, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.yearlyType, serializer);
+    sse_encode_opt_String(self.vipEndTime, serializer);
+    sse_encode_opt_String(self.musicEndTime, serializer);
+    sse_encode_opt_String(self.yearlyEndTime, serializer);
+    sse_encode_opt_String(self.productType, serializer);
   }
 }

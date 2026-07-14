@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/models/cloud_playlist.dart';
 
 part 'app_database.g.dart';
 
@@ -27,13 +28,57 @@ class LibraryTracks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [LibraryTracks])
+class CachedCloudPlaylists extends Table {
+  IntColumn get accountUserId => integer()();
+  IntColumn get listId => integer()();
+  TextColumn get globalCollectionId => text().nullable()();
+  TextColumn get name => text()();
+  TextColumn get intro => text().nullable()();
+  TextColumn get artworkUrl => text().nullable()();
+  IntColumn get trackCount => integer().nullable()();
+  IntColumn get listType => integer().nullable()();
+  IntColumn get creatorUserId => integer().nullable()();
+  TextColumn get creatorName => text().nullable()();
+  BoolColumn get isPrivate => boolean()();
+  BoolColumn get isMyFavorite => boolean()();
+  BoolColumn get isDefaultCollect => boolean()();
+  TextColumn get tags => text().nullable()();
+  DateTimeColumn get syncedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {accountUserId, listId};
+}
+
+class CachedCloudTracks extends Table {
+  IntColumn get accountUserId => integer()();
+  IntColumn get listId => integer()();
+  TextColumn get songId => text()();
+  IntColumn get fileId => integer().nullable()();
+  IntColumn get position => integer()();
+  DateTimeColumn get syncedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {accountUserId, listId, songId};
+}
+
+@DriftDatabase(tables: [LibraryTracks, CachedCloudPlaylists, CachedCloudTracks])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'kgmusic'));
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (migrator) => migrator.createAll(),
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.createTable(cachedCloudPlaylists);
+        await migrator.createTable(cachedCloudTracks);
+      }
+    },
+  );
 
   Stream<List<Song>> watchFavorites() =>
       (select(libraryTracks)
@@ -76,6 +121,117 @@ class AppDatabase extends _$AppDatabase {
         playCount: (existing?.playCount ?? 0) + 1,
       ),
     );
+  }
+
+  Future<void> cacheCloudPlaylists(
+    int userId,
+    List<CloudPlaylist> playlists,
+  ) async {
+    final now = DateTime.now();
+    await transaction(() async {
+      await (delete(
+        cachedCloudPlaylists,
+      )..where((row) => row.accountUserId.equals(userId))).go();
+      await batch((batch) {
+        batch.insertAllOnConflictUpdate(
+          cachedCloudPlaylists,
+          playlists
+              .where((item) => item.listId != null)
+              .map(
+                (item) => CachedCloudPlaylistsCompanion.insert(
+                  accountUserId: userId,
+                  listId: item.listId!,
+                  globalCollectionId: Value(item.globalCollectionId),
+                  name: item.name,
+                  intro: Value(item.intro),
+                  artworkUrl: Value(item.artworkUrl),
+                  trackCount: Value(item.count),
+                  listType: Value(item.listType),
+                  creatorUserId: Value(item.creatorUserId),
+                  creatorName: Value(item.creatorName),
+                  isPrivate: item.isPrivate,
+                  isMyFavorite: item.isMyFavorite,
+                  isDefaultCollect: item.isDefaultCollect,
+                  tags: Value(item.tags),
+                  syncedAt: now,
+                ),
+              ),
+        );
+      });
+    });
+  }
+
+  Stream<List<CloudPlaylist>> watchCachedCloudPlaylists(int userId) =>
+      (select(cachedCloudPlaylists)
+            ..where((row) => row.accountUserId.equals(userId))
+            ..orderBy([(row) => OrderingTerm.asc(row.listId)]))
+          .watch()
+          .map(
+            (rows) => rows
+                .map(
+                  (row) => CloudPlaylist(
+                    listId: row.listId,
+                    globalCollectionId: row.globalCollectionId,
+                    name: row.name,
+                    intro: row.intro,
+                    artworkUrl: row.artworkUrl,
+                    count: row.trackCount,
+                    listType: row.listType,
+                    creatorUserId: row.creatorUserId,
+                    creatorName: row.creatorName,
+                    isPrivate: row.isPrivate,
+                    isMyFavorite: row.isMyFavorite,
+                    isDefaultCollect: row.isDefaultCollect,
+                    tags: row.tags,
+                  ),
+                )
+                .toList(growable: false),
+          );
+
+  Future<void> cacheCloudTracks(
+    int userId,
+    int listId,
+    List<Song> songs,
+  ) async {
+    final now = DateTime.now();
+    await transaction(() async {
+      await (delete(cachedCloudTracks)..where(
+            (row) =>
+                row.accountUserId.equals(userId) & row.listId.equals(listId),
+          ))
+          .go();
+      for (var index = 0; index < songs.length; index++) {
+        final song = songs[index];
+        final existing = await (select(
+          libraryTracks,
+        )..where((row) => row.id.equals(song.id))).getSingleOrNull();
+        await into(libraryTracks).insertOnConflictUpdate(
+          _companion(
+            song,
+            favorite: existing?.favorite ?? false,
+            lastPlayedAt: existing?.lastPlayedAt,
+            playCount: existing?.playCount ?? 0,
+          ),
+        );
+        await into(cachedCloudTracks).insertOnConflictUpdate(
+          CachedCloudTracksCompanion.insert(
+            accountUserId: userId,
+            listId: listId,
+            songId: song.id,
+            fileId: Value(song.fileId),
+            position: index,
+            syncedAt: now,
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> clearCloudCache() async {
+    await transaction(() async {
+      await delete(cachedCloudTracks).go();
+      await delete(cachedCloudPlaylists).go();
+    });
   }
 
   LibraryTracksCompanion _companion(

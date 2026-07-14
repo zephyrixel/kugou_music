@@ -18,7 +18,8 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    horizontalTitleGap: 12,
     onTap: onTap,
     leading: index == null
         ? SongArtwork(url: song.artworkUrl)

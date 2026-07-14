@@ -6,6 +6,8 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/core/widgets/song_favorite_button.dart';
+import 'package:kgmusic/core/widgets/add_to_playlist_button.dart';
 
 class PlayerScreen extends ConsumerWidget {
   const PlayerScreen({super.key});
@@ -13,7 +15,6 @@ class PlayerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final handler = ref.watch(audioHandlerProvider);
-    final favorites = ref.watch(favoritesProvider).value ?? const <Song>[];
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -24,7 +25,10 @@ class PlayerScreen extends ConsumerWidget {
         builder: (context, snapshot) {
           final item = snapshot.data;
           if (item == null) return const Center(child: Text('还没有开始播放'));
-          final favorite = favorites.any((song) => song.id == item.id);
+          final index = handler.currentIndex;
+          final currentSong = index >= 0 && index < handler.songs.length
+              ? handler.songs[index]
+              : null;
           return Padding(
             padding: const EdgeInsets.fromLTRB(28, 16, 28, 34),
             child: Column(
@@ -56,22 +60,10 @@ class PlayerScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {
-                        final index = handler.currentIndex;
-                        if (index >= 0 && index < handler.songs.length) {
-                          ref
-                              .read(databaseProvider)
-                              .toggleFavorite(handler.songs[index]);
-                        }
-                      },
-                      icon: Icon(
-                        favorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                      ),
-                      color: favorite ? KgColors.accent : null,
-                    ),
+                    if (currentSong != null) ...[
+                      SongFavoriteButton(song: currentSong),
+                      AddToPlaylistButton(song: currentSong),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 20),

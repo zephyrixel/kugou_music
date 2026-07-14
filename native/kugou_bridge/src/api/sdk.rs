@@ -1,6 +1,7 @@
 use kugou_sdk::{
-    AudioQuality, KugouClient, KugouError, Pagination, PlatformProfile, PlaybackOutcome,
-    PlaybackRequest, SearchRequest, Session, SongRef,
+    AudioQuality, CollectRequest, KugouClient, KugouError, Pagination, PlatformProfile,
+    PlaybackOutcome, PlaybackRequest, PlaylistEditRequest, PlaylistKind, PlaylistTrackInput,
+    SearchPlaylist, SearchRequest, Session, SongRef, UserPlaylist,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -20,27 +21,63 @@ static RUNTIME: OnceLock<KugouRuntime> = OnceLock::new();
 pub struct SdkCapabilitiesDto {
     pub platform: String,
     pub song_search: bool,
+    pub playlist_search: bool,
     pub daily_recommendation: bool,
-    pub rank: bool,
-    pub trending_playlists: bool,
-    pub lyrics: bool,
-    pub qr_auth: bool,
+    pub sms_auth: bool,
     pub cloud_library: bool,
+    pub playlist_mutations: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct SearchSongsRequestDto {
+pub struct AuthStateDto {
+    pub authenticated: bool,
+    pub user_id: Option<u64>,
+    pub vip_type: Option<u32>,
+    pub fingerprint_registered: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct SmsLoginResultDto {
+    pub auth: AuthStateDto,
+    pub fingerprint_warning: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SearchRequestDto {
     pub keyword: String,
     pub page: u32,
     pub page_size: u32,
 }
 
 #[derive(Debug, Clone)]
-pub struct SearchPageDto {
+pub struct SongPageDto {
     pub items: Vec<SongDto>,
     pub page: u32,
     pub page_size: u32,
     pub total: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlaylistSearchPageDto {
+    pub items: Vec<PlaylistSearchHitDto>,
+    pub page: u32,
+    pub page_size: u32,
+    pub total: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlaylistSearchHitDto {
+    pub special_id: Option<u64>,
+    pub global_collection_id: Option<String>,
+    pub name: String,
+    pub intro: Option<String>,
+    pub artwork_url: Option<String>,
+    pub song_count: Option<u64>,
+    pub play_count: Option<u64>,
+    pub collect_count: Option<u64>,
+    pub creator_name: Option<String>,
+    pub creator_user_id: Option<u64>,
+    pub tags: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +100,7 @@ pub struct SongDto {
     pub privilege: Option<i64>,
     pub album_id: Option<u64>,
     pub mix_song_id: Option<u64>,
+    pub file_id: Option<u64>,
     pub hashes: AudioHashesDto,
 }
 
@@ -112,11 +150,91 @@ pub enum PlaybackResolutionDto {
 }
 
 #[derive(Debug, Clone)]
+pub struct UserProfileDto {
+    pub user_id: Option<u64>,
+    pub display_name: String,
+    pub username: Option<String>,
+    pub avatar_url: Option<String>,
+    pub gender: Option<i64>,
+    pub birthday: Option<String>,
+    pub city: Option<String>,
+    pub province: Option<String>,
+    pub signature: Option<String>,
+    pub following_count: Option<u64>,
+    pub fan_count: Option<u64>,
+    pub visitor_count: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UserVipDto {
+    pub vip_type: Option<i64>,
+    pub music_package_type: Option<i64>,
+    pub yearly_type: Option<i64>,
+    pub vip_end_time: Option<String>,
+    pub music_end_time: Option<String>,
+    pub yearly_end_time: Option<String>,
+    pub product_type: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CloudPlaylistDto {
+    pub list_id: Option<u64>,
+    pub global_collection_id: Option<String>,
+    pub name: String,
+    pub intro: Option<String>,
+    pub artwork_url: Option<String>,
+    pub count: Option<u64>,
+    pub list_type: Option<u32>,
+    pub creator_user_id: Option<u64>,
+    pub creator_name: Option<String>,
+    pub is_private: bool,
+    pub is_my_favorite: bool,
+    pub is_default_collect: bool,
+    pub tags: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CloudPlaylistPageDto {
+    pub items: Vec<CloudPlaylistDto>,
+    pub page: u32,
+    pub page_size: u32,
+    pub total: Option<u64>,
+    pub total_version: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlaylistTracksRequestDto {
+    pub list_id: Option<u64>,
+    pub global_collection_id: Option<String>,
+    pub owned: bool,
+    pub page: u32,
+    pub page_size: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlaylistEditInputDto {
+    pub list_id: u64,
+    pub name: Option<String>,
+    pub private: Option<bool>,
+    pub intro: Option<String>,
+    pub tags: Option<String>,
+    pub total_version: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlaylistMutationDto {
+    pub list_id: Option<u64>,
+    pub global_collection_id: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub enum BridgeErrorKind {
     InvalidArgument,
     Transport,
     Upstream,
     AuthenticationRequired,
+    AuthenticationExpired,
     SecurityChallenge,
     Unsupported,
     Internal,
@@ -154,25 +272,96 @@ pub fn get_sdk_capabilities() -> SdkCapabilitiesDto {
     SdkCapabilitiesDto {
         platform: SESSION_PLATFORM.to_owned(),
         song_search: true,
+        playlist_search: true,
         daily_recommendation: true,
-        rank: true,
-        trending_playlists: false,
-        lyrics: true,
-        qr_auth: true,
+        sms_auth: true,
         cloud_library: true,
+        playlist_mutations: true,
     }
 }
 
-pub async fn search_songs(request: SearchSongsRequestDto) -> Result<SearchPageDto, BridgeError> {
-    let keyword = request.keyword.trim();
-    if keyword.is_empty() {
-        return Err(BridgeError::invalid_argument(
-            "search keyword cannot be empty",
+pub async fn get_auth_state() -> Result<AuthStateDto, BridgeError> {
+    let runtime = runtime()?;
+    let session = runtime.session.lock().await;
+    Ok(auth_state(&session))
+}
+
+pub async fn send_sms_code(mobile: String) -> Result<(), BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .auth()
+        .send_sms_code(&mut session, &mobile)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
+}
+
+pub async fn login_by_sms(mobile: String, code: String) -> Result<SmsLoginResultDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .auth()
+        .login_by_sms(&mut session, &mobile, &code)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    if !session.is_authenticated() {
+        return Err(BridgeError::internal(
+            "SMS login returned without an authenticated session",
         ));
     }
+    let fingerprint_warning = runtime
+        .client
+        .auth()
+        .register_dev(&mut session, None)
+        .await
+        .err()
+        .map(|error| error.to_string());
+    Ok(SmsLoginResultDto {
+        auth: auth_state(&session),
+        fingerprint_warning,
+    })
+}
 
-    let page = request.page.max(1);
-    let page_size = request.page_size.clamp(1, 100);
+pub async fn refresh_login() -> Result<AuthStateDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .auth()
+        .refresh_token(&mut session)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    if session.device.device_fingerprint_id.is_none() {
+        let _ = runtime.client.auth().register_dev(&mut session, None).await;
+    }
+    Ok(auth_state(&session))
+}
+
+pub async fn register_device() -> Result<AuthStateDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .auth()
+        .register_dev(&mut session, None)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(auth_state(&session))
+}
+
+pub async fn logout() -> Result<AuthStateDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let device = session.device.clone();
+    *session = Session::new(device);
+    Ok(auth_state(&session))
+}
+
+pub async fn search_songs(request: SearchRequestDto) -> Result<SongPageDto, BridgeError> {
+    let (keyword, page, page_size) = validated_search(&request)?;
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
     let response = runtime
@@ -184,9 +373,36 @@ pub async fn search_songs(request: SearchSongsRequestDto) -> Result<SearchPageDt
         )
         .await
         .map_err(BridgeError::from_sdk)?;
-
-    Ok(SearchPageDto {
+    Ok(SongPageDto {
         items: response.data.items.iter().map(song_to_dto).collect(),
+        page,
+        page_size,
+        total: response.data.total,
+    })
+}
+
+pub async fn search_playlists(
+    request: SearchRequestDto,
+) -> Result<PlaylistSearchPageDto, BridgeError> {
+    let (keyword, page, page_size) = validated_search(&request)?;
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let response = runtime
+        .client
+        .search()
+        .playlists(
+            &mut session,
+            SearchRequest::new(keyword).pagination(Pagination::new(page, page_size)),
+        )
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(PlaylistSearchPageDto {
+        items: response
+            .data
+            .items
+            .iter()
+            .map(search_playlist_to_dto)
+            .collect(),
         page,
         page_size,
         total: response.data.total,
@@ -202,7 +418,6 @@ pub async fn get_everyday_recommendations() -> Result<RecommendationDto, BridgeE
         .everyday(&mut session)
         .await
         .map_err(BridgeError::from_sdk)?;
-
     Ok(RecommendationDto {
         title: "每日推荐".to_owned(),
         subtitle: response.data.sub_title,
@@ -218,7 +433,6 @@ pub async fn resolve_playback(
     let runtime = runtime()?;
     let (hash, actual_quality) = select_hash(&request.song.hashes, request.quality)
         .ok_or_else(|| BridgeError::invalid_argument("song has no usable resource hash"))?;
-
     let mut playback = PlaybackRequest::new(hash)
         .quality(actual_quality)
         .free_preview(request.free_preview);
@@ -228,7 +442,6 @@ pub async fn resolve_playback(
     if let Some(mix_song_id) = request.song.mix_song_id {
         playback = playback.album_audio_id(mix_song_id);
     }
-
     let mut session = runtime.session.lock().await;
     let response = runtime
         .client
@@ -238,7 +451,6 @@ pub async fn resolve_playback(
         .map_err(BridgeError::from_sdk)?;
     let bit_rate = response.data.bit_rate;
     let duration_secs = response.data.duration_secs;
-
     Ok(match response.data.outcome() {
         PlaybackOutcome::Playable { url } => PlaybackResolutionDto::Playable {
             url,
@@ -258,9 +470,276 @@ pub async fn resolve_playback(
             status,
             fail_process,
         },
-        PlaybackOutcome::Unavailable => PlaybackResolutionDto::Unavailable,
         _ => PlaybackResolutionDto::Unavailable,
     })
+}
+
+pub async fn get_user_profile() -> Result<UserProfileDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let user_id = session.user_id;
+    let value = runtime
+        .client
+        .users()
+        .detail(&mut session)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(UserProfileDto {
+        user_id: value.userid.or(user_id),
+        display_name: value.display_name().to_owned(),
+        username: value.username,
+        avatar_url: value.pic,
+        gender: value.sex,
+        birthday: value.birthday,
+        city: value.city,
+        province: value.province,
+        signature: value.signature,
+        following_count: value.fol_num,
+        fan_count: value.fan_num,
+        visitor_count: value.visit_total,
+    })
+}
+
+pub async fn get_user_vip() -> Result<UserVipDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .users()
+        .vip(&mut session)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(UserVipDto {
+        vip_type: value.vip_type,
+        music_package_type: value.m_type,
+        yearly_type: value.y_type,
+        vip_end_time: value.vip_end_time,
+        music_end_time: value.m_end_time,
+        yearly_end_time: value.y_end_time,
+        product_type: value.product_type,
+    })
+}
+
+pub async fn get_cloud_history() -> Result<SongPageDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .users()
+        .history(&mut session)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(SongPageDto {
+        items: value.items.iter().map(song_to_dto).collect(),
+        page: 1,
+        page_size: value.items.len() as u32,
+        total: value.total,
+    })
+}
+
+pub async fn get_cloud_playlists(
+    page: u32,
+    page_size: u32,
+) -> Result<CloudPlaylistPageDto, BridgeError> {
+    let page = page.max(1);
+    let page_size = page_size.clamp(1, 100);
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .users()
+        .playlists(&mut session, Pagination::new(page, page_size))
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(CloudPlaylistPageDto {
+        items: value.items.iter().map(cloud_playlist_to_dto).collect(),
+        page,
+        page_size,
+        total: value.list_count,
+        total_version: value.total_ver,
+    })
+}
+
+pub async fn get_playlist_tracks(
+    request: PlaylistTracksRequestDto,
+) -> Result<SongPageDto, BridgeError> {
+    let page = request.page.max(1);
+    let page_size = request.page_size.clamp(1, 100);
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = if request.owned {
+        let list_id = request
+            .list_id
+            .filter(|id| *id > 0)
+            .ok_or_else(|| BridgeError::invalid_argument("owned playlist requires list_id"))?;
+        runtime
+            .client
+            .playlists()
+            .tracks_by_listid(&mut session, list_id, Pagination::new(page, page_size))
+            .await
+            .map_err(BridgeError::from_sdk)?
+            .data
+    } else {
+        let gid = request
+            .global_collection_id
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| BridgeError::invalid_argument("playlist requires collection id"))?;
+        runtime
+            .client
+            .playlists()
+            .tracks(&mut session, gid, Pagination::new(page, page_size))
+            .await
+            .map_err(BridgeError::from_sdk)?
+            .data
+    };
+    Ok(SongPageDto {
+        items: value.items.iter().map(song_to_dto).collect(),
+        page,
+        page_size,
+        total: value.count,
+    })
+}
+
+pub async fn create_cloud_playlist(
+    name: String,
+    private: bool,
+) -> Result<PlaylistMutationDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .playlists()
+        .create(&mut session, &name, private)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(PlaylistMutationDto {
+        list_id: value.list_id,
+        global_collection_id: value.global_collection_id,
+        name: value.name,
+    })
+}
+
+pub async fn collect_cloud_playlist(
+    global_collection_id: String,
+    owner_user_id: Option<u64>,
+    name: Option<String>,
+) -> Result<PlaylistMutationDto, BridgeError> {
+    let mut request = CollectRequest::from_gid(global_collection_id);
+    if let Some(owner) = owner_user_id {
+        request = request.owner(owner);
+    }
+    if let Some(name) = name {
+        request = request.name(name);
+    }
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .playlists()
+        .collect(&mut session, request)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(PlaylistMutationDto {
+        list_id: value.list_id,
+        global_collection_id: value.global_collection_id,
+        name: value.name,
+    })
+}
+
+pub async fn delete_cloud_playlist(list_id: u64, collected: bool) -> Result<(), BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .playlists()
+        .delete(
+            &mut session,
+            list_id,
+            if collected {
+                PlaylistKind::Collected
+            } else {
+                PlaylistKind::Created
+            },
+        )
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
+}
+
+pub async fn edit_cloud_playlist(input: PlaylistEditInputDto) -> Result<(), BridgeError> {
+    let mut request = PlaylistEditRequest::new();
+    if let Some(name) = input.name {
+        request = request.name(name);
+    }
+    if let Some(private) = input.private {
+        request = request.private(private);
+    }
+    if let Some(intro) = input.intro {
+        request = request.intro(intro);
+    }
+    if let Some(tags) = input.tags {
+        request = request.tags(tags);
+    }
+    if let Some(version) = input.total_version {
+        request = request.total_ver(version);
+    }
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .playlists()
+        .modify(&mut session, input.list_id, request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
+}
+
+pub async fn add_song_to_playlist(list_id: u64, song: SongDto) -> Result<(), BridgeError> {
+    let hash = song
+        .hashes
+        .standard
+        .clone()
+        .or(song.hashes.high.clone())
+        .or(song.hashes.flac.clone())
+        .ok_or_else(|| BridgeError::invalid_argument("song has no hash for playlist write"))?;
+    let mut track = PlaylistTrackInput::new(song.title, hash);
+    if let Some(value) = song.album_id {
+        track = track.album_id(value);
+    }
+    if let Some(value) = song.mix_song_id {
+        track = track.mix_song_id(value);
+    }
+    if let Some(value) = song.duration_secs {
+        track = track.duration_secs(value);
+    }
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .playlists()
+        .add_tracks(&mut session, list_id, [track])
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
+}
+
+pub async fn remove_song_from_playlist(list_id: u64, file_id: u64) -> Result<(), BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .playlists()
+        .remove_tracks(&mut session, list_id, [file_id])
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
 }
 
 pub async fn export_session() -> Result<String, BridgeError> {
@@ -278,18 +757,12 @@ pub async fn export_session() -> Result<String, BridgeError> {
 pub async fn import_session(value: String) -> Result<(), BridgeError> {
     let persisted: PersistedSession = serde_json::from_str(&value)
         .map_err(|error| BridgeError::invalid_argument(error.to_string()))?;
-    if persisted.schema_version != SESSION_SCHEMA_VERSION {
-        return Err(BridgeError::invalid_argument(format!(
-            "unsupported session schema version {}",
-            persisted.schema_version
-        )));
-    }
-    if persisted.platform != SESSION_PLATFORM {
+    if persisted.schema_version != SESSION_SCHEMA_VERSION || persisted.platform != SESSION_PLATFORM
+    {
         return Err(BridgeError::invalid_argument(
-            "only Lite profile sessions can be imported",
+            "only schema v1 Lite sessions can be imported",
         ));
     }
-
     let restored = Session::import(&persisted.session_json).map_err(BridgeError::from_sdk)?;
     let runtime = runtime()?;
     *runtime.session.lock().await = restored;
@@ -300,7 +773,6 @@ fn runtime() -> Result<&'static KugouRuntime, BridgeError> {
     if let Some(runtime) = RUNTIME.get() {
         return Ok(runtime);
     }
-
     let client = KugouClient::builder()
         .platform(PlatformProfile::Lite)
         .build()
@@ -312,6 +784,33 @@ fn runtime() -> Result<&'static KugouRuntime, BridgeError> {
     RUNTIME
         .get()
         .ok_or_else(|| BridgeError::internal("failed to initialize Lite SDK runtime"))
+}
+
+fn auth_state(session: &Session) -> AuthStateDto {
+    AuthStateDto {
+        authenticated: session.is_authenticated(),
+        user_id: session.user_id,
+        vip_type: session.vip_type,
+        fingerprint_registered: session
+            .device
+            .device_fingerprint_id
+            .as_deref()
+            .is_some_and(|value| !value.is_empty() && value != "-"),
+    }
+}
+
+fn validated_search(request: &SearchRequestDto) -> Result<(&str, u32, u32), BridgeError> {
+    let keyword = request.keyword.trim();
+    if keyword.is_empty() {
+        return Err(BridgeError::invalid_argument(
+            "search keyword cannot be empty",
+        ));
+    }
+    Ok((
+        keyword,
+        request.page.max(1),
+        request.page_size.clamp(1, 100),
+    ))
 }
 
 fn song_to_dto(song: &SongRef) -> SongDto {
@@ -326,6 +825,7 @@ fn song_to_dto(song: &SongRef) -> SongDto {
         privilege: song.privilege,
         album_id: song.album_id,
         mix_song_id: song.mix_song_id,
+        file_id: song.file_id,
         hashes: AudioHashesDto {
             standard: song.resources.standard.clone(),
             high: song.resources.high.clone(),
@@ -333,6 +833,43 @@ fn song_to_dto(song: &SongRef) -> SongDto {
             hi_res: song.resources.hires.clone(),
             super_hash: song.resources.super_hash.clone(),
         },
+    }
+}
+
+fn search_playlist_to_dto(value: &SearchPlaylist) -> PlaylistSearchHitDto {
+    PlaylistSearchHitDto {
+        special_id: value.special_id,
+        global_collection_id: value.global_collection_id.clone(),
+        name: value.display_name().to_owned(),
+        intro: value.intro.clone(),
+        artwork_url: value.img.clone(),
+        song_count: value.song_count,
+        play_count: value.play_count,
+        collect_count: value.collect_count,
+        creator_name: value.nickname.clone(),
+        creator_user_id: value.user_id,
+        tags: value.tags.clone(),
+    }
+}
+
+fn cloud_playlist_to_dto(value: &UserPlaylist) -> CloudPlaylistDto {
+    CloudPlaylistDto {
+        list_id: value.list_id,
+        global_collection_id: value.global_collection_id.clone(),
+        name: value
+            .name
+            .clone()
+            .unwrap_or_else(|| "未命名歌单".to_owned()),
+        intro: value.intro.clone(),
+        artwork_url: value.pic.clone(),
+        count: value.count,
+        list_type: value.list_type,
+        creator_user_id: value.create_userid,
+        creator_name: value.create_username.clone(),
+        is_private: value.is_pri == Some(1),
+        is_my_favorite: value.is_my_fav(),
+        is_default_collect: value.is_default_collect(),
+        tags: value.tags.clone(),
     }
 }
 
@@ -375,7 +912,6 @@ fn select_hash(
             (hashes.standard.as_ref(), AudioQuality::Standard),
         ],
     };
-
     candidates.iter().find_map(|(hash, actual_quality)| {
         hash.filter(|value| !value.trim().is_empty())
             .map(|value| ((*value).clone(), *actual_quality))
@@ -429,17 +965,23 @@ impl BridgeError {
                 code: Some(i64::from(status)),
                 retryable: status >= 500,
             },
+            KugouError::Business { code, .. } if code == 20017 || code == 20018 => Self {
+                kind: BridgeErrorKind::AuthenticationExpired,
+                message,
+                code: Some(code),
+                retryable: false,
+            },
             KugouError::Business { code, .. } => Self {
                 kind: BridgeErrorKind::Upstream,
                 message,
                 code: Some(code),
                 retryable: false,
             },
-            KugouError::SecurityChallenge(_) => Self {
+            KugouError::SecurityChallenge(challenge) => Self {
                 kind: BridgeErrorKind::SecurityChallenge,
                 message,
-                code: None,
-                retryable: false,
+                code: challenge.code.parse().ok(),
+                retryable: true,
             },
             _ => Self::internal(message),
         }
@@ -451,11 +993,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn capabilities_are_lite_only() {
+    fn capabilities_are_lite_and_authenticated_features_are_exposed() {
         let capabilities = get_sdk_capabilities();
         assert_eq!(capabilities.platform, "lite");
-        assert!(capabilities.song_search);
-        assert!(!capabilities.trending_playlists);
+        assert!(capabilities.sms_auth);
+        assert!(capabilities.playlist_mutations);
     }
 
     #[test]

@@ -34,7 +34,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioQualityDto dco_decode_audio_quality_dto(dynamic raw);
 
   @protected
+  AuthStateDto dco_decode_auth_state_dto(dynamic raw);
+
+  @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  bool dco_decode_box_autoadd_bool(dynamic raw);
+
+  @protected
+  PlaylistEditInputDto dco_decode_box_autoadd_playlist_edit_input_dto(
+    dynamic raw,
+  );
+
+  @protected
+  PlaylistTracksRequestDto dco_decode_box_autoadd_playlist_tracks_request_dto(
+    dynamic raw,
+  );
 
   @protected
   ResolvePlaybackRequestDto dco_decode_box_autoadd_resolve_playback_request_dto(
@@ -42,9 +58,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  SearchSongsRequestDto dco_decode_box_autoadd_search_songs_request_dto(
-    dynamic raw,
-  );
+  SearchRequestDto dco_decode_box_autoadd_search_request_dto(dynamic raw);
+
+  @protected
+  SongDto dco_decode_box_autoadd_song_dto(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
   BridgeError dco_decode_bridge_error(dynamic raw);
@@ -53,10 +73,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BridgeErrorKind dco_decode_bridge_error_kind(dynamic raw);
 
   @protected
+  CloudPlaylistDto dco_decode_cloud_playlist_dto(dynamic raw);
+
+  @protected
+  CloudPlaylistPageDto dco_decode_cloud_playlist_page_dto(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
+
+  @protected
+  List<CloudPlaylistDto> dco_decode_list_cloud_playlist_dto(dynamic raw);
+
+  @protected
+  List<PlaylistSearchHitDto> dco_decode_list_playlist_search_hit_dto(
+    dynamic raw,
+  );
 
   @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
@@ -74,7 +108,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
+
+  @protected
+  int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
   PlaybackResolutionDto dco_decode_playback_resolution_dto(dynamic raw);
+
+  @protected
+  PlaylistEditInputDto dco_decode_playlist_edit_input_dto(dynamic raw);
+
+  @protected
+  PlaylistMutationDto dco_decode_playlist_mutation_dto(dynamic raw);
+
+  @protected
+  PlaylistSearchHitDto dco_decode_playlist_search_hit_dto(dynamic raw);
+
+  @protected
+  PlaylistSearchPageDto dco_decode_playlist_search_page_dto(dynamic raw);
+
+  @protected
+  PlaylistTracksRequestDto dco_decode_playlist_tracks_request_dto(dynamic raw);
 
   @protected
   RecommendationDto dco_decode_recommendation_dto(dynamic raw);
@@ -88,13 +143,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SdkCapabilitiesDto dco_decode_sdk_capabilities_dto(dynamic raw);
 
   @protected
-  SearchPageDto dco_decode_search_page_dto(dynamic raw);
+  SearchRequestDto dco_decode_search_request_dto(dynamic raw);
 
   @protected
-  SearchSongsRequestDto dco_decode_search_songs_request_dto(dynamic raw);
+  SmsLoginResultDto dco_decode_sms_login_result_dto(dynamic raw);
 
   @protected
   SongDto dco_decode_song_dto(dynamic raw);
+
+  @protected
+  SongPageDto dco_decode_song_page_dto(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -107,6 +165,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void dco_decode_unit(dynamic raw);
+
+  @protected
+  UserProfileDto dco_decode_user_profile_dto(dynamic raw);
+
+  @protected
+  UserVipDto dco_decode_user_vip_dto(dynamic raw);
 
   @protected
   int sse_decode_CastedPrimitive_i_64(SseDeserializer deserializer);
@@ -124,7 +188,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AudioQualityDto sse_decode_audio_quality_dto(SseDeserializer deserializer);
 
   @protected
+  AuthStateDto sse_decode_auth_state_dto(SseDeserializer deserializer);
+
+  @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  PlaylistEditInputDto sse_decode_box_autoadd_playlist_edit_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistTracksRequestDto sse_decode_box_autoadd_playlist_tracks_request_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ResolvePlaybackRequestDto sse_decode_box_autoadd_resolve_playback_request_dto(
@@ -132,9 +212,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  SearchSongsRequestDto sse_decode_box_autoadd_search_songs_request_dto(
+  SearchRequestDto sse_decode_box_autoadd_search_request_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SongDto sse_decode_box_autoadd_song_dto(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
   BridgeError sse_decode_bridge_error(SseDeserializer deserializer);
@@ -143,10 +229,28 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BridgeErrorKind sse_decode_bridge_error_kind(SseDeserializer deserializer);
 
   @protected
+  CloudPlaylistDto sse_decode_cloud_playlist_dto(SseDeserializer deserializer);
+
+  @protected
+  CloudPlaylistPageDto sse_decode_cloud_playlist_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  List<CloudPlaylistDto> sse_decode_list_cloud_playlist_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<PlaylistSearchHitDto> sse_decode_list_playlist_search_hit_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -164,7 +268,38 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
+
+  @protected
+  int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
   PlaybackResolutionDto sse_decode_playback_resolution_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistEditInputDto sse_decode_playlist_edit_input_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistMutationDto sse_decode_playlist_mutation_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistSearchHitDto sse_decode_playlist_search_hit_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistSearchPageDto sse_decode_playlist_search_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistTracksRequestDto sse_decode_playlist_tracks_request_dto(
     SseDeserializer deserializer,
   );
 
@@ -182,15 +317,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  SearchPageDto sse_decode_search_page_dto(SseDeserializer deserializer);
+  SearchRequestDto sse_decode_search_request_dto(SseDeserializer deserializer);
 
   @protected
-  SearchSongsRequestDto sse_decode_search_songs_request_dto(
+  SmsLoginResultDto sse_decode_sms_login_result_dto(
     SseDeserializer deserializer,
   );
 
   @protected
   SongDto sse_decode_song_dto(SseDeserializer deserializer);
+
+  @protected
+  SongPageDto sse_decode_song_page_dto(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -203,6 +341,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_decode_unit(SseDeserializer deserializer);
+
+  @protected
+  UserProfileDto sse_decode_user_profile_dto(SseDeserializer deserializer);
+
+  @protected
+  UserVipDto sse_decode_user_vip_dto(SseDeserializer deserializer);
 
   @protected
   void sse_encode_CastedPrimitive_i_64(int self, SseSerializer serializer);
@@ -226,7 +370,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_auth_state_dto(AuthStateDto self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_playlist_edit_input_dto(
+    PlaylistEditInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_playlist_tracks_request_dto(
+    PlaylistTracksRequestDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_resolve_playback_request_dto(
@@ -235,10 +397,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_search_songs_request_dto(
-    SearchSongsRequestDto self,
+  void sse_encode_box_autoadd_search_request_dto(
+    SearchRequestDto self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_box_autoadd_song_dto(SongDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_bridge_error(BridgeError self, SseSerializer serializer);
@@ -250,10 +418,34 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_cloud_playlist_dto(
+    CloudPlaylistDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_cloud_playlist_page_dto(
+    CloudPlaylistPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_cloud_playlist_dto(
+    List<CloudPlaylistDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_playlist_search_hit_dto(
+    List<PlaylistSearchHitDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_strict(
@@ -274,8 +466,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_playback_resolution_dto(
     PlaybackResolutionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_playlist_edit_input_dto(
+    PlaylistEditInputDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_playlist_mutation_dto(
+    PlaylistMutationDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_playlist_search_hit_dto(
+    PlaylistSearchHitDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_playlist_search_page_dto(
+    PlaylistSearchPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_playlist_tracks_request_dto(
+    PlaylistTracksRequestDto self,
     SseSerializer serializer,
   );
 
@@ -298,16 +526,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_search_page_dto(SearchPageDto self, SseSerializer serializer);
+  void sse_encode_search_request_dto(
+    SearchRequestDto self,
+    SseSerializer serializer,
+  );
 
   @protected
-  void sse_encode_search_songs_request_dto(
-    SearchSongsRequestDto self,
+  void sse_encode_sms_login_result_dto(
+    SmsLoginResultDto self,
     SseSerializer serializer,
   );
 
   @protected
   void sse_encode_song_dto(SongDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_song_page_dto(SongPageDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
@@ -320,6 +554,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_unit(void self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_user_profile_dto(
+    UserProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_user_vip_dto(UserVipDto self, SseSerializer serializer);
 }
 
 // Section: wire_class

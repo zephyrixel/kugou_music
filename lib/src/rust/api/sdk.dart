@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sdk.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `from_sdk`, `internal`, `invalid_argument`, `runtime`, `select_hash`, `song_to_dto`, `stable_song_id`
+// These functions are ignored because they are not marked as `pub`: `auth_state`, `cloud_playlist_to_dto`, `from_sdk`, `internal`, `invalid_argument`, `runtime`, `search_playlist_to_dto`, `select_hash`, `song_to_dto`, `stable_song_id`, `validated_search`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<SdkCapabilitiesDto> initializeSdk() =>
     RustLib.instance.api.crateApiSdkInitializeSdk();
@@ -18,8 +18,31 @@ Future<SdkCapabilitiesDto> initializeSdk() =>
 SdkCapabilitiesDto getSdkCapabilities() =>
     RustLib.instance.api.crateApiSdkGetSdkCapabilities();
 
-Future<SearchPageDto> searchSongs({required SearchSongsRequestDto request}) =>
+Future<AuthStateDto> getAuthState() =>
+    RustLib.instance.api.crateApiSdkGetAuthState();
+
+Future<void> sendSmsCode({required String mobile}) =>
+    RustLib.instance.api.crateApiSdkSendSmsCode(mobile: mobile);
+
+Future<SmsLoginResultDto> loginBySms({
+  required String mobile,
+  required String code,
+}) => RustLib.instance.api.crateApiSdkLoginBySms(mobile: mobile, code: code);
+
+Future<AuthStateDto> refreshLogin() =>
+    RustLib.instance.api.crateApiSdkRefreshLogin();
+
+Future<AuthStateDto> registerDevice() =>
+    RustLib.instance.api.crateApiSdkRegisterDevice();
+
+Future<AuthStateDto> logout() => RustLib.instance.api.crateApiSdkLogout();
+
+Future<SongPageDto> searchSongs({required SearchRequestDto request}) =>
     RustLib.instance.api.crateApiSdkSearchSongs(request: request);
+
+Future<PlaylistSearchPageDto> searchPlaylists({
+  required SearchRequestDto request,
+}) => RustLib.instance.api.crateApiSdkSearchPlaylists(request: request);
 
 Future<RecommendationDto> getEverydayRecommendations() =>
     RustLib.instance.api.crateApiSdkGetEverydayRecommendations();
@@ -27,6 +50,69 @@ Future<RecommendationDto> getEverydayRecommendations() =>
 Future<PlaybackResolutionDto> resolvePlayback({
   required ResolvePlaybackRequestDto request,
 }) => RustLib.instance.api.crateApiSdkResolvePlayback(request: request);
+
+Future<UserProfileDto> getUserProfile() =>
+    RustLib.instance.api.crateApiSdkGetUserProfile();
+
+Future<UserVipDto> getUserVip() => RustLib.instance.api.crateApiSdkGetUserVip();
+
+Future<SongPageDto> getCloudHistory() =>
+    RustLib.instance.api.crateApiSdkGetCloudHistory();
+
+Future<CloudPlaylistPageDto> getCloudPlaylists({
+  required int page,
+  required int pageSize,
+}) => RustLib.instance.api.crateApiSdkGetCloudPlaylists(
+  page: page,
+  pageSize: pageSize,
+);
+
+Future<SongPageDto> getPlaylistTracks({
+  required PlaylistTracksRequestDto request,
+}) => RustLib.instance.api.crateApiSdkGetPlaylistTracks(request: request);
+
+Future<PlaylistMutationDto> createCloudPlaylist({
+  required String name,
+  required bool private,
+}) => RustLib.instance.api.crateApiSdkCreateCloudPlaylist(
+  name: name,
+  private: private,
+);
+
+Future<PlaylistMutationDto> collectCloudPlaylist({
+  required String globalCollectionId,
+  int? ownerUserId,
+  String? name,
+}) => RustLib.instance.api.crateApiSdkCollectCloudPlaylist(
+  globalCollectionId: globalCollectionId,
+  ownerUserId: ownerUserId,
+  name: name,
+);
+
+Future<void> deleteCloudPlaylist({
+  required int listId,
+  required bool collected,
+}) => RustLib.instance.api.crateApiSdkDeleteCloudPlaylist(
+  listId: listId,
+  collected: collected,
+);
+
+Future<void> editCloudPlaylist({required PlaylistEditInputDto input}) =>
+    RustLib.instance.api.crateApiSdkEditCloudPlaylist(input: input);
+
+Future<void> addSongToPlaylist({required int listId, required SongDto song}) =>
+    RustLib.instance.api.crateApiSdkAddSongToPlaylist(
+      listId: listId,
+      song: song,
+    );
+
+Future<void> removeSongFromPlaylist({
+  required int listId,
+  required int fileId,
+}) => RustLib.instance.api.crateApiSdkRemoveSongFromPlaylist(
+  listId: listId,
+  fileId: fileId,
+);
 
 Future<String> exportSession() =>
     RustLib.instance.api.crateApiSdkExportSession();
@@ -71,6 +157,37 @@ class AudioHashesDto {
 
 enum AudioQualityDto { standard, high, flac, hiRes, super_ }
 
+class AuthStateDto {
+  final bool authenticated;
+  final int? userId;
+  final int? vipType;
+  final bool fingerprintRegistered;
+
+  const AuthStateDto({
+    required this.authenticated,
+    this.userId,
+    this.vipType,
+    required this.fingerprintRegistered,
+  });
+
+  @override
+  int get hashCode =>
+      authenticated.hashCode ^
+      userId.hashCode ^
+      vipType.hashCode ^
+      fingerprintRegistered.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AuthStateDto &&
+          runtimeType == other.runtimeType &&
+          authenticated == other.authenticated &&
+          userId == other.userId &&
+          vipType == other.vipType &&
+          fingerprintRegistered == other.fingerprintRegistered;
+}
+
 class BridgeError implements FrbException {
   final BridgeErrorKind kind;
   final String message;
@@ -104,9 +221,112 @@ enum BridgeErrorKind {
   transport,
   upstream,
   authenticationRequired,
+  authenticationExpired,
   securityChallenge,
   unsupported,
   internal,
+}
+
+class CloudPlaylistDto {
+  final int? listId;
+  final String? globalCollectionId;
+  final String name;
+  final String? intro;
+  final String? artworkUrl;
+  final int? count;
+  final int? listType;
+  final int? creatorUserId;
+  final String? creatorName;
+  final bool isPrivate;
+  final bool isMyFavorite;
+  final bool isDefaultCollect;
+  final String? tags;
+
+  const CloudPlaylistDto({
+    this.listId,
+    this.globalCollectionId,
+    required this.name,
+    this.intro,
+    this.artworkUrl,
+    this.count,
+    this.listType,
+    this.creatorUserId,
+    this.creatorName,
+    required this.isPrivate,
+    required this.isMyFavorite,
+    required this.isDefaultCollect,
+    this.tags,
+  });
+
+  @override
+  int get hashCode =>
+      listId.hashCode ^
+      globalCollectionId.hashCode ^
+      name.hashCode ^
+      intro.hashCode ^
+      artworkUrl.hashCode ^
+      count.hashCode ^
+      listType.hashCode ^
+      creatorUserId.hashCode ^
+      creatorName.hashCode ^
+      isPrivate.hashCode ^
+      isMyFavorite.hashCode ^
+      isDefaultCollect.hashCode ^
+      tags.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CloudPlaylistDto &&
+          runtimeType == other.runtimeType &&
+          listId == other.listId &&
+          globalCollectionId == other.globalCollectionId &&
+          name == other.name &&
+          intro == other.intro &&
+          artworkUrl == other.artworkUrl &&
+          count == other.count &&
+          listType == other.listType &&
+          creatorUserId == other.creatorUserId &&
+          creatorName == other.creatorName &&
+          isPrivate == other.isPrivate &&
+          isMyFavorite == other.isMyFavorite &&
+          isDefaultCollect == other.isDefaultCollect &&
+          tags == other.tags;
+}
+
+class CloudPlaylistPageDto {
+  final List<CloudPlaylistDto> items;
+  final int page;
+  final int pageSize;
+  final int? total;
+  final int? totalVersion;
+
+  const CloudPlaylistPageDto({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    this.total,
+    this.totalVersion,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^
+      page.hashCode ^
+      pageSize.hashCode ^
+      total.hashCode ^
+      totalVersion.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CloudPlaylistPageDto &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          page == other.page &&
+          pageSize == other.pageSize &&
+          total == other.total &&
+          totalVersion == other.totalVersion;
 }
 
 @freezed
@@ -128,6 +348,188 @@ sealed class PlaybackResolutionDto with _$PlaybackResolutionDto {
       PlaybackResolutionDto_Denied;
   const factory PlaybackResolutionDto.unavailable() =
       PlaybackResolutionDto_Unavailable;
+}
+
+class PlaylistEditInputDto {
+  final int listId;
+  final String? name;
+  final bool? private;
+  final String? intro;
+  final String? tags;
+  final int? totalVersion;
+
+  const PlaylistEditInputDto({
+    required this.listId,
+    this.name,
+    this.private,
+    this.intro,
+    this.tags,
+    this.totalVersion,
+  });
+
+  @override
+  int get hashCode =>
+      listId.hashCode ^
+      name.hashCode ^
+      private.hashCode ^
+      intro.hashCode ^
+      tags.hashCode ^
+      totalVersion.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaylistEditInputDto &&
+          runtimeType == other.runtimeType &&
+          listId == other.listId &&
+          name == other.name &&
+          private == other.private &&
+          intro == other.intro &&
+          tags == other.tags &&
+          totalVersion == other.totalVersion;
+}
+
+class PlaylistMutationDto {
+  final int? listId;
+  final String? globalCollectionId;
+  final String? name;
+
+  const PlaylistMutationDto({this.listId, this.globalCollectionId, this.name});
+
+  @override
+  int get hashCode =>
+      listId.hashCode ^ globalCollectionId.hashCode ^ name.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaylistMutationDto &&
+          runtimeType == other.runtimeType &&
+          listId == other.listId &&
+          globalCollectionId == other.globalCollectionId &&
+          name == other.name;
+}
+
+class PlaylistSearchHitDto {
+  final int? specialId;
+  final String? globalCollectionId;
+  final String name;
+  final String? intro;
+  final String? artworkUrl;
+  final int? songCount;
+  final int? playCount;
+  final int? collectCount;
+  final String? creatorName;
+  final int? creatorUserId;
+  final String? tags;
+
+  const PlaylistSearchHitDto({
+    this.specialId,
+    this.globalCollectionId,
+    required this.name,
+    this.intro,
+    this.artworkUrl,
+    this.songCount,
+    this.playCount,
+    this.collectCount,
+    this.creatorName,
+    this.creatorUserId,
+    this.tags,
+  });
+
+  @override
+  int get hashCode =>
+      specialId.hashCode ^
+      globalCollectionId.hashCode ^
+      name.hashCode ^
+      intro.hashCode ^
+      artworkUrl.hashCode ^
+      songCount.hashCode ^
+      playCount.hashCode ^
+      collectCount.hashCode ^
+      creatorName.hashCode ^
+      creatorUserId.hashCode ^
+      tags.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaylistSearchHitDto &&
+          runtimeType == other.runtimeType &&
+          specialId == other.specialId &&
+          globalCollectionId == other.globalCollectionId &&
+          name == other.name &&
+          intro == other.intro &&
+          artworkUrl == other.artworkUrl &&
+          songCount == other.songCount &&
+          playCount == other.playCount &&
+          collectCount == other.collectCount &&
+          creatorName == other.creatorName &&
+          creatorUserId == other.creatorUserId &&
+          tags == other.tags;
+}
+
+class PlaylistSearchPageDto {
+  final List<PlaylistSearchHitDto> items;
+  final int page;
+  final int pageSize;
+  final int? total;
+
+  const PlaylistSearchPageDto({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    this.total,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ page.hashCode ^ pageSize.hashCode ^ total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaylistSearchPageDto &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          page == other.page &&
+          pageSize == other.pageSize &&
+          total == other.total;
+}
+
+class PlaylistTracksRequestDto {
+  final int? listId;
+  final String? globalCollectionId;
+  final bool owned;
+  final int page;
+  final int pageSize;
+
+  const PlaylistTracksRequestDto({
+    this.listId,
+    this.globalCollectionId,
+    required this.owned,
+    required this.page,
+    required this.pageSize,
+  });
+
+  @override
+  int get hashCode =>
+      listId.hashCode ^
+      globalCollectionId.hashCode ^
+      owned.hashCode ^
+      page.hashCode ^
+      pageSize.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaylistTracksRequestDto &&
+          runtimeType == other.runtimeType &&
+          listId == other.listId &&
+          globalCollectionId == other.globalCollectionId &&
+          owned == other.owned &&
+          page == other.page &&
+          pageSize == other.pageSize;
 }
 
 class RecommendationDto {
@@ -192,34 +594,31 @@ class ResolvePlaybackRequestDto {
 class SdkCapabilitiesDto {
   final String platform;
   final bool songSearch;
+  final bool playlistSearch;
   final bool dailyRecommendation;
-  final bool rank;
-  final bool trendingPlaylists;
-  final bool lyrics;
-  final bool qrAuth;
+  final bool smsAuth;
   final bool cloudLibrary;
+  final bool playlistMutations;
 
   const SdkCapabilitiesDto({
     required this.platform,
     required this.songSearch,
+    required this.playlistSearch,
     required this.dailyRecommendation,
-    required this.rank,
-    required this.trendingPlaylists,
-    required this.lyrics,
-    required this.qrAuth,
+    required this.smsAuth,
     required this.cloudLibrary,
+    required this.playlistMutations,
   });
 
   @override
   int get hashCode =>
       platform.hashCode ^
       songSearch.hashCode ^
+      playlistSearch.hashCode ^
       dailyRecommendation.hashCode ^
-      rank.hashCode ^
-      trendingPlaylists.hashCode ^
-      lyrics.hashCode ^
-      qrAuth.hashCode ^
-      cloudLibrary.hashCode;
+      smsAuth.hashCode ^
+      cloudLibrary.hashCode ^
+      playlistMutations.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -228,48 +627,19 @@ class SdkCapabilitiesDto {
           runtimeType == other.runtimeType &&
           platform == other.platform &&
           songSearch == other.songSearch &&
+          playlistSearch == other.playlistSearch &&
           dailyRecommendation == other.dailyRecommendation &&
-          rank == other.rank &&
-          trendingPlaylists == other.trendingPlaylists &&
-          lyrics == other.lyrics &&
-          qrAuth == other.qrAuth &&
-          cloudLibrary == other.cloudLibrary;
+          smsAuth == other.smsAuth &&
+          cloudLibrary == other.cloudLibrary &&
+          playlistMutations == other.playlistMutations;
 }
 
-class SearchPageDto {
-  final List<SongDto> items;
-  final int page;
-  final int pageSize;
-  final int? total;
-
-  const SearchPageDto({
-    required this.items,
-    required this.page,
-    required this.pageSize,
-    this.total,
-  });
-
-  @override
-  int get hashCode =>
-      items.hashCode ^ page.hashCode ^ pageSize.hashCode ^ total.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SearchPageDto &&
-          runtimeType == other.runtimeType &&
-          items == other.items &&
-          page == other.page &&
-          pageSize == other.pageSize &&
-          total == other.total;
-}
-
-class SearchSongsRequestDto {
+class SearchRequestDto {
   final String keyword;
   final int page;
   final int pageSize;
 
-  const SearchSongsRequestDto({
+  const SearchRequestDto({
     required this.keyword,
     required this.page,
     required this.pageSize,
@@ -281,11 +651,29 @@ class SearchSongsRequestDto {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is SearchSongsRequestDto &&
+      other is SearchRequestDto &&
           runtimeType == other.runtimeType &&
           keyword == other.keyword &&
           page == other.page &&
           pageSize == other.pageSize;
+}
+
+class SmsLoginResultDto {
+  final AuthStateDto auth;
+  final String? fingerprintWarning;
+
+  const SmsLoginResultDto({required this.auth, this.fingerprintWarning});
+
+  @override
+  int get hashCode => auth.hashCode ^ fingerprintWarning.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SmsLoginResultDto &&
+          runtimeType == other.runtimeType &&
+          auth == other.auth &&
+          fingerprintWarning == other.fingerprintWarning;
 }
 
 class SongDto {
@@ -298,6 +686,7 @@ class SongDto {
   final int? privilege;
   final int? albumId;
   final int? mixSongId;
+  final int? fileId;
   final AudioHashesDto hashes;
 
   const SongDto({
@@ -310,6 +699,7 @@ class SongDto {
     this.privilege,
     this.albumId,
     this.mixSongId,
+    this.fileId,
     required this.hashes,
   });
 
@@ -324,6 +714,7 @@ class SongDto {
       privilege.hashCode ^
       albumId.hashCode ^
       mixSongId.hashCode ^
+      fileId.hashCode ^
       hashes.hashCode;
 
   @override
@@ -340,5 +731,140 @@ class SongDto {
           privilege == other.privilege &&
           albumId == other.albumId &&
           mixSongId == other.mixSongId &&
+          fileId == other.fileId &&
           hashes == other.hashes;
+}
+
+class SongPageDto {
+  final List<SongDto> items;
+  final int page;
+  final int pageSize;
+  final int? total;
+
+  const SongPageDto({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    this.total,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ page.hashCode ^ pageSize.hashCode ^ total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SongPageDto &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          page == other.page &&
+          pageSize == other.pageSize &&
+          total == other.total;
+}
+
+class UserProfileDto {
+  final int? userId;
+  final String displayName;
+  final String? username;
+  final String? avatarUrl;
+  final int? gender;
+  final String? birthday;
+  final String? city;
+  final String? province;
+  final String? signature;
+  final int? followingCount;
+  final int? fanCount;
+  final int? visitorCount;
+
+  const UserProfileDto({
+    this.userId,
+    required this.displayName,
+    this.username,
+    this.avatarUrl,
+    this.gender,
+    this.birthday,
+    this.city,
+    this.province,
+    this.signature,
+    this.followingCount,
+    this.fanCount,
+    this.visitorCount,
+  });
+
+  @override
+  int get hashCode =>
+      userId.hashCode ^
+      displayName.hashCode ^
+      username.hashCode ^
+      avatarUrl.hashCode ^
+      gender.hashCode ^
+      birthday.hashCode ^
+      city.hashCode ^
+      province.hashCode ^
+      signature.hashCode ^
+      followingCount.hashCode ^
+      fanCount.hashCode ^
+      visitorCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserProfileDto &&
+          runtimeType == other.runtimeType &&
+          userId == other.userId &&
+          displayName == other.displayName &&
+          username == other.username &&
+          avatarUrl == other.avatarUrl &&
+          gender == other.gender &&
+          birthday == other.birthday &&
+          city == other.city &&
+          province == other.province &&
+          signature == other.signature &&
+          followingCount == other.followingCount &&
+          fanCount == other.fanCount &&
+          visitorCount == other.visitorCount;
+}
+
+class UserVipDto {
+  final int? vipType;
+  final int? musicPackageType;
+  final int? yearlyType;
+  final String? vipEndTime;
+  final String? musicEndTime;
+  final String? yearlyEndTime;
+  final String? productType;
+
+  const UserVipDto({
+    this.vipType,
+    this.musicPackageType,
+    this.yearlyType,
+    this.vipEndTime,
+    this.musicEndTime,
+    this.yearlyEndTime,
+    this.productType,
+  });
+
+  @override
+  int get hashCode =>
+      vipType.hashCode ^
+      musicPackageType.hashCode ^
+      yearlyType.hashCode ^
+      vipEndTime.hashCode ^
+      musicEndTime.hashCode ^
+      yearlyEndTime.hashCode ^
+      productType.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserVipDto &&
+          runtimeType == other.runtimeType &&
+          vipType == other.vipType &&
+          musicPackageType == other.musicPackageType &&
+          yearlyType == other.yearlyType &&
+          vipEndTime == other.vipEndTime &&
+          musicEndTime == other.musicEndTime &&
+          yearlyEndTime == other.yearlyEndTime &&
+          productType == other.productType;
 }

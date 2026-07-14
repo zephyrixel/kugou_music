@@ -6,6 +6,9 @@ import 'package:kgmusic/features/library/library_screen.dart';
 import 'package:kgmusic/features/player/mini_player.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
 import 'package:kgmusic/features/search/search_screen.dart';
+import 'package:kgmusic/features/account/account_screen.dart';
+import 'package:kgmusic/features/auth/login_screen.dart';
+import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
 
 class KgMusicApp extends StatelessWidget {
   KgMusicApp({super.key});
@@ -19,9 +22,15 @@ class KgMusicApp extends StatelessWidget {
           GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
           GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
           GoRoute(path: '/library', builder: (_, _) => const LibraryScreen()),
+          GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
         ],
       ),
       GoRoute(path: '/player', builder: (_, _) => const PlayerScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: '/playlist',
+        builder: (_, state) => PlaylistDetailScreen(source: state.extra!),
+      ),
     ],
   );
 
@@ -44,6 +53,7 @@ class _AppShell extends StatelessWidget {
     final index = switch (location) {
       '/search' => 1,
       '/library' => 2,
+      '/account' => 3,
       _ => 0,
     };
     return Scaffold(
@@ -62,6 +72,8 @@ class _AppShell extends StatelessWidget {
                   context.go('/search');
                 case 2:
                   context.go('/library');
+                case 3:
+                  context.go('/account');
               }
             },
             destinations: const [
@@ -78,6 +90,11 @@ class _AppShell extends StatelessWidget {
                 icon: Icon(Icons.library_music_outlined),
                 selectedIcon: Icon(Icons.library_music_rounded),
                 label: '音乐库',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: '我的',
               ),
             ],
           ),

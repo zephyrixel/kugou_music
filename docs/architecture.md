@@ -12,7 +12,7 @@ features/*
     ├── app/providers.dart (依赖装配)
     │
     ├── core/native/MusicSdk ── FRB generated bindings ── Rust kugou_bridge
-    │                                                    └── kugou_sdk 0.2.0 / Lite
+    │                                                    └── kugou_sdk 0.2.1 / Lite
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
     │
@@ -28,6 +28,7 @@ features/*
 - `lib/core/database/`：本地收藏和历史记录；不保存媒体 URL 或会话。
 - `lib/core/design_system/`、`widgets/`：深色荧光绿视觉系统与共享组件。
 - `lib/features/`：按 home/search/library/player 划分的产品功能。
+- `lib/features/auth/`、`account/`、`playlists/`：SMS 登录、账号生命周期与云歌单管理。
 - `lib/src/rust/`：FRB 自动生成代码，业务页面不得直接依赖。
 - `native/kugou_bridge/`：Rust 异步运行时、Lite SDK 调用和桥接错误映射。
 
@@ -49,6 +50,17 @@ Rust 导出的会话外层必须为：
 
 导入时拒绝版本不符或 `platform != lite` 的数据。Flutter 使用
 `flutter_secure_storage` 保存整个信封；Drift 仅保存可公开的歌曲元数据。
+
+SMS 登录成功后 Rust 会立即注册 `dfid`；注册失败不会撤销有效登录，而是在下次
+应用恢复前台时重试。Flutter 在启动、恢复前台及持续前台期间按 12 小时周期刷新
+token，`20017/20018` 会清除认证态并要求重新登录。
+
+## 收藏与云歌单
+
+- 游客红心写入本地 `library_tracks`。
+- 登录后红心写入 `is_def=2` 的云端「我喜欢」，绝不把 `is_def=1` 默认收藏误认成红心列表。
+- 既有本地收藏不会自动批量上传；本地音乐库与账号云音乐保持独立入口。
+- Drift schema v2 缓存账号歌单与包含 `file_id` 的歌单歌曲；退出登录清理云缓存但保留本地数据。
 
 ## 后续迭代
 

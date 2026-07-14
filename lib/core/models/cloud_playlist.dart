@@ -1,0 +1,109 @@
+class CloudPlaylist {
+  const CloudPlaylist({
+    required this.name,
+    required this.isPrivate,
+    required this.isMyFavorite,
+    required this.isDefaultCollect,
+    this.listId,
+    this.globalCollectionId,
+    this.intro,
+    this.artworkUrl,
+    this.count,
+    this.listType,
+    this.creatorUserId,
+    this.creatorName,
+    this.tags,
+  });
+
+  final int? listId;
+  final String? globalCollectionId;
+  final String name;
+  final String? intro;
+  final String? artworkUrl;
+  final int? count;
+  final int? listType;
+  final int? creatorUserId;
+  final String? creatorName;
+  final bool isPrivate;
+  final bool isMyFavorite;
+  final bool isDefaultCollect;
+  final String? tags;
+
+  bool get isCollected => listType == 1;
+  bool get isSystem => isMyFavorite || isDefaultCollect;
+  bool get isWritable => !isCollected && listId != null;
+}
+
+class CloudPlaylistPage {
+  const CloudPlaylistPage({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    this.total,
+    this.totalVersion,
+  });
+
+  final List<CloudPlaylist> items;
+  final int page;
+  final int pageSize;
+  final int? total;
+  final int? totalVersion;
+}
+
+class PlaylistSearchHit {
+  const PlaylistSearchHit({
+    required this.name,
+    this.specialId,
+    this.globalCollectionId,
+    this.intro,
+    this.artworkUrl,
+    this.songCount,
+    this.playCount,
+    this.collectCount,
+    this.creatorName,
+    this.creatorUserId,
+    this.tags,
+  });
+
+  final int? specialId;
+  final String? globalCollectionId;
+  final String name;
+  final String? intro;
+  final String? artworkUrl;
+  final int? songCount;
+  final int? playCount;
+  final int? collectCount;
+  final String? creatorName;
+  final int? creatorUserId;
+  final String? tags;
+}
+
+class PlaylistSearchPage {
+  const PlaylistSearchPage({
+    required this.items,
+    required this.page,
+    required this.pageSize,
+    this.total,
+  });
+  final List<PlaylistSearchHit> items;
+  final int page;
+  final int pageSize;
+  final int? total;
+}
+
+class PlaylistEditInput {
+  const PlaylistEditInput({
+    required this.listId,
+    this.name,
+    this.private,
+    this.intro,
+    this.tags,
+    this.totalVersion,
+  });
+  final int listId;
+  final String? name;
+  final bool? private;
+  final String? intro;
+  final String? tags;
+  final int? totalVersion;
+}
