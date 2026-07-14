@@ -1,0 +1,5 @@
+rust_input: crate::api
+rust_root: native/kugou_bridge/
+dart_output: lib/src/rust
+type_64bit_int: true
+web: false
