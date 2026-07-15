@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 
@@ -76,28 +77,26 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
     final value = ref.watch(favoriteSongsProvider);
     return value.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(child: Text(error.toString())),
+      error: (error, _) => KgErrorView(
+        error: error,
+        onRetry: () async {
+          _requested = false;
+          await _ensureLoaded();
+        },
+      ),
       data: (songs) => songs.isEmpty && _loading
           ? const Center(child: CircularProgressIndicator())
           : songs.isEmpty && _loadError != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(_loadError.toString(), textAlign: TextAlign.center),
-                  TextButton(
-                    onPressed: () {
-                      _requested = false;
-                      _loadError = null;
-                      unawaited(_ensureLoaded());
-                    },
-                    child: const Text('重试'),
-                  ),
-                ],
-              ),
+          ? KgErrorView(
+              error: _loadError!,
+              onRetry: () async {
+                _requested = false;
+                _loadError = null;
+                await _ensureLoaded();
+              },
             )
           : songs.isEmpty
-          ? const Center(child: Text('还没有收藏歌曲'))
+          ? const KgEmptyView('还没有收藏歌曲')
           : ListView.builder(
               itemCount: songs.length,
               itemBuilder: (context, index) => SongTile(
@@ -130,13 +129,16 @@ class _HistorySongs extends ConsumerWidget {
     final value = ref.watch(historyEntriesProvider);
     return value.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(child: Text(error.toString())),
+      error: (error, _) => KgErrorView(
+        error: error,
+        onRetry: () async => ref.invalidate(historyEntriesProvider),
+      ),
       data: (entries) {
         final songs = entries
             .map((entry) => entry.song)
             .toList(growable: false);
         if (songs.isEmpty) {
-          return const Center(child: Text('播放记录会出现在这里'));
+          return const KgEmptyView('播放记录会出现在这里');
         }
         return ListView.builder(
           itemCount: songs.length,

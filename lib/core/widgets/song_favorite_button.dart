@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class SongFavoriteButton extends ConsumerWidget {
   const SongFavoriteButton({
@@ -43,10 +44,6 @@ Future<void> toggleSongFavorite(
   try {
     await ref.read(libraryRepositoryProvider).toggleFavorite(song);
   } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
+    if (context.mounted) showAppError(context, error);
   }
 }

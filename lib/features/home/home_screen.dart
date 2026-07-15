@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
@@ -69,9 +70,9 @@ class HomeScreen extends ConsumerWidget {
             ),
             error: (error, _) => SliverFillRemaining(
               hasScrollBody: false,
-              child: _ErrorState(
-                message: error.toString(),
-                onRetry: () => ref.invalidate(dailyRecommendationsProvider),
+              child: KgErrorView(
+                error: error,
+                onRetry: () async => ref.invalidate(dailyRecommendationsProvider),
               ),
             ),
             data: (songs) => songs.isEmpty
@@ -151,26 +152,4 @@ class _DailyHero extends StatelessWidget {
   );
 }
 
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off_rounded, size: 42),
-          const SizedBox(height: 12),
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          OutlinedButton(onPressed: onRetry, child: const Text('重新加载')),
-        ],
-      ),
-    ),
-  );
-}
 

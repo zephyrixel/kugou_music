@@ -7,6 +7,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
@@ -134,11 +135,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
             private: result.private,
           );
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-      }
+      if (mounted) showAppError(context, error);
     }
   }
 
@@ -153,11 +150,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
       await ref.read(libraryRepositoryProvider).deletePlaylist(playlist.localId!);
       if (mounted) context.pop();
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-      }
+      if (mounted) showAppError(context, error);
     }
   }
 }

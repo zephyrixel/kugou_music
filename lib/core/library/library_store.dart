@@ -88,10 +88,6 @@ class LibraryStore {
     );
   }
 
-  Stream<LibrarySyncState?> watchSyncState() => (database.select(
-    database.librarySyncStates,
-  )..where((row) => row.singletonId.equals(1))).watchSingleOrNull();
-
   Future<LibrarySyncState?> get syncState => (database.select(
     database.librarySyncStates,
   )..where((row) => row.singletonId.equals(1))).getSingleOrNull();
@@ -109,24 +105,6 @@ class LibraryStore {
               ..where((item) => item.isMyFavorite.equals(true)))
             .getSingleOrNull();
     return row == null ? null : _playlistFromRow(row);
-  }
-
-  Future<Song?> song(String id) async {
-    final row = await (database.select(
-      database.storedSongs,
-    )..where((item) => item.id.equals(id))).getSingleOrNull();
-    return row == null ? null : _songFromRow(row);
-  }
-
-  Future<int?> trackFileId(String playlistLocalId, String songId) async {
-    final row =
-        await (database.select(database.storedPlaylistTracks)..where(
-              (item) =>
-                  item.playlistLocalId.equals(playlistLocalId) &
-                  item.songId.equals(songId),
-            ))
-            .getSingleOrNull();
-    return row?.fileId;
   }
 
   Future<bool> isTrackMember(String playlistLocalId, String songId) async {
@@ -288,34 +266,11 @@ class LibraryStore {
       );
 
   /// Full replace (tests / one-shot callers). Prefer progressive append for UI.
-  Future<void> replacePlaylistTracks(String localId, List<Song> songs) =>
-      database.transaction(() async {
-        await (database.delete(
-          database.storedPlaylistTracks,
-        )..where((row) => row.playlistLocalId.equals(localId))).go();
-        for (var index = 0; index < songs.length; index++) {
-          final song = songs[index];
-          await _upsertSong(song);
-          await database
-              .into(database.storedPlaylistTracks)
-              .insert(
-                StoredPlaylistTracksCompanion.insert(
-                  playlistLocalId: localId,
-                  songId: song.id,
-                  fileId: Value(song.fileId),
-                  position: Value(index),
-                ),
-              );
-        }
-        await (database.update(
-          database.storedPlaylists,
-        )..where((row) => row.localId.equals(localId))).write(
-          StoredPlaylistsCompanion(
-            tracksLoaded: const Value(true),
-            count: Value(songs.length),
-          ),
-        );
-      });
+  Future<void> replacePlaylistTracks(String localId, List<Song> songs) async {
+    await clearPlaylistTracks(localId);
+    await appendPlaylistTracks(localId, songs, startPosition: 0);
+    await markPlaylistTracksLoaded(localId, count: songs.length);
+  }
 
   Future<void> upsertPlaylist(Playlist playlist, {int? sortOrder}) async {
     final count = sortOrder ?? await _playlistCount();
@@ -353,22 +308,6 @@ class LibraryStore {
           database.storedPlaylists,
         )..where((row) => row.localId.equals(localId))).go();
       });
-
-  Future<void> attachRemoteIds(
-    String localId, {
-    required int listId,
-    String? globalCollectionId,
-  }) =>
-      (database.update(
-        database.storedPlaylists,
-      )..where((row) => row.localId.equals(localId))).write(
-        StoredPlaylistsCompanion(
-          remoteListId: Value(listId),
-          globalCollectionId: globalCollectionId == null
-              ? const Value.absent()
-              : Value(globalCollectionId),
-        ),
-      );
 
   /// Optimistic membership change. Returns previous membership for rollback.
   Future<({bool wasPresent, int? fileId, int previousCount})>

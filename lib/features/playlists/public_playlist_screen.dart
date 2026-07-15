@@ -7,6 +7,7 @@ import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
 
@@ -102,17 +103,9 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
   Future<void> _collect() async {
     try {
       await ref.read(libraryRepositoryProvider).collectPlaylist(widget.playlist);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('已收藏')));
-      }
+      if (mounted) showAppMessage(context, '已收藏');
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-      }
+      if (mounted) showAppError(context, error);
     }
   }
 }

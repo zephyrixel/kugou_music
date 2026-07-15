@@ -7,6 +7,7 @@ import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
 class AccountScreen extends ConsumerWidget {
@@ -62,9 +63,9 @@ class AccountScreen extends ConsumerWidget {
                 child: CircularProgressIndicator(),
               ),
             ),
-            error: (error, _) => _InlineError(
+            error: (error, _) => KgInlineError(
               error: error,
-              retry: () => ref.invalidate(libraryPlaylistsProvider),
+              onRetry: () => ref.invalidate(libraryPlaylistsProvider),
             ),
             data: (items) => items.isEmpty
                 ? const Padding(
@@ -271,21 +272,6 @@ class _PlaylistRow extends StatelessWidget {
   );
 }
 
-class _InlineError extends StatelessWidget {
-  const _InlineError({required this.error, required this.retry});
-
-  final Object error;
-  final VoidCallback retry;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-    title: Text(error.toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-    trailing: IconButton(
-      onPressed: retry,
-      icon: const Icon(Icons.refresh_rounded),
-    ),
-  );
-}
 
 Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
   final result = await promptPlaylistName(
@@ -299,11 +285,7 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
         .read(libraryRepositoryProvider)
         .createPlaylist(result.name, private: result.private);
   } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
+    if (context.mounted) showAppError(context, error);
   }
 }
 
@@ -327,16 +309,8 @@ Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
   if (accepted != true) return;
   try {
     await ref.read(cacheCoordinatorProvider).clearTransientCaches();
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('临时缓存已清理')));
-    }
+    if (context.mounted) showAppMessage(context, '临时缓存已清理');
   } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('清理缓存失败：$error')));
-    }
+    if (context.mounted) showAppError(context, '清理缓存失败：$error');
   }
 }

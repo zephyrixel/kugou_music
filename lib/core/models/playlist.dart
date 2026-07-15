@@ -76,12 +76,9 @@ class Playlist {
   /// Stable local id for a remote-owned list.
   static String localIdForRemote(int listId) => 'remote:$listId';
 
-  /// Stable local id for a collected public list before/after listId attach.
+  /// Stable local id for a collected public list before listId is known.
   static String localIdForCollected(String globalCollectionId) =>
       'collected:$globalCollectionId';
-
-  static String localIdForNewLocal() =>
-      'local:${DateTime.now().microsecondsSinceEpoch}';
 }
 
 class PlaylistPage {

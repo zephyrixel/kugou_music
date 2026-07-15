@@ -37,32 +37,3 @@ class PlaylistHeader extends StatelessWidget {
   );
 }
 
-class PlaylistLoadError extends StatelessWidget {
-  const PlaylistLoadError({
-    super.key,
-    required this.error,
-    required this.retry,
-  });
-
-  final Object error;
-  final Future<void> Function() retry;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(error.toString(), textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: retry,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('重试'),
-          ),
-        ],
-      ),
-    ),
-  );
-}

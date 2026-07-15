@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class AddToPlaylistButton extends ConsumerWidget {
   const AddToPlaylistButton({super.key, required this.song});
@@ -55,16 +56,8 @@ Future<void> showAddToPlaylist(
     );
     if (selected == null) return;
     await ref.read(libraryRepositoryProvider).addSong(selected, song);
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('已添加到歌单')));
-    }
+    if (context.mounted) showAppMessage(context, '已添加到歌单');
   } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
+    if (context.mounted) showAppError(context, error);
   }
 }

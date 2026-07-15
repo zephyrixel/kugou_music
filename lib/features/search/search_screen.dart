@@ -4,17 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
-import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
-import 'package:kgmusic/features/playlists/playlist_header.dart';
 
 enum _SearchKind { songs, playlists }
 
@@ -203,20 +202,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _body() {
     if (_keyword.isEmpty) {
-      return const _Empty(query: '');
+      return const KgEmptyView('输入关键词，探索 Lite 曲库');
     }
     final pager = _activePager;
     if (pager.initialLoading && pager.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (pager.initialError != null && pager.items.isEmpty) {
-      return PlaylistLoadError(
+      return KgErrorView(
         error: pager.initialError!,
-        retry: () => pager.reset(),
+        onRetry: () => pager.reset(),
       );
     }
     if (pager.items.isEmpty) {
-      return _Empty(query: _keyword);
+      return const KgEmptyView('没有找到结果');
     }
     return _kind == _SearchKind.songs ? _songResults() : _playlistResults();
   }
@@ -282,14 +281,3 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-class _Empty extends StatelessWidget {
-  const _Empty({required this.query});
-  final String query;
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Text(
-      query.isEmpty ? '输入关键词，探索 Lite 曲库' : '没有找到结果',
-      style: const TextStyle(color: KgColors.textMuted),
-    ),
-  );
-}

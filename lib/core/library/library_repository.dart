@@ -41,10 +41,6 @@ class LibraryRepository {
 
   LibrarySyncStatus get status => _status;
 
-  /// True while remote pages are still being written for [localId].
-  bool isPlaylistTrackLoading(String localId) =>
-      _trackLoads.containsKey(localId);
-
   Future<void> activate(int userId) async {
     final generation = ++_generation;
     _userId = userId;

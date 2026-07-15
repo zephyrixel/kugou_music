@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
-import 'package:kgmusic/features/playlists/playlist_header.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 
 /// Bottom-of-list loading / error row used by public playlists, search, and
 /// library progressive track loads.
@@ -19,9 +19,10 @@ List<Widget> loadMoreFooters({
   }
   if (error != null) {
     return [
-      PlaylistLoadError(
+      KgErrorView(
         error: error,
-        retry: onRetry ?? () async {},
+        onRetry: onRetry ?? () async {},
+        compact: true,
       ),
     ];
   }

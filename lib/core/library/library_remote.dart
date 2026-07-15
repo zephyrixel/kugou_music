@@ -127,13 +127,11 @@ class LibraryRemote {
     if (remote.listId != null) {
       return remote.copyWith(localId: Playlist.localIdForRemote(remote.listId!));
     }
-    if (remote.isCollected && remote.globalCollectionId != null) {
+    // Collected cloud rows without listId yet (rare mid-sync edge).
+    if (remote.globalCollectionId != null) {
       return remote.copyWith(
         localId: Playlist.localIdForCollected(remote.globalCollectionId!),
       );
-    }
-    if (remote.globalCollectionId != null) {
-      return remote.copyWith(localId: 'gid:${remote.globalCollectionId}');
     }
     throw StateError('云端歌单缺少 listId 与 globalCollectionId');
   }

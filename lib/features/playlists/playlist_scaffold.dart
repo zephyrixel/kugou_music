@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
@@ -98,12 +99,12 @@ class PlaylistSongsView extends ConsumerWidget {
           else if (error != null && songs.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: PlaylistLoadError(error: error!, retry: onRetry),
+              child: KgErrorView(error: error!, onRetry: onRetry),
             )
           else if (songs.isEmpty)
             const SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: Text('歌单中没有歌曲')),
+              child: KgEmptyView('歌单中没有歌曲'),
             )
           else
             SliverList.builder(
