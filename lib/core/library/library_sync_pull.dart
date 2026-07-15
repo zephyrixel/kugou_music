@@ -38,36 +38,20 @@ extension _LibrarySyncPull on LibrarySyncService {
   }) async {
     final playlists = await _fetchAllPlaylists(context);
     if (!_isCurrent(context)) return;
-    final loadedRemoteIds = baseline
-        ? const <int>{}
-        : await _store.loadedRemotePlaylistIds();
-    if (!_isCurrent(context)) return;
-
-    final loadedTracks = <String, List<Song>>{};
-    for (final playlist in playlists) {
-      if (!_isCurrent(context)) return;
-      if (playlist.isMyFavorite ||
-          loadedRemoteIds.contains(playlist.remoteListId)) {
-        loadedTracks[playlist.localId] = await _fetchAllPlaylistTracks(
-          context,
-          playlist,
-        );
-      }
-    }
     final history = await _fetchHistory(context);
     if (!_isCurrent(context)) return;
     if (baseline) {
       await _store.replaceBaseline(
         userId: context.userId,
         playlists: playlists,
-        loadedTracks: loadedTracks,
+        loadedTracks: const {},
         history: history,
       );
     } else {
       await _store.applyRemoteSnapshot(
         userId: context.userId,
         playlists: playlists,
-        loadedTracks: loadedTracks,
+        loadedTracks: const {},
         history: history,
       );
     }
@@ -183,6 +167,12 @@ extension _LibrarySyncPull on LibrarySyncService {
     if (!_isCurrent(context)) return;
     await _store.replacePlaylistTracks(localId, tracks);
   }
+
+  Future<void> _ensureFavoriteLoaded() async {
+    final favorite = await _store.favoritePlaylist();
+    if (favorite == null) return;
+    await _ensurePlaylistLoaded(favorite.localId);
+  }
 }
 
 LibraryPlaylist _fromRemotePlaylist(CloudPlaylist value) => LibraryPlaylist(
@@ -201,6 +191,6 @@ LibraryPlaylist _fromRemotePlaylist(CloudPlaylist value) => LibraryPlaylist(
   isPrivate: value.isPrivate,
   isMyFavorite: value.isMyFavorite,
   isDefaultCollect: value.isDefaultCollect,
-  tracksLoaded: value.isMyFavorite,
+  tracksLoaded: false,
   tags: value.tags,
 );

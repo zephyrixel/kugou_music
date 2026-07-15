@@ -116,6 +116,16 @@ class LibraryStore {
     return row == null ? null : _playlistFromRow(row);
   }
 
+  Future<LibraryPlaylist?> favoritePlaylist() async {
+    final row =
+        await (database.select(database.storedPlaylists)..where(
+              (item) =>
+                  item.isMyFavorite.equals(true) & item.deleted.equals(false),
+            ))
+            .getSingleOrNull();
+    return row == null ? null : _playlistFromRow(row);
+  }
+
   Future<List<int>> knownRemotePlaylistIds() async =>
       (await (database.select(database.storedPlaylists)..where(
                 (row) =>
@@ -124,17 +134,6 @@ class LibraryStore {
               .get())
           .map((row) => row.remoteListId!)
           .toList(growable: false);
-
-  Future<Set<int>> loadedRemotePlaylistIds() async =>
-      (await (database.select(database.storedPlaylists)..where(
-                (row) =>
-                    row.remoteListId.isNotNull() &
-                    row.tracksLoaded.equals(true) &
-                    row.deleted.equals(false),
-              ))
-              .get())
-          .map((row) => row.remoteListId!)
-          .toSet();
 
   Future<Song?> song(String id) async {
     final row = await (database.select(

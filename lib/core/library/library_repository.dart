@@ -118,5 +118,7 @@ class LibraryRepository {
   Future<void> ensurePlaylistLoaded(String localId, {bool force = false}) =>
       _sync.ensurePlaylistLoaded(localId, force: force);
 
+  Future<void> ensureFavoriteLoaded() => _sync.ensureFavoriteLoaded();
+
   Future<void> syncNow() => _sync.sync(pullRemote: true, force: true);
 }

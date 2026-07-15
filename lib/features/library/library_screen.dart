@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -37,16 +39,63 @@ class LibraryScreen extends ConsumerWidget {
   );
 }
 
-class _FavoriteSongs extends ConsumerWidget {
+class _FavoriteSongs extends ConsumerStatefulWidget {
   const _FavoriteSongs();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_FavoriteSongs> createState() => _FavoriteSongsState();
+}
+
+class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
+  bool _requested = false;
+  bool _loading = false;
+  Object? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureLoaded());
+  }
+
+  Future<void> _ensureLoaded() async {
+    if (_requested) return;
+    _requested = true;
+    if (mounted) setState(() => _loading = true);
+    try {
+      await ref.read(libraryRepositoryProvider).ensureFavoriteLoaded();
+    } catch (error) {
+      if (mounted) setState(() => _loadError = error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final value = ref.watch(favoriteSongsProvider);
     return value.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text(error.toString())),
-      data: (songs) => songs.isEmpty
+      data: (songs) => songs.isEmpty && _loading
+          ? const Center(child: CircularProgressIndicator())
+          : songs.isEmpty && _loadError != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_loadError.toString(), textAlign: TextAlign.center),
+                  TextButton(
+                    onPressed: () {
+                      _requested = false;
+                      _loadError = null;
+                      unawaited(_ensureLoaded());
+                    },
+                    child: const Text('重试'),
+                  ),
+                ],
+              ),
+            )
+          : songs.isEmpty
           ? const Center(child: Text('还没有收藏歌曲'))
           : ListView.builder(
               itemCount: songs.length,

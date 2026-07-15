@@ -88,6 +88,8 @@ class LibrarySyncService {
   Future<void> ensurePlaylistLoaded(String localId, {bool force = false}) =>
       _ensurePlaylistLoaded(localId, force: force);
 
+  Future<void> ensureFavoriteLoaded() => _ensureFavoriteLoaded();
+
   Future<void> _track(_SyncContext context, Future<void> Function() action) {
     final current = _running;
     if (current != null && identical(_runningContext, context)) return current;

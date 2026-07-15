@@ -44,7 +44,13 @@ void main() {
 
     final playlists = await store.watchPlaylists().first;
     expect(playlists.map((item) => item.name), ['我喜欢']);
+    expect(await store.watchFavoriteSongs().first, isEmpty);
+    expect(sdk.trackCalls, isEmpty);
+    await sync.ensureFavoriteLoaded();
     expect((await store.watchFavoriteSongs().first).single.id, remoteSong.id);
+    expect(sdk.trackCalls, ['gid:2:1']);
+    await sync.sync(pullRemote: true, force: true);
+    expect(sdk.trackCalls, ['gid:2:1']);
     expect((await store.watchHistory().first).single.playCount, 4);
     expect((await store.syncState)?.userId, 99);
     expect(await store.pendingCount(), 0);
@@ -63,6 +69,27 @@ void main() {
     expect((await store.playlist(localId))?.remoteListId, 88);
     expect(await store.pendingCount(), 0);
   });
+
+  test(
+    'account refresh does not reload tracks of an opened playlist',
+    () async {
+      sdk.playlists = const [_favoritePlaylist, _customPlaylist];
+      sdk.tracksByListId[4] = const [localSong];
+      await sync.activate(99);
+      await sync.ensurePlaylistLoaded('remote:4');
+      expect(sdk.trackCalls, ['gid:4:1']);
+
+      sdk.playlists = const [_favoritePlaylist, _customPlaylistUpdated];
+      await sync.sync(pullRemote: true, force: true);
+
+      expect(sdk.trackCalls, ['gid:4:1']);
+      expect(
+        (await store.watchPlaylistTracks('remote:4').first).single.id,
+        localSong.id,
+      );
+      expect((await store.playlist('remote:4'))?.count, 2);
+    },
+  );
 
   test('history records upload as one latest count', () async {
     sdk.playlists = const [_favoritePlaylist];
@@ -140,6 +167,7 @@ void main() {
         remotePhysicalSong,
       ];
       await sync.activate(99);
+      await sync.ensureFavoriteLoaded();
       await store.toggleFavorite(remoteSongWithoutFileId);
 
       await sync.sync();
@@ -156,6 +184,7 @@ void main() {
       sdk.tracksByListId[2] = const [remoteSongWithoutFileId];
       sdk.physicalTracksByListId[2] = const [remoteSongWithoutFileId];
       await sync.activate(99);
+      await sync.ensureFavoriteLoaded();
       await store.toggleFavorite(remoteSongWithoutFileId);
 
       await sync.sync();
@@ -188,6 +217,8 @@ void main() {
     expect((await store.watchPlaylists().first).map((item) => item.name), [
       '第二账号的我喜欢',
     ]);
+    expect(await store.watchFavoriteSongs().first, isEmpty);
+    await sync.ensureFavoriteLoaded();
     expect(
       (await store.watchFavoriteSongs().first).single.id,
       secondAccountSong.id,
@@ -237,6 +268,28 @@ const _secondFavoritePlaylist = CloudPlaylist(
   listType: 0,
 );
 
+const _customPlaylist = CloudPlaylist(
+  listId: 4,
+  globalCollectionId: 'collection_3_99_4_0',
+  name: '自建歌单',
+  count: 1,
+  isPrivate: false,
+  isMyFavorite: false,
+  isDefaultCollect: false,
+  listType: 0,
+);
+
+const _customPlaylistUpdated = CloudPlaylist(
+  listId: 4,
+  globalCollectionId: 'collection_3_99_4_0',
+  name: '自建歌单',
+  count: 2,
+  isPrivate: false,
+  isMyFavorite: false,
+  isDefaultCollect: false,
+  listType: 0,
+);
+
 const secondAccountSong = Song(
   id: 'mix:84',
   title: 'Second Account Song',
@@ -280,6 +333,7 @@ class _FakeMusicSdk implements MusicSdk {
   final Map<String?, CloudHistoryPage> historyPages = {};
   final List<String?> historyCursors = [];
   final List<String> calls = [];
+  final List<String> trackCalls = [];
   final List<CloudHistoryUpload> historyUploads = [];
   bool failAdds = false;
   Completer<void>? nextCloudPlaylistsGate;
@@ -315,6 +369,7 @@ class _FakeMusicSdk implements MusicSdk {
     int page = 1,
     int pageSize = 50,
   }) async {
+    trackCalls.add('gid:${playlist.listId}:$page');
     final songs = tracksByListId[playlist.listId] ?? const [];
     return _page(songs, page: page, pageSize: pageSize);
   }
