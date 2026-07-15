@@ -1,5 +1,10 @@
+import 'dart:async';
+
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/features/home/home_screen.dart';
 import 'package:kgmusic/features/library/library_screen.dart';
@@ -10,10 +15,15 @@ import 'package:kgmusic/features/account/account_screen.dart';
 import 'package:kgmusic/features/auth/auth_gate.dart';
 import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
 
-class KgMusicApp extends StatelessWidget {
-  KgMusicApp({super.key});
+class KgMusicApp extends ConsumerStatefulWidget {
+  const KgMusicApp({super.key});
 
-  final GoRouter _router = GoRouter(
+  @override
+  ConsumerState<KgMusicApp> createState() => _KgMusicAppState();
+}
+
+class _KgMusicAppState extends ConsumerState<KgMusicApp> {
+  late final GoRouter _router = GoRouter(
     routes: [
       ShellRoute(
         builder: (context, state, child) =>
@@ -32,6 +42,37 @@ class KgMusicApp extends StatelessWidget {
       ),
     ],
   );
+  StreamSubscription<bool>? _notificationClickSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationClickSubscription = AudioService.notificationClicked
+        .where((clicked) => clicked)
+        .listen((_) => _openNotificationTarget());
+  }
+
+  void _openNotificationTarget() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final handler = ref.read(audioHandlerProvider);
+      final target = handler.mediaItem.value == null ? '/' : '/player';
+      if (_router.routeInformationProvider.value.uri.path != target) {
+        if (target == '/player') {
+          _router.push(target);
+        } else {
+          _router.go(target);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_notificationClickSubscription?.cancel());
+    _router.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp.router(

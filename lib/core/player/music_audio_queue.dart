@@ -15,6 +15,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     );
     _queueState = state;
     _queueStates.add(state);
+    queueTitle.add(request.origin.displayTitle);
   }
 
   Future<void> loadMoreQueue() async {
@@ -44,7 +45,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
       if (_order == PlaybackOrder.shuffle) {
         _shuffleRemaining.addAll(appended.map((item) => item.id));
       }
-      queue.add(_songs.map(_toMediaItem).toList(growable: false));
+      _publishMediaQueue();
       _emitQueueState();
       unawaited(_persistQueue());
     } catch (error) {
@@ -70,6 +71,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
       _shuffleRemaining.clear();
     }
     _emitQueueState();
+    _publishSystemPlaybackState();
     unawaited(_persistQueue());
   }
 
@@ -82,8 +84,9 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     _shuffleRemaining.removeWhere(
       (id) => !updated.any((song) => song.id == id),
     );
-    queue.add(_songs.map(_toMediaItem).toList(growable: false));
+    _publishMediaQueue();
     _emitQueueState();
+    _publishSystemPlaybackState();
     unawaited(_persistQueue());
   }
 
@@ -92,8 +95,9 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     _songs = List.unmodifiable(_songs.take(_index + 1));
     _queueRequest = _queueRequest?.copyWith(songs: _songs, hasMore: false);
     _shuffleRemaining.clear();
-    queue.add(_songs.map(_toMediaItem).toList(growable: false));
+    _publishMediaQueue();
     _emitQueueState();
+    _publishSystemPlaybackState();
     unawaited(_persistQueue());
   }
 
@@ -111,8 +115,9 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
         ? -1
         : updated.indexWhere((item) => item.id == currentId);
     _queueRequest = _queueRequest?.copyWith(songs: _songs);
-    queue.add(_songs.map(_toMediaItem).toList(growable: false));
+    _publishMediaQueue();
     _emitQueueState();
+    _publishSystemPlaybackState();
     unawaited(_persistQueue());
   }
 
@@ -165,9 +170,11 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     _index = snapshot.currentIndex.clamp(-1, _songs.length - 1);
     _order = snapshot.order;
     _restoredPosition = Duration(milliseconds: snapshot.positionMs);
-    queue.add(_songs.map(_toMediaItem).toList(growable: false));
+    _currentMediaDuration = null;
+    _publishMediaQueue();
     if (_index >= 0) mediaItem.add(_toMediaItem(_songs[_index]));
     _emitQueueState();
+    _publishSystemPlaybackState();
   }
 
   Future<void> clearQueue() async {
@@ -181,8 +188,11 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     _index = -1;
     _shuffleRemaining.clear();
     _restoredPosition = null;
+    _currentMediaDuration = null;
     queue.add(const []);
+    queueTitle.add('');
     mediaItem.add(null);
     await _player.stop();
+    _publishSystemPlaybackState();
   }
 }

@@ -13,6 +13,7 @@ import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/player/playback_queue_store.dart';
+import 'package:kgmusic/core/player/system_media_projection.dart';
 
 part 'music_audio_queue.dart';
 part 'music_audio_transition.dart';
@@ -69,6 +70,7 @@ class MusicAudioHandler extends BaseAudioHandler
   final Random _random = Random();
   final Set<String> _shuffleRemaining = {};
   Duration? _restoredPosition;
+  Duration? _currentMediaDuration;
 
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
@@ -161,17 +163,48 @@ class MusicAudioHandler extends BaseAudioHandler
     }
   }
 
-  MediaItem _toMediaItem(Song song, {Uri? artworkUri}) {
-    final artworkUrl = normalizeArtworkUrl(song.artworkUrl);
-    return MediaItem(
-      id: song.id,
-      title: song.title,
-      artist: song.artistLabel,
-      album: song.album,
-      duration: song.durationSecs == null
-          ? null
-          : Duration(seconds: song.durationSecs!),
-      artUri: artworkUri ?? (artworkUrl == null ? null : Uri.parse(artworkUrl)),
+  MediaItem _toMediaItem(
+    Song song, {
+    Duration? actualDuration,
+    Uri? artworkUri,
+  }) => SystemMediaProjection.mediaItemForSong(
+    song,
+    actualDuration: actualDuration,
+    artworkUri: artworkUri,
+  );
+
+  void _publishMediaQueue() {
+    queue.add(
+      List.generate(
+        _songs.length,
+        (index) => _toMediaItem(
+          _songs[index],
+          actualDuration: index == _index ? _currentMediaDuration : null,
+        ),
+        growable: false,
+      ),
+    );
+  }
+
+  void _publishSystemPlaybackState([PlaybackEvent? event]) {
+    playbackState.add(
+      SystemMediaProjection.playbackState(
+        event: event ?? _player.playbackEvent,
+        playing: _player.playing,
+        order: _order,
+        currentIndex: _index,
+        speed: _player.speed,
+      ),
+    );
+  }
+
+  void _startPlayer() {
+    // just_audio completes play() only after pause, stop, or completion. Never
+    // await it from the serialized transition queue or later switches deadlock.
+    unawaited(
+      _player.play().catchError((Object error) {
+        _messages.add('播放失败：$error');
+      }),
     );
   }
 
@@ -191,7 +224,7 @@ class MusicAudioHandler extends BaseAudioHandler
       );
       return;
     }
-    await _player.play();
+    _startPlayer();
   }
 
   @override
@@ -201,22 +234,26 @@ class MusicAudioHandler extends BaseAudioHandler
   }
 
   @override
+  Future<void> click([MediaButton button = MediaButton.media]) =>
+      switch (button) {
+        MediaButton.media => _player.playing ? pause() : play(),
+        MediaButton.next => skipToNext(),
+        MediaButton.previous => skipToPrevious(),
+      };
+
+  @override
   Future<void> seek(Duration position) => _player.seek(position);
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
-      setPlaybackOrder(switch (repeatMode) {
-        AudioServiceRepeatMode.one => PlaybackOrder.repeatOne,
-        AudioServiceRepeatMode.all => PlaybackOrder.repeatAll,
-        _ => PlaybackOrder.sequential,
-      });
+      setPlaybackOrder(
+        SystemMediaProjection.applyRepeatMode(_order, repeatMode),
+      );
 
   @override
   Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
       setPlaybackOrder(
-        shuffleMode == AudioServiceShuffleMode.none
-            ? PlaybackOrder.sequential
-            : PlaybackOrder.shuffle,
+        SystemMediaProjection.applyShuffleMode(_order, shuffleMode),
       );
 
   @override
@@ -290,11 +327,19 @@ class MusicAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToPrevious() async {
-    if (_player.position > const Duration(seconds: 4)) {
-      await seek(Duration.zero);
-      return;
-    }
     if (_index <= 0) {
+      if (_order == PlaybackOrder.repeatAll && _songs.length > 1) {
+        final request = _queueRequest;
+        if (request == null) return;
+        await _requestPlayback(
+          request: request,
+          index: _songs.length - 1,
+          initialPosition: Duration.zero,
+          autoPlay: true,
+          recordHistory: true,
+        );
+        return;
+      }
       await seek(Duration.zero);
       return;
     }
@@ -322,39 +367,8 @@ class MusicAudioHandler extends BaseAudioHandler
     );
   }
 
-  void _broadcastState(PlaybackEvent event) {
-    playbackState.add(
-      PlaybackState(
-        controls: [
-          MediaControl.skipToPrevious,
-          if (_player.playing) MediaControl.pause else MediaControl.play,
-          MediaControl.skipToNext,
-        ],
-        systemActions: const {MediaAction.seek},
-        androidCompactActionIndices: const [0, 1, 2],
-        processingState: switch (_player.processingState) {
-          ProcessingState.idle => AudioProcessingState.idle,
-          ProcessingState.loading => AudioProcessingState.loading,
-          ProcessingState.buffering => AudioProcessingState.buffering,
-          ProcessingState.ready => AudioProcessingState.ready,
-          ProcessingState.completed => AudioProcessingState.completed,
-        },
-        playing: _player.playing,
-        repeatMode: switch (_order) {
-          PlaybackOrder.repeatOne => AudioServiceRepeatMode.one,
-          PlaybackOrder.repeatAll => AudioServiceRepeatMode.all,
-          _ => AudioServiceRepeatMode.none,
-        },
-        shuffleMode: _order == PlaybackOrder.shuffle
-            ? AudioServiceShuffleMode.all
-            : AudioServiceShuffleMode.none,
-        updatePosition: _player.position,
-        bufferedPosition: _player.bufferedPosition,
-        speed: _player.speed,
-        queueIndex: _index < 0 ? null : _index,
-      ),
-    );
-  }
+  void _broadcastState(PlaybackEvent event) =>
+      _publishSystemPlaybackState(event);
 }
 
 class PlaybackQualityState {

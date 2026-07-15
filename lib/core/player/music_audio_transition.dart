@@ -116,8 +116,9 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     next = _commitTail.catchError((_) {}).then((_) async {
       if (!_isCurrentRequest(generation)) return;
       final previousAudioHandle = _currentAudioHandle;
+      Duration? actualDuration;
       try {
-        await _player.setAudioSource(
+        actualDuration = await _player.setAudioSource(
           prepared.audioHandle.source,
           initialPosition: prepared.initialPosition,
         );
@@ -125,8 +126,13 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
         _audioCache.setActive(previousAudioHandle);
         rethrow;
       }
+      if (!_isCurrentRequest(generation)) {
+        await _player.stop();
+        return;
+      }
       _audioCache.setActive(prepared.audioHandle);
       _currentAudioHandle = prepared.audioHandle;
+      _currentMediaDuration = actualDuration;
       _restoredPosition = null;
       _previewEnd = prepared.previewEnd;
       _previewStopped = false;
@@ -144,9 +150,12 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
         }
         _shuffleRemaining.remove(prepared.song.id);
       }
-      queue.add(_songs.map(_toMediaItem).toList(growable: false));
-      mediaItem.add(_toMediaItem(prepared.song));
+      _publishMediaQueue();
+      mediaItem.add(
+        _toMediaItem(prepared.song, actualDuration: _currentMediaDuration),
+      );
       _emitQueueState();
+      _publishSystemPlaybackState();
       unawaited(_cacheArtwork(prepared.song, generation));
       _emitQualityState(
         PlaybackQualityState(
@@ -164,7 +173,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       }
       if (!_isCurrentRequest(generation)) return;
       if (autoPlay) {
-        await _player.play();
+        _startPlayer();
       } else {
         await _player.pause();
       }
@@ -198,7 +207,13 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
           _songs[_index].id != song.id) {
         return;
       }
-      mediaItem.add(_toMediaItem(song, artworkUri: Uri.file(file.path)));
+      mediaItem.add(
+        _toMediaItem(
+          song,
+          actualDuration: _currentMediaDuration,
+          artworkUri: Uri.file(file.path),
+        ),
+      );
     } catch (_) {
       // The remote artwork URI remains usable when local prefetch fails.
     }
