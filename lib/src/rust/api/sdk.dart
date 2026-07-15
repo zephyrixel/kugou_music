@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sdk.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `bool_for_keys`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `nonempty_artwork`, `object_value_for_key`, `playlist_tracks_route`, `runtime`, `scalar_string_for_keys`, `search_playlist_to_dto`, `select_hash`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`, `vip_product_to_dto`
+// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `bool_for_keys`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `lyric_document_to_dto`, `nonempty_artwork`, `object_value_for_key`, `playlist_tracks_route`, `runtime`, `scalar_string_for_keys`, `search_playlist_to_dto`, `select_hash`, `song_dto_to_lyric_ref`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`, `vip_product_to_dto`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `PlaylistTracksRoute`, `SongDetailEnrichment`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 Future<SdkCapabilitiesDto> initializeSdk() =>
@@ -51,6 +51,14 @@ Future<RecommendationDto> getEverydayRecommendations() =>
 Future<PlaybackResolutionDto> resolvePlayback({
   required ResolvePlaybackRequestDto request,
 }) => RustLib.instance.api.crateApiSdkResolvePlayback(request: request);
+
+/// Fetch and parse the best timed lyric for a song.
+///
+/// Lyrics deliberately use the standard FileHash carried by `SongRef`; playback
+/// quality hashes are not substituted. The candidate adjustment is applied to
+/// the parsed document so Dart receives the final player timeline.
+Future<LyricFetchDto> getSongLyrics({required SongDto song}) =>
+    RustLib.instance.api.crateApiSdkGetSongLyrics(song: song);
 
 Future<UserProfileDto> getUserProfile() =>
     RustLib.instance.api.crateApiSdkGetUserProfile();
@@ -419,6 +427,104 @@ class HistoryUploadItemDto {
           mixSongId == other.mixSongId &&
           playedAtSecs == other.playedAtSecs &&
           playCount == other.playCount;
+}
+
+class LyricDocumentDto {
+  final LyricFormatDto format;
+  final int offsetMs;
+  final List<LyricLineDto> lines;
+
+  const LyricDocumentDto({
+    required this.format,
+    required this.offsetMs,
+    required this.lines,
+  });
+
+  @override
+  int get hashCode => format.hashCode ^ offsetMs.hashCode ^ lines.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LyricDocumentDto &&
+          runtimeType == other.runtimeType &&
+          format == other.format &&
+          offsetMs == other.offsetMs &&
+          lines == other.lines;
+}
+
+@freezed
+sealed class LyricFetchDto with _$LyricFetchDto {
+  const LyricFetchDto._();
+
+  const factory LyricFetchDto.found({required LyricDocumentDto document}) =
+      LyricFetchDto_Found;
+  const factory LyricFetchDto.notFound() = LyricFetchDto_NotFound;
+}
+
+enum LyricFormatDto { krc, lrc, plain }
+
+class LyricLineDto {
+  final int startMs;
+  final int durationMs;
+  final String text;
+  final List<LyricWordDto> words;
+  final String? translation;
+  final String? transliteration;
+
+  const LyricLineDto({
+    required this.startMs,
+    required this.durationMs,
+    required this.text,
+    required this.words,
+    this.translation,
+    this.transliteration,
+  });
+
+  @override
+  int get hashCode =>
+      startMs.hashCode ^
+      durationMs.hashCode ^
+      text.hashCode ^
+      words.hashCode ^
+      translation.hashCode ^
+      transliteration.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LyricLineDto &&
+          runtimeType == other.runtimeType &&
+          startMs == other.startMs &&
+          durationMs == other.durationMs &&
+          text == other.text &&
+          words == other.words &&
+          translation == other.translation &&
+          transliteration == other.transliteration;
+}
+
+class LyricWordDto {
+  final int startMs;
+  final int durationMs;
+  final String text;
+
+  const LyricWordDto({
+    required this.startMs,
+    required this.durationMs,
+    required this.text,
+  });
+
+  @override
+  int get hashCode => startMs.hashCode ^ durationMs.hashCode ^ text.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LyricWordDto &&
+          runtimeType == other.runtimeType &&
+          startMs == other.startMs &&
+          durationMs == other.durationMs &&
+          text == other.text;
 }
 
 @freezed

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart' show ChangeNotifierProvider;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/cache/cache_coordinator.dart';
+import 'package:kgmusic/core/cache/lyrics_repository.dart';
 import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_models.dart';
@@ -14,11 +15,16 @@ import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/features/auth/auth_controller.dart';
 
 final musicSdkProvider = Provider<MusicSdk>(
   (ref) => throw UnimplementedError('musicSdkProvider must be overridden'),
+);
+
+final lyricsSdkProvider = Provider<LyricsSdk>(
+  (ref) => throw UnimplementedError('lyricsSdkProvider must be overridden'),
 );
 
 final databaseProvider = Provider<AppDatabase>(
@@ -33,6 +39,13 @@ final libraryRepositoryProvider = Provider<LibraryRepository>(
 final musicRepositoryProvider = Provider<MusicRepository>(
   (ref) =>
       MusicRepository(ref.watch(musicSdkProvider), ref.watch(databaseProvider)),
+);
+
+final lyricsRepositoryProvider = Provider<LyricsRepository>(
+  (ref) => LyricsRepository(
+    ref.watch(lyricsSdkProvider),
+    ref.watch(databaseProvider),
+  ),
 );
 
 final audioHandlerProvider = Provider<MusicAudioHandler>(

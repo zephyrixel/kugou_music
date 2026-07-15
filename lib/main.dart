@@ -37,6 +37,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         musicSdkProvider.overrideWithValue(sdk),
+        lyricsSdkProvider.overrideWithValue(sdk),
         databaseProvider.overrideWithValue(database),
         libraryRepositoryProvider.overrideWithValue(library),
         audioCacheProvider.overrideWithValue(audioCache),

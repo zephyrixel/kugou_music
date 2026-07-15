@@ -1,8 +1,10 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
+import 'package:kgmusic/core/models/lyric.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
 import 'package:kgmusic/src/rust/api/sdk.dart' as bridge;
 
@@ -57,7 +59,7 @@ abstract interface class MusicSdk {
   Future<void> removeSongFromPlaylist(int listId, int fileId);
 }
 
-class KugouMusicSdk implements MusicSdk {
+class KugouMusicSdk implements MusicSdk, LyricsSdk {
   KugouMusicSdk(this._storage);
 
   static const sessionKey = 'kugou_sdk_lite_session_v1';
@@ -211,6 +213,15 @@ class KugouMusicSdk implements MusicSdk {
       denied: (status, failProcess) =>
           DeniedResolution(status: status, failProcess: failProcess),
       unavailable: UnavailableResolution.new,
+    );
+  });
+
+  @override
+  Future<LyricDocument?> fetchLyrics(Song song) => _guard(() async {
+    final value = await bridge.getSongLyrics(song: _songToDto(song));
+    return value.when(
+      found: (document) => _lyricDocument(document),
+      notFound: () => null,
     );
   });
 
@@ -553,6 +564,35 @@ bridge.SongDto _songToDto(Song value) => bridge.SongDto(
     hiRes: value.hashes.hiRes,
     superHash: value.hashes.superHash,
   ),
+);
+
+LyricDocument _lyricDocument(bridge.LyricDocumentDto value) => LyricDocument(
+  format: switch (value.format) {
+    bridge.LyricFormatDto.krc => LyricFormat.krc,
+    bridge.LyricFormatDto.lrc => LyricFormat.lrc,
+    bridge.LyricFormatDto.plain => LyricFormat.plain,
+  },
+  offsetMs: value.offsetMs,
+  lines: value.lines
+      .map(
+        (line) => LyricLine(
+          startMs: line.startMs,
+          durationMs: line.durationMs,
+          text: line.text,
+          translation: line.translation,
+          transliteration: line.transliteration,
+          words: line.words
+              .map(
+                (word) => LyricWord(
+                  startMs: word.startMs,
+                  durationMs: word.durationMs,
+                  text: word.text,
+                ),
+              )
+              .toList(growable: false),
+        ),
+      )
+      .toList(growable: false),
 );
 
 Playlist _playlist(bridge.CloudPlaylistDto value) => Playlist(

@@ -43,6 +43,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  LyricDocumentDto dco_decode_box_autoadd_lyric_document_dto(dynamic raw);
+
+  @protected
   PlaylistEditInputDto dco_decode_box_autoadd_playlist_edit_input_dto(
     dynamic raw,
   );
@@ -111,6 +114,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<LyricLineDto> dco_decode_list_lyric_line_dto(dynamic raw);
+
+  @protected
+  List<LyricWordDto> dco_decode_list_lyric_word_dto(dynamic raw);
+
+  @protected
   List<PlaylistSearchHitDto> dco_decode_list_playlist_search_hit_dto(
     dynamic raw,
   );
@@ -123,6 +132,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<VipProductDto> dco_decode_list_vip_product_dto(dynamic raw);
+
+  @protected
+  LyricDocumentDto dco_decode_lyric_document_dto(dynamic raw);
+
+  @protected
+  LyricFetchDto dco_decode_lyric_fetch_dto(dynamic raw);
+
+  @protected
+  LyricFormatDto dco_decode_lyric_format_dto(dynamic raw);
+
+  @protected
+  LyricLineDto dco_decode_lyric_line_dto(dynamic raw);
+
+  @protected
+  LyricWordDto dco_decode_lyric_word_dto(dynamic raw);
 
   @protected
   int? dco_decode_opt_CastedPrimitive_i_64(dynamic raw);
@@ -240,6 +264,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  LyricDocumentDto sse_decode_box_autoadd_lyric_document_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   PlaylistEditInputDto sse_decode_box_autoadd_playlist_edit_input_dto(
     SseDeserializer deserializer,
   );
@@ -318,6 +347,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<LyricLineDto> sse_decode_list_lyric_line_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<LyricWordDto> sse_decode_list_lyric_word_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<PlaylistSearchHitDto> sse_decode_list_playlist_search_hit_dto(
     SseDeserializer deserializer,
   );
@@ -332,6 +371,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<VipProductDto> sse_decode_list_vip_product_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  LyricDocumentDto sse_decode_lyric_document_dto(SseDeserializer deserializer);
+
+  @protected
+  LyricFetchDto sse_decode_lyric_fetch_dto(SseDeserializer deserializer);
+
+  @protected
+  LyricFormatDto sse_decode_lyric_format_dto(SseDeserializer deserializer);
+
+  @protected
+  LyricLineDto sse_decode_lyric_line_dto(SseDeserializer deserializer);
+
+  @protected
+  LyricWordDto sse_decode_lyric_word_dto(SseDeserializer deserializer);
 
   @protected
   int? sse_decode_opt_CastedPrimitive_i_64(SseDeserializer deserializer);
@@ -477,6 +531,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_lyric_document_dto(
+    LyricDocumentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_playlist_edit_input_dto(
     PlaylistEditInputDto self,
     SseSerializer serializer,
@@ -579,6 +639,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_lyric_line_dto(
+    List<LyricLineDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_lyric_word_dto(
+    List<LyricWordDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_playlist_search_hit_dto(
     List<PlaylistSearchHitDto> self,
     SseSerializer serializer,
@@ -598,6 +670,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<VipProductDto> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_lyric_document_dto(
+    LyricDocumentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_lyric_fetch_dto(LyricFetchDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lyric_format_dto(
+    LyricFormatDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_lyric_line_dto(LyricLineDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_lyric_word_dto(LyricWordDto self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_CastedPrimitive_i_64(int? self, SseSerializer serializer);

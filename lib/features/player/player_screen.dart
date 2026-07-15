@@ -7,10 +7,10 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
-import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_favorite_button.dart';
 import 'package:kgmusic/core/widgets/add_to_playlist_button.dart';
 import 'package:kgmusic/features/player/playback_progress_bar.dart';
+import 'package:kgmusic/features/player/player_visual_pager.dart';
 
 class PlayerScreen extends ConsumerWidget {
   const PlayerScreen({super.key});
@@ -52,7 +52,10 @@ class _PlayerBody extends StatelessWidget {
       final maxArtworkSize = (constraints.maxWidth - 80)
           .clamp(160.0, 320.0)
           .toDouble();
-      final artworkSize = (constraints.maxHeight * 0.46)
+      final visualHeight = (constraints.maxHeight * 0.46)
+          .clamp(260.0, 360.0)
+          .toDouble();
+      final artworkSize = (visualHeight - 28)
           .clamp(160.0, maxArtworkSize)
           .toDouble();
       return SingleChildScrollView(
@@ -62,25 +65,14 @@ class _PlayerBody extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(38),
-                  gradient: RadialGradient(
-                    colors: [
-                      KgColors.accent.withValues(alpha: 0.16),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-                child: SongArtwork(
-                  url: item.artUri?.toString(),
-                  cacheId: 'song:${item.id}',
-                  size: artworkSize,
-                  radius: 30,
-                ),
+              PlayerVisualPager(
+                handler: handler,
+                item: item,
+                song: song,
+                height: visualHeight,
+                artworkSize: artworkSize,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(

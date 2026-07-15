@@ -1,9 +1,10 @@
 use kugou_sdk::user::{YOUTH_DAY_VIP_SOURCE_MINE, YouthDayVipClaimRequest};
 use kugou_sdk::{
     AudioQuality, CollectRequest, HistoryFetchRequest, HistorySongOp, HistoryUploadRequest,
-    KugouClient, KugouError, Pagination, PlatformProfile, PlaybackOutcome, PlaybackRequest,
-    PlaylistEditRequest, PlaylistKind, PlaylistTrackInput, SearchPlaylist, SearchRequest, Session,
-    SongRef, UserPlaylist,
+    KugouClient, KugouError, LyricDocument, LyricFormat, LyricSearchRequest, Pagination,
+    PlatformProfile, PlaybackOutcome, PlaybackRequest, PlaylistEditRequest, PlaylistKind,
+    PlaylistTrackInput, ResourceHashes, SearchPlaylist, SearchRequest, Session, SongRef,
+    UserPlaylist,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -155,6 +156,43 @@ pub struct ResolvePlaybackRequestDto {
     pub song: SongDto,
     pub quality: AudioQualityDto,
     pub free_preview: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LyricFormatDto {
+    Krc,
+    Lrc,
+    Plain,
+}
+
+#[derive(Debug, Clone)]
+pub struct LyricWordDto {
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    pub text: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct LyricLineDto {
+    pub start_ms: u64,
+    pub duration_ms: u64,
+    pub text: String,
+    pub words: Vec<LyricWordDto>,
+    pub translation: Option<String>,
+    pub transliteration: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LyricDocumentDto {
+    pub format: LyricFormatDto,
+    pub offset_ms: i64,
+    pub lines: Vec<LyricLineDto>,
+}
+
+#[derive(Debug, Clone)]
+pub enum LyricFetchDto {
+    Found { document: LyricDocumentDto },
+    NotFound,
 }
 
 #[derive(Debug, Clone)]
@@ -554,6 +592,51 @@ pub async fn resolve_playback(
             fail_process,
         },
         _ => PlaybackResolutionDto::Unavailable,
+    })
+}
+
+/// Fetch and parse the best timed lyric for a song.
+///
+/// Lyrics deliberately use the standard FileHash carried by `SongRef`; playback
+/// quality hashes are not substituted. The candidate adjustment is applied to
+/// the parsed document so Dart receives the final player timeline.
+pub async fn get_song_lyrics(song: SongDto) -> Result<LyricFetchDto, BridgeError> {
+    let runtime = runtime()?;
+    let song = song_dto_to_lyric_ref(&song);
+    let request = LyricSearchRequest::from_song(&song).map_err(BridgeError::from_sdk)?;
+    let mut session = runtime.session.lock().await;
+    let candidates = runtime
+        .client
+        .lyrics()
+        .search(&mut session, request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    let Some(best) = candidates.data.best() else {
+        return Ok(LyricFetchDto::NotFound);
+    };
+    if !best.is_downloadable() {
+        return Ok(LyricFetchDto::NotFound);
+    }
+    let id = best.id.as_deref().unwrap_or_default().to_owned();
+    let access_key = best.access_key.as_deref().unwrap_or_default().to_owned();
+    let format = best.suggested_fmt().to_owned();
+    let adjust = best.adjust.unwrap_or(0);
+    let content = runtime
+        .client
+        .lyrics()
+        .download(&mut session, id, access_key, format)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    let document = content
+        .data
+        .parse()
+        .map_err(BridgeError::from_sdk)?
+        .with_adjust(adjust);
+    if document.lines.is_empty() {
+        return Ok(LyricFetchDto::NotFound);
+    }
+    Ok(LyricFetchDto::Found {
+        document: lyric_document_to_dto(document),
     })
 }
 
@@ -1090,6 +1173,54 @@ fn song_to_dto_with_enrichment(
     }
 }
 
+fn song_dto_to_lyric_ref(song: &SongDto) -> SongRef {
+    let mut resources = ResourceHashes::default();
+    resources.standard = song.hashes.standard.clone();
+    let mut result = SongRef::default();
+    result.name = Some(song.title.clone());
+    result.album = song.album.clone();
+    result.singer = song.artist.clone();
+    result.resources = resources;
+    result.mix_song_id = song.mix_song_id;
+    result.album_id = song.album_id;
+    result.duration_secs = song.duration_secs;
+    result.privilege = song.privilege;
+    result.file_id = song.file_id;
+    result
+}
+
+fn lyric_document_to_dto(document: LyricDocument) -> LyricDocumentDto {
+    LyricDocumentDto {
+        format: match document.format {
+            LyricFormat::Krc => LyricFormatDto::Krc,
+            LyricFormat::Lrc => LyricFormatDto::Lrc,
+            LyricFormat::Plain => LyricFormatDto::Plain,
+            _ => LyricFormatDto::Plain,
+        },
+        offset_ms: document.offset_ms,
+        lines: document
+            .lines
+            .into_iter()
+            .map(|line| LyricLineDto {
+                start_ms: line.start_ms,
+                duration_ms: line.duration_ms,
+                text: line.text,
+                words: line
+                    .words
+                    .into_iter()
+                    .map(|word| LyricWordDto {
+                        start_ms: word.start_ms,
+                        duration_ms: word.duration_ms,
+                        text: word.text,
+                    })
+                    .collect(),
+                translation: line.translation,
+                transliteration: line.transliteration,
+            })
+            .collect(),
+    }
+}
+
 async fn songs_to_dtos_with_artwork(
     client: &KugouClient,
     session: &mut Session,
@@ -1544,6 +1675,65 @@ mod tests {
     fn stable_id_prefers_mix_id() {
         assert_eq!(stable_song_id(Some(42), Some("ABC")), "mix:42");
         assert_eq!(stable_song_id(None, Some("ABC")), "hash:abc");
+    }
+
+    #[test]
+    fn lyric_request_uses_standard_hash_and_joint_identity_fields() {
+        let song = SongDto {
+            id: "mix:42".into(),
+            title: "海阔天空".into(),
+            artist: Some("BEYOND".into()),
+            album: None,
+            duration_secs: Some(326),
+            artwork_url: None,
+            privilege: None,
+            album_id: None,
+            mix_song_id: Some(42),
+            file_id: None,
+            hashes: AudioHashesDto {
+                standard: Some("STANDARD".into()),
+                high: Some("HIGH".into()),
+                flac: Some("FLAC".into()),
+                hi_res: None,
+                super_hash: None,
+            },
+        };
+        let song_ref = song_dto_to_lyric_ref(&song);
+        assert_eq!(song_ref.primary_hash(), Some("STANDARD"));
+        assert!(song_ref.resources.high.is_none());
+        assert!(song_ref.resources.flac.is_none());
+
+        let request = LyricSearchRequest::from_song(&song_ref).unwrap();
+        let json = serde_json::to_value(request).unwrap();
+        assert_eq!(json["hash"], "STANDARD");
+        assert_eq!(json["keyword"], "BEYOND - 海阔天空");
+        assert_eq!(json["duration_ms"], 326_000);
+        assert_eq!(json["album_audio_id"], 42);
+    }
+
+    #[test]
+    fn lyric_document_mapping_preserves_adjusted_timeline_and_words() {
+        let mut word = kugou_sdk::LyricWord::default();
+        word.start_ms = 0;
+        word.duration_ms = 250;
+        word.text = "你".into();
+        let mut line = kugou_sdk::LyricLine::default();
+        line.start_ms = 1_000;
+        line.duration_ms = 500;
+        line.text = "你好".into();
+        line.words = vec![word];
+        line.translation = Some("hello".into());
+        let mut document = LyricDocument::default();
+        document.format = LyricFormat::Krc;
+        document.offset_ms = -120;
+        document.lines = vec![line];
+        let document = document.with_adjust(20);
+
+        let dto = lyric_document_to_dto(document);
+        assert_eq!(dto.format, LyricFormatDto::Krc);
+        assert_eq!(dto.offset_ms, -100);
+        assert_eq!(dto.lines[0].words[0].text, "你");
+        assert_eq!(dto.lines[0].translation.as_deref(), Some("hello"));
     }
 
     #[test]
