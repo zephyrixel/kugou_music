@@ -35,7 +35,6 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
   int _positionMs = 0;
   int? _activeLine;
   int _playedWords = 0;
-  double _viewportHeight = 0;
   double _lineExtent = 92;
 
   @override
@@ -119,8 +118,10 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
   }
 
   void _scrollTo(int index) {
-    if (!_scrollController.hasClients || _viewportHeight <= 0) return;
-    final target = index * _lineExtent - (_viewportHeight - _lineExtent) / 2;
+    if (!_scrollController.hasClients) return;
+    // The list has half-viewport padding at both ends, so each item reaches
+    // the viewport center at exactly index * itemExtent.
+    final target = index * _lineExtent;
     final position = _scrollController.position;
     _scrollController.animateTo(
       target.clamp(0.0, position.maxScrollExtent).toDouble(),
@@ -171,10 +172,12 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        _viewportHeight = constraints.maxHeight;
         _lineExtent =
             (92 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.45))
                 .toDouble();
+        final centerPadding = ((constraints.maxHeight - _lineExtent) / 2)
+            .clamp(0.0, double.infinity)
+            .toDouble();
         return Stack(
           children: [
             NotificationListener<UserScrollNotification>(
@@ -187,9 +190,7 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
               },
               child: ListView.builder(
                 controller: _scrollController,
-                padding: EdgeInsets.symmetric(
-                  vertical: (constraints.maxHeight - _lineExtent) / 2,
-                ),
+                padding: EdgeInsets.symmetric(vertical: centerPadding),
                 itemExtent: _lineExtent,
                 itemCount: document.lines.length,
                 itemBuilder: (context, index) => _LyricLineTile(

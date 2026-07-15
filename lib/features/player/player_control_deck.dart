@@ -131,32 +131,39 @@ class _PlaybackControls extends StatelessWidget {
     builder: (context, snapshot) {
       final state = snapshot.data;
       final playing = state?.playing ?? false;
-      final loading =
-          state?.processingState == AudioProcessingState.loading ||
+      final loading = state?.processingState == AudioProcessingState.loading;
+      final buffering =
           state?.processingState == AudioProcessingState.buffering;
+      final busy = loading || buffering;
+      final playButtonSize = compact ? 52.0 : 64.0;
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _ModeButton(handler: handler),
           IconButton(
             tooltip: '上一首',
-            onPressed: loading ? null : handler.skipToPrevious,
+            onPressed: busy ? null : handler.skipToPrevious,
             iconSize: compact ? 27 : 30,
             icon: const Icon(Icons.skip_previous_rounded),
           ),
           IconButton.filled(
-            tooltip: loading ? '正在加载' : (playing ? '暂停' : '播放'),
+            tooltip: loading
+                ? '正在加载'
+                : buffering
+                ? '正在缓冲'
+                : (playing ? '暂停' : '播放'),
             iconSize: compact ? 31 : 36,
-            padding: EdgeInsets.all(compact ? 10 : 14),
+            padding: EdgeInsets.zero,
             style: IconButton.styleFrom(
+              fixedSize: Size.square(playButtonSize),
               backgroundColor: KgColors.accent,
+              disabledBackgroundColor: KgColors.accent,
               foregroundColor: Colors.black,
+              disabledForegroundColor: Colors.black,
               shadowColor: KgColors.accent.withValues(alpha: 0.35),
               elevation: 8,
             ),
-            onPressed: loading
-                ? null
-                : (playing ? handler.pause : handler.play),
+            onPressed: busy ? null : (playing ? handler.pause : handler.play),
             icon: loading
                 ? SizedBox.square(
                     dimension: compact ? 24 : 28,
@@ -171,7 +178,7 @@ class _PlaybackControls extends StatelessWidget {
           ),
           IconButton(
             tooltip: '下一首',
-            onPressed: loading ? null : handler.skipToNext,
+            onPressed: busy ? null : handler.skipToNext,
             iconSize: compact ? 27 : 30,
             icon: const Icon(Icons.skip_next_rounded),
           ),

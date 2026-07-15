@@ -63,6 +63,42 @@ void main() {
     expect(sought, const Duration(milliseconds: 1900));
   });
 
+  testWidgets('active lyric line stays at the viewport center', (tester) async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final positions = StreamController<Duration>.broadcast();
+    addTearDown(positions.close);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(database),
+          lyricsSdkProvider.overrideWithValue(_StaticLyricsSdk(document)),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 320,
+              child: LyricsPanel(
+                song: song,
+                positionStream: positions.stream,
+                onSeek: (_) async {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    positions.add(const Duration(milliseconds: 2100));
+    await tester.pumpAndSettle();
+
+    final panelCenter = tester.getCenter(find.byType(LyricsPanel)).dy;
+    final activeLineCenter = tester.getCenter(find.text('第二句')).dy;
+    expect(activeLineCenter, closeTo(panelCenter, 1));
+  });
+
   testWidgets('failed load exposes a retry action', (tester) async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
