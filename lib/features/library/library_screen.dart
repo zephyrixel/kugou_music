@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
@@ -88,6 +90,9 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
   @override
   Widget build(BuildContext context) {
     final value = ref.watch(favoriteSongsProvider);
+    final favorite = (ref.watch(libraryPlaylistsProvider).value ?? const [])
+        .where((playlist) => playlist.isMyFavorite)
+        .firstOrNull;
     return value.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => KgErrorView(
@@ -113,6 +118,24 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
           : _SongCollectionList(
               songs: songs,
               label: '${songs.length} 首收藏',
+              queueRequest: favorite?.localId == null
+                  ? null
+                  : (items) => PlaybackQueueRequest(
+                      origin: PlaybackQueueOrigin(
+                        kind: PlaybackQueueOriginKind.favorites,
+                        title: '我喜欢',
+                        id: favorite!.localId,
+                        totalCount: favorite.count,
+                      ),
+                      songs: List.unmodifiable(items),
+                      source: LibraryPlaylistPlaybackQueueSource(
+                        repository: ref.read(libraryRepositoryProvider),
+                        localId: favorite.localId!,
+                      ),
+                      nextPage: ((items.length + 99) ~/ 100) + 1,
+                      hasMore: items.length < favorite.count,
+                      pageSize: 100,
+                    ),
               trailingBuilder: (song) => IconButton(
                 tooltip: '取消喜欢',
                 onPressed: () =>
@@ -154,11 +177,13 @@ class _SongCollectionList extends ConsumerWidget {
     required this.songs,
     required this.label,
     this.trailingBuilder,
+    this.queueRequest,
   });
 
   final List<Song> songs;
   final String label;
   final Widget Function(Song song)? trailingBuilder;
+  final PlaybackQueueRequest Function(List<Song> songs)? queueRequest;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => ListView.builder(
@@ -177,8 +202,20 @@ class _SongCollectionList extends ConsumerWidget {
                 ),
               ),
               FilledButton.tonalIcon(
-                onPressed: () =>
-                    playSong(context, ref, songs.first, queue: songs),
+                onPressed: () => playSong(
+                  context,
+                  ref,
+                  songs.first,
+                  queueRequest:
+                      queueRequest?.call(songs) ??
+                      PlaybackQueueRequest.snapshot(
+                        title: label.contains('收藏') ? '我喜欢' : '最近播放',
+                        songs: songs,
+                        kind: label.contains('收藏')
+                            ? PlaybackQueueOriginKind.favorites
+                            : PlaybackQueueOriginKind.history,
+                      ),
+                ),
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
                 label: const Text('播放全部'),
               ),
@@ -189,7 +226,20 @@ class _SongCollectionList extends ConsumerWidget {
       final song = songs[index - 1];
       return SongTile(
         song: song,
-        onTap: () => playSong(context, ref, song, queue: songs),
+        onTap: () => playSong(
+          context,
+          ref,
+          song,
+          queueRequest:
+              queueRequest?.call(songs) ??
+              PlaybackQueueRequest.snapshot(
+                title: label.contains('收藏') ? '我喜欢' : '最近播放',
+                songs: songs,
+                kind: label.contains('收藏')
+                    ? PlaybackQueueOriginKind.favorites
+                    : PlaybackQueueOriginKind.history,
+              ),
+        ),
         trailing: trailingBuilder?.call(song),
       );
     },

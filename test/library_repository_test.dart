@@ -128,6 +128,37 @@ void main() {
     expect(progressive.last, 5);
   });
 
+  test('playback queue pages reuse local tracks before network', () async {
+    sdk.playlists = const [_favoritePlaylist, _customPlaylist];
+    sdk.tracksByListId[4] = [
+      for (var i = 0; i < 4; i++)
+        Song(
+          id: 'queue-$i',
+          title: 'Queue$i',
+          hashes: AudioHashes(standard: 'queue-hash-$i'),
+        ),
+    ];
+    await library.activate(99);
+
+    final first = await library.playbackQueuePage(
+      'remote:4',
+      page: 1,
+      pageSize: 2,
+    );
+    final second = await library.playbackQueuePage(
+      'remote:4',
+      page: 1,
+      pageSize: 2,
+    );
+
+    expect(first.songs.length, 2);
+    expect(
+      second.songs.map((song) => song.id),
+      first.songs.map((song) => song.id),
+    );
+    expect(sdk.trackCalls, ['gid:4:1']);
+  });
+
   test('failed favorite rolls back local membership', () async {
     sdk.playlists = const [_favoritePlaylist];
     sdk.tracksByListId[2] = const [];

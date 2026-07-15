@@ -9,11 +9,13 @@ class PlaybackProgressBar extends StatefulWidget {
     required this.durationStream,
     required this.positionStream,
     required this.onSeek,
+    this.bufferedPositionStream,
   });
 
   final Stream<Duration?> durationStream;
   final Stream<Duration> positionStream;
   final Future<void> Function(Duration position) onSeek;
+  final Stream<Duration>? bufferedPositionStream;
 
   @override
   State<PlaybackProgressBar> createState() => _PlaybackProgressBarState();
@@ -40,40 +42,78 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
           final value = (_dragging ? _dragValue ?? currentValue : currentValue)
               .clamp(0, max)
               .toDouble();
-          return Column(
-            children: [
-              Slider(
-                value: value,
-                max: max,
-                onChangeStart: max <= 1
-                    ? null
-                    : (_) => setState(() {
-                        _dragging = true;
-                        _dragValue = value;
-                      }),
-                onChanged: max <= 1
-                    ? null
-                    : (next) => setState(() => _dragValue = next),
-                onChangeEnd: max <= 1
-                    ? null
-                    : (next) {
-                        setState(() {
-                          _dragging = false;
-                          _dragValue = null;
-                        });
-                        unawaited(
-                          widget.onSeek(Duration(milliseconds: next.round())),
-                        );
-                      },
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          return StreamBuilder<Duration>(
+            stream: widget.bufferedPositionStream,
+            builder: (context, bufferedSnapshot) {
+              final buffered = (bufferedSnapshot.data ?? Duration.zero)
+                  .inMilliseconds
+                  .toDouble()
+                  .clamp(0, max)
+                  .toDouble();
+              final visiblePosition = Duration(milliseconds: value.round());
+              return Column(
                 children: [
-                  Text(formatDuration(position)),
-                  Text(formatDuration(duration)),
+                  SizedBox(
+                    height: 32,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: max <= 1 ? 0 : buffered / max,
+                              minHeight: 3,
+                              backgroundColor: Colors.white12,
+                              valueColor: const AlwaysStoppedAnimation(
+                                Colors.white38,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Slider(
+                          value: value,
+                          max: max,
+                          onChangeStart: max <= 1
+                              ? null
+                              : (_) => setState(() {
+                                  _dragging = true;
+                                  _dragValue = value;
+                                }),
+                          onChanged: max <= 1
+                              ? null
+                              : (next) => setState(() => _dragValue = next),
+                          onChangeEnd: max <= 1
+                              ? null
+                              : (next) {
+                                  setState(() {
+                                    _dragging = false;
+                                    _dragValue = null;
+                                  });
+                                  unawaited(
+                                    widget.onSeek(
+                                      Duration(milliseconds: next.round()),
+                                    ),
+                                  );
+                                },
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        formatDuration(_dragging ? visiblePosition : position),
+                      ),
+                      Text(formatDuration(duration)),
+                    ],
+                  ),
                 ],
-              ),
-            ],
+              );
+            },
           );
         },
       );

@@ -5,12 +5,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/app/app.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
+import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/library/library_store.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
+import 'package:kgmusic/core/player/playback_queue_store.dart';
 import 'package:kgmusic/src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -24,8 +27,21 @@ Future<void> main() async {
   final libraryRemote = LibraryRemote(sdk);
   final library = LibraryRepository(libraryStore, libraryRemote);
   final audioCache = await AudioCacheManager.create();
+  final musicRepository = MusicRepository(sdk, database);
+  final queueStore = PlaybackQueueStore(database);
+  final queueSourceFactory = PlaybackQueueSourceFactory(
+    musicRepository: musicRepository,
+    libraryRepository: library,
+    sdk: sdk,
+  );
   final audioHandler = await AudioService.init<MusicAudioHandler>(
-    builder: () => MusicAudioHandler(sdk, library, audioCache),
+    builder: () => MusicAudioHandler(
+      sdk,
+      library,
+      audioCache,
+      queueStore: queueStore,
+      queueSourceFactory: queueSourceFactory,
+    ),
     config: const AudioServiceConfig(
       androidNotificationChannelId: 'com.zephyrixel.kgmusic.playback',
       androidNotificationChannelName: 'KGMusic 播放',
@@ -39,6 +55,7 @@ Future<void> main() async {
         musicSdkProvider.overrideWithValue(sdk),
         lyricsSdkProvider.overrideWithValue(sdk),
         databaseProvider.overrideWithValue(database),
+        musicRepositoryProvider.overrideWithValue(musicRepository),
         libraryRepositoryProvider.overrideWithValue(library),
         audioCacheProvider.overrideWithValue(audioCache),
         audioHandlerProvider.overrideWithValue(audioHandler),

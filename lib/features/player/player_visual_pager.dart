@@ -66,9 +66,27 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _PageIndicator(active: _page == 0, icon: Icons.album_rounded),
+          _PageIndicator(
+            active: _page == 0,
+            icon: Icons.album_rounded,
+            label: '封面',
+            onTap: () => _controller.animateToPage(
+              0,
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+            ),
+          ),
           const SizedBox(width: 8),
-          _PageIndicator(active: _page == 1, icon: Icons.lyrics_rounded),
+          _PageIndicator(
+            active: _page == 1,
+            icon: Icons.lyrics_rounded,
+            label: '歌词',
+            onTap: () => _controller.animateToPage(
+              1,
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+            ),
+          ),
         ],
       ),
     ],
@@ -91,35 +109,65 @@ class _ArtworkPage extends StatelessWidget {
           colors: [KgColors.accent.withValues(alpha: 0.16), Colors.transparent],
         ),
       ),
-      child: SongArtwork(
-        url: item.artUri?.toString(),
-        cacheId: 'song:${item.id}',
-        size: size,
-        radius: 30,
+      child: Hero(
+        tag: 'player-artwork:${item.id}',
+        child: SongArtwork(
+          url: item.artUri?.toString(),
+          cacheId: 'song:${item.id}',
+          size: size,
+          radius: 30,
+        ),
       ),
     ),
   );
 }
 
 class _PageIndicator extends StatelessWidget {
-  const _PageIndicator({required this.active, required this.icon});
+  const _PageIndicator({
+    required this.active,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final bool active;
   final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => AnimatedContainer(
     duration: const Duration(milliseconds: 180),
-    width: active ? 30 : 22,
-    height: 22,
+    width: active ? 68 : 38,
+    height: 30,
     decoration: BoxDecoration(
       color: active ? KgColors.accentSoft : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(15),
     ),
-    child: Icon(
-      icon,
-      size: 14,
-      color: active ? KgColors.accent : KgColors.textMuted,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: active ? KgColors.accent : KgColors.textMuted,
+          ),
+          if (active) ...[
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: KgColors.accent,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }

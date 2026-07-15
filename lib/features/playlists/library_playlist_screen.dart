@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
@@ -111,6 +113,24 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
           error: songs.isNotEmpty ? _loadError : null,
           onRetry: _load,
         ),
+        queueRequest: (items) => PlaybackQueueRequest(
+          origin: PlaybackQueueOrigin(
+            kind: playlist.isMyFavorite
+                ? PlaybackQueueOriginKind.favorites
+                : PlaybackQueueOriginKind.libraryPlaylist,
+            title: playlist.name,
+            id: playlist.localId,
+            totalCount: count,
+          ),
+          songs: List.unmodifiable(items),
+          source: LibraryPlaylistPlaybackQueueSource(
+            repository: ref.read(libraryRepositoryProvider),
+            localId: playlist.localId!,
+          ),
+          nextPage: ((items.length + 99) ~/ 100) + 1,
+          hasMore: items.length < count,
+          pageSize: 100,
+        ),
       ),
     );
   }
@@ -147,7 +167,9 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     );
     if (!accepted) return;
     try {
-      await ref.read(libraryRepositoryProvider).deletePlaylist(playlist.localId!);
+      await ref
+          .read(libraryRepositoryProvider)
+          .deletePlaylist(playlist.localId!);
       if (mounted) context.pop();
     } catch (error) {
       if (mounted) showAppError(context, error);

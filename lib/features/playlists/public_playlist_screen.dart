@@ -6,6 +6,8 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
@@ -97,12 +99,35 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
         label: const Text('收藏歌单'),
       ),
       footerSlivers: pagedListFooterSlivers(_pager),
+      queueRequest: (songs) {
+        final userId = ref.read(authControllerProvider).snapshot.userId;
+        return PlaybackQueueRequest(
+          origin: PlaybackQueueOrigin(
+            kind: PlaybackQueueOriginKind.publicPlaylist,
+            title: widget.playlist.name,
+            id: widget.playlist.globalCollectionId,
+            totalCount:
+                _pager.total ?? widget.playlist.songCount ?? songs.length,
+          ),
+          songs: List.unmodifiable(songs),
+          source: PublicPlaylistPlaybackQueueSource(
+            repository: ref.read(musicRepositoryProvider),
+            globalCollectionId: widget.playlist.globalCollectionId!,
+            userId: userId,
+          ),
+          nextPage: _pager.nextPage,
+          hasMore: _pager.hasMore,
+          pageSize: _pageSize,
+        );
+      },
     ),
   );
 
   Future<void> _collect() async {
     try {
-      await ref.read(libraryRepositoryProvider).collectPlaylist(widget.playlist);
+      await ref
+          .read(libraryRepositoryProvider)
+          .collectPlaylist(widget.playlist);
       if (mounted) showAppMessage(context, '已收藏');
     } catch (error) {
       if (mounted) showAppError(context, error);

@@ -44,6 +44,7 @@ class PagedListController<T> extends ChangeNotifier {
   bool get initialLoading => _initialLoading;
   bool get loadingMore => _loadingMore;
   bool get hasMore => _hasMore;
+  int get nextPage => _nextPage;
   bool get isEmpty =>
       _items.isEmpty && !_initialLoading && _initialError == null;
 

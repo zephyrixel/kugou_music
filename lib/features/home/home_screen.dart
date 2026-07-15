@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
@@ -40,7 +41,12 @@ class HomeScreen extends ConsumerWidget {
                               context,
                               ref,
                               recommendations.value!.first,
-                              queue: recommendations.value!,
+                              queueRequest: PlaybackQueueRequest.snapshot(
+                                title: '每日推荐',
+                                songs: recommendations.value!,
+                                kind: PlaybackQueueOriginKind
+                                    .dailyRecommendations,
+                              ),
                             )
                           : null,
                     ),
@@ -96,8 +102,16 @@ class HomeScreen extends ConsumerWidget {
                       itemBuilder: (context, index) => SongTile(
                         song: songs[index],
                         index: index + 1,
-                        onTap: () =>
-                            playSong(context, ref, songs[index], queue: songs),
+                        onTap: () => playSong(
+                          context,
+                          ref,
+                          songs[index],
+                          queueRequest: PlaybackQueueRequest.snapshot(
+                            title: '每日推荐',
+                            songs: songs,
+                            kind: PlaybackQueueOriginKind.dailyRecommendations,
+                          ),
+                        ),
                         trailing: SongTileActions(song: songs[index]),
                       ),
                     ),

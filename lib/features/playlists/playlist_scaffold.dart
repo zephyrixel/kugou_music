@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
@@ -25,6 +26,7 @@ class PlaylistSongsView extends ConsumerWidget {
     this.trailing,
     this.footerSlivers = const [],
     this.songTrailing,
+    this.queueRequest,
   });
 
   final String title;
@@ -50,6 +52,8 @@ class PlaylistSongsView extends ConsumerWidget {
   /// Per-song trailing builder; defaults to [SongTileActions].
   final Widget Function(BuildContext context, WidgetRef ref, Song song)?
   songTrailing;
+
+  final PlaybackQueueRequest Function(List<Song> songs)? queueRequest;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -80,7 +84,12 @@ class PlaylistSongsView extends ConsumerWidget {
                               context,
                               ref,
                               songs.first,
-                              queue: songs,
+                              queueRequest:
+                                  queueRequest?.call(songs) ??
+                                  PlaybackQueueRequest.snapshot(
+                                    title: title,
+                                    songs: songs,
+                                  ),
                             ),
                       icon: const Icon(Icons.play_arrow_rounded),
                       label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
@@ -117,7 +126,17 @@ class PlaylistSongsView extends ConsumerWidget {
                 return SongTile(
                   song: song,
                   index: index + 1,
-                  onTap: () => playSong(context, ref, song, queue: songs),
+                  onTap: () => playSong(
+                    context,
+                    ref,
+                    song,
+                    queueRequest:
+                        queueRequest?.call(songs) ??
+                        PlaybackQueueRequest.snapshot(
+                          title: title,
+                          songs: songs,
+                        ),
+                  ),
                   trailing:
                       songTrailing?.call(context, ref, song) ??
                       SongTileActions(song: song),

@@ -73,6 +73,7 @@ final authControllerProvider = ChangeNotifierProvider<AuthController>((ref) {
     ref.watch(secureStorageProvider),
     ref.watch(databaseProvider),
     ref.watch(libraryRepositoryProvider),
+    onSessionCleared: () => ref.watch(audioHandlerProvider).clearQueue(),
   );
   unawaited(controller.initialize());
   return controller;

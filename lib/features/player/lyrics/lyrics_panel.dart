@@ -25,8 +25,6 @@ class LyricsPanel extends ConsumerStatefulWidget {
 }
 
 class _LyricsPanelState extends ConsumerState<LyricsPanel> {
-  static const _lineExtent = 92.0;
-
   final ScrollController _scrollController = ScrollController();
   StreamSubscription<Duration>? _positionSubscription;
   LyricDocument? _document;
@@ -38,6 +36,7 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
   int? _activeLine;
   int _playedWords = 0;
   double _viewportHeight = 0;
+  double _lineExtent = 92;
 
   @override
   void initState() {
@@ -173,6 +172,9 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
     return LayoutBuilder(
       builder: (context, constraints) {
         _viewportHeight = constraints.maxHeight;
+        _lineExtent =
+            (92 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.45))
+                .toDouble();
         return Stack(
           children: [
             NotificationListener<UserScrollNotification>(

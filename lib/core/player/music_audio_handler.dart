@@ -1,32 +1,53 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:flutter/widgets.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:kgmusic/core/cache/artwork_cache.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
+import 'package:kgmusic/core/player/playback_queue_store.dart';
 
-class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
-  MusicAudioHandler(this._sdk, this._library, this._audioCache) {
+part 'music_audio_queue.dart';
+part 'music_audio_transition.dart';
+
+class MusicAudioHandler extends BaseAudioHandler
+    with SeekHandler, WidgetsBindingObserver {
+  MusicAudioHandler(
+    this._sdk,
+    this._library,
+    this._audioCache, {
+    this.queueStore,
+    this.queueSourceFactory,
+  }) {
     _player.playbackEventStream.listen(_broadcastState);
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
-        unawaited(skipToNext());
+        unawaited(_advanceAfterCompletion());
       }
     });
     _player.positionStream.listen(_enforcePreviewEnd);
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_configureSession());
+    unawaited(_restoreQueue());
   }
 
   final MusicSdk _sdk;
   final LibraryRepository _library;
   final AudioCacheManager _audioCache;
+  final PlaybackQueueStore? queueStore;
+  final PlaybackQueueSourceFactory? queueSourceFactory;
   final AudioPlayer _player = AudioPlayer();
   final StreamController<String?> _messages = StreamController.broadcast();
   final StreamController<PlaybackQualityState> _qualityStates =
+      StreamController.broadcast(sync: true);
+  final StreamController<PlaybackQueueState> _queueStates =
       StreamController.broadcast(sync: true);
   List<Song> _songs = const [];
   int _index = -1;
@@ -38,12 +59,25 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   Duration? _previewEnd;
   bool _previewStopped = false;
   CachedAudioHandle? _currentAudioHandle;
+  Future<void> _commitTail = Future<void>.value();
+  Future<void> _persistTail = Future<void>.value();
+  bool _advancing = false;
+  PlaybackQueueRequest? _queueRequest;
+  PlaybackQueueState? _queueState;
+  bool _loadingMore = false;
+  PlaybackOrder _order = PlaybackOrder.sequential;
+  final Random _random = Random();
+  final Set<String> _shuffleRemaining = {};
+  Duration? _restoredPosition;
 
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
+  Stream<Duration> get bufferedPositionStream => _player.bufferedPositionStream;
   Stream<String?> get messages => _messages.stream;
   Stream<PlaybackQualityState> get qualityStateStream => _qualityStates.stream;
+  Stream<PlaybackQueueState> get queueStateStream => _queueStates.stream;
   PlaybackQualityState get qualityState => _qualityState;
+  PlaybackQueueState? get queueState => _queueState;
   Duration get position => _player.position;
   List<Song> get songs => List.unmodifiable(_songs);
   int get currentIndex => _index;
@@ -53,16 +87,29 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     await session.configure(const AudioSessionConfiguration.music());
   }
 
-  Future<void> playSong(Song song, {List<Song>? queueSongs}) async {
-    final nextQueue = queueSongs?.isNotEmpty == true ? queueSongs! : [song];
+  Future<void> playSong(
+    Song song, {
+    List<Song>? queueSongs,
+    PlaybackQueueRequest? queueRequest,
+  }) async {
+    final request =
+        queueRequest ??
+        PlaybackQueueRequest.snapshot(
+          title: '播放队列',
+          songs: queueSongs?.isNotEmpty == true ? queueSongs! : [song],
+        );
+    final nextQueue = request.songs.isEmpty ? [song] : request.songs;
     var nextIndex = nextQueue.indexWhere((item) => item.id == song.id);
     if (nextIndex < 0) {
       nextIndex = 0;
     }
-    _songs = List.unmodifiable(nextQueue);
-    _index = nextIndex;
-    queue.add(_songs.map(_toMediaItem).toList(growable: false));
-    await _loadCurrent();
+    await _requestPlayback(
+      request: request.copyWith(songs: nextQueue),
+      index: nextIndex,
+      initialPosition: Duration.zero,
+      autoPlay: true,
+      recordHistory: true,
+    );
   }
 
   Future<void> setPlaybackQuality(AudioQuality quality) async {
@@ -84,7 +131,11 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     final resumePlaying = _player.playing;
     _preferredQuality = quality;
     try {
-      await _loadCurrent(
+      await _requestPlayback(
+        request:
+            _queueRequest ??
+            PlaybackQueueRequest.snapshot(title: '播放队列', songs: _songs),
+        index: _index,
         initialPosition: resumePosition,
         autoPlay: resumePlaying,
         recordHistory: false,
@@ -98,187 +149,16 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  Future<void> _loadCurrent({
-    Duration? initialPosition,
-    bool autoPlay = true,
-    bool recordHistory = true,
-  }) async {
-    final generation = ++_loadGeneration;
-    if (_index < 0 || _index >= _songs.length) return;
-    final song = _songs[_index];
-    final requestedQuality = _preferredQuality;
-    _messages.add(null);
-    _previewEnd = null;
-    _previewStopped = false;
-    mediaItem.add(_toMediaItem(song));
-    _emitQualityState(
-      PlaybackQualityState(requested: requestedQuality, switching: true),
-    );
+  @override
+  Future<void> removeQueueItemAt(int index) => _removeQueueItemAt(index);
 
-    try {
-      await _resolveAndPlay(
-        song,
-        generation,
-        requestedQuality,
-        initialPosition: initialPosition,
-        autoPlay: autoPlay,
-        recordHistory: recordHistory,
-      );
-    } on MusicSdkException catch (error) {
-      if (!_isCurrentLoad(generation, song)) return;
-      if (error.code == 20028) {
-        try {
-          await _sdk.registerDevice();
-          if (!_isCurrentLoad(generation, song)) return;
-          await _resolveAndPlay(
-            song,
-            generation,
-            requestedQuality,
-            initialPosition: initialPosition,
-            autoPlay: autoPlay,
-            recordHistory: recordHistory,
-          );
-          return;
-        } catch (_) {
-          // Keep the original security challenge as the user-facing error.
-        }
-      }
-      _finishQualityLoadWithError(requestedQuality);
-      _messages.add(error.toString());
-      rethrow;
-    } catch (error) {
-      if (!_isCurrentLoad(generation, song)) return;
-      _finishQualityLoadWithError(requestedQuality);
-      _messages.add(error.toString());
-      rethrow;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_persistQueue());
     }
-  }
-
-  Future<void> _resolveAndPlay(
-    Song song,
-    int generation,
-    AudioQuality requestedQuality, {
-    Duration? initialPosition,
-    required bool autoPlay,
-    required bool recordHistory,
-  }) async {
-    var resolution = await _sdk.resolve(song, quality: requestedQuality);
-    if (!_isCurrentLoad(generation, song)) return;
-    if (resolution is DeniedResolution || resolution is UnavailableResolution) {
-      resolution = await _sdk.resolve(
-        song,
-        quality: requestedQuality,
-        freePreview: true,
-      );
-      if (!_isCurrentLoad(generation, song)) return;
-    }
-    if (resolution is! PlayableResolution) {
-      throw const MusicSdkException('当前歌曲暂时无法播放');
-    }
-    if (resolution is PreviewResolution && resolution.endMs != null) {
-      _previewEnd = Duration(milliseconds: resolution.endMs!);
-    }
-    final resolvedSong = _applyResolvedArtwork(song, resolution, generation);
-    var resumePosition = initialPosition;
-    final previewEnd = _previewEnd;
-    if (resumePosition != null &&
-        previewEnd != null &&
-        resumePosition >= previewEnd) {
-      resumePosition = Duration.zero;
-    }
-    final audioHandle = await _audioCache.sourceFor(resolvedSong, resolution);
-    final previousAudioHandle = _currentAudioHandle;
-    _audioCache.setActive(audioHandle);
-    try {
-      await _player.setAudioSource(
-        audioHandle.source,
-        initialPosition: resumePosition,
-      );
-    } catch (_) {
-      _audioCache.setActive(previousAudioHandle);
-      rethrow;
-    }
-    _currentAudioHandle = audioHandle;
-    if (!_isCurrentLoad(generation, resolvedSong)) return;
-    unawaited(_cacheArtwork(resolvedSong, generation));
-    _emitQualityState(
-      PlaybackQualityState(
-        requested: requestedQuality,
-        actual: resolution is PreviewResolution
-            ? AudioQuality.standard
-            : resolution.quality,
-        bitRate: resolution.bitRate,
-        preview: resolution is PreviewResolution,
-      ),
-    );
-    if (recordHistory) await _library.recordPlayed(resolvedSong);
-    if (!_isCurrentLoad(generation, resolvedSong)) return;
-    if (autoPlay) {
-      await _player.play();
-    } else {
-      await _player.pause();
-    }
-  }
-
-  void _finishQualityLoadWithError(AudioQuality requestedQuality) {
-    _emitQualityState(PlaybackQualityState(requested: requestedQuality));
-  }
-
-  void _emitQualityState(PlaybackQualityState state) {
-    _qualityState = state;
-    _qualityStates.add(state);
-  }
-
-  Future<void> _cacheArtwork(Song song, int generation) async {
-    final artworkUrl = normalizeArtworkUrl(song.artworkUrl, size: 720);
-    if (artworkUrl == null) return;
-    try {
-      final file = await ArtworkCacheService.instance.getFile(
-        url: artworkUrl,
-        cacheId: 'song:${song.id}',
-        pixelSize: 720,
-      );
-      if (!_isCurrentLoad(generation, song)) return;
-      mediaItem.add(_toMediaItem(song, artworkUri: Uri.file(file.path)));
-    } catch (_) {
-      // The remote artwork URI remains usable when local prefetch fails.
-    }
-  }
-
-  Song _applyResolvedArtwork(
-    Song song,
-    PlayableResolution resolution,
-    int generation,
-  ) {
-    final artworkUrl = resolution.artworkUrl?.trim();
-    final normalizedArtworkUrl = normalizeArtworkUrl(artworkUrl);
-    if (normalizedArtworkUrl == null ||
-        normalizedArtworkUrl == normalizeArtworkUrl(song.artworkUrl) ||
-        !_isCurrentLoad(generation, song)) {
-      return song;
-    }
-
-    final resolvedSong = song.copyWith(artworkUrl: artworkUrl);
-    final updatedQueue = [..._songs];
-    updatedQueue[_index] = resolvedSong;
-    _songs = List.unmodifiable(updatedQueue);
-    queue.add(_songs.map(_toMediaItem).toList(growable: false));
-    mediaItem.add(_toMediaItem(resolvedSong));
-    return resolvedSong;
-  }
-
-  bool _isCurrentLoad(int generation, Song song) =>
-      generation == _loadGeneration &&
-      _index >= 0 &&
-      _index < _songs.length &&
-      _songs[_index].id == song.id;
-
-  void _enforcePreviewEnd(Duration position) {
-    final end = _previewEnd;
-    if (end == null || _previewStopped || position < end) return;
-    _previewStopped = true;
-    unawaited(_player.pause());
-    _messages.add('试听片段已结束');
   }
 
   MediaItem _toMediaItem(Song song, {Uri? artworkUri}) {
@@ -296,17 +176,53 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
-  Future<void> play() => _player.play();
+  Future<void> play() async {
+    final request = _queueRequest;
+    if (_player.processingState == ProcessingState.idle &&
+        request != null &&
+        _index >= 0 &&
+        _index < request.songs.length) {
+      await _requestPlayback(
+        request: request,
+        index: _index,
+        initialPosition: _restoredPosition,
+        autoPlay: true,
+        recordHistory: false,
+      );
+      return;
+    }
+    await _player.play();
+  }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() async {
+    await _player.pause();
+    unawaited(_persistQueue());
+  }
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
 
   @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
+      setPlaybackOrder(switch (repeatMode) {
+        AudioServiceRepeatMode.one => PlaybackOrder.repeatOne,
+        AudioServiceRepeatMode.all => PlaybackOrder.repeatAll,
+        _ => PlaybackOrder.sequential,
+      });
+
+  @override
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) =>
+      setPlaybackOrder(
+        shuffleMode == AudioServiceShuffleMode.none
+            ? PlaybackOrder.sequential
+            : PlaybackOrder.shuffle,
+      );
+
+  @override
   Future<void> stop() async {
     _loadGeneration += 1;
+    await _persistQueue();
     _audioCache.setActive(null);
     _currentAudioHandle = null;
     await _player.stop();
@@ -315,14 +231,61 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToNext() async {
+    if (_songs.isEmpty || _index < 0) return;
+    if (_order == PlaybackOrder.repeatOne) {
+      await seek(Duration.zero);
+      await play();
+      return;
+    }
+    if (_order == PlaybackOrder.shuffle) {
+      if (_shuffleRemaining.isEmpty && _queueRequest?.hasMore == true) {
+        await loadMoreQueue();
+      }
+      if (_shuffleRemaining.isNotEmpty) {
+        final ids = _shuffleRemaining.toList(growable: false);
+        final id = ids[_random.nextInt(ids.length)];
+        _shuffleRemaining.remove(id);
+        final target = _songs.indexWhere((song) => song.id == id);
+        if (target >= 0) {
+          await _requestPlayback(
+            request: _queueRequest!,
+            index: target,
+            initialPosition: Duration.zero,
+            autoPlay: true,
+            recordHistory: true,
+          );
+          return;
+        }
+      }
+    }
+    if (_index + 1 >= _songs.length && _queueRequest?.hasMore == true) {
+      await loadMoreQueue();
+    }
     if (_index + 1 >= _songs.length) {
+      if (_order == PlaybackOrder.repeatAll) {
+        await _requestPlayback(
+          request: _queueRequest!,
+          index: 0,
+          initialPosition: Duration.zero,
+          autoPlay: true,
+          recordHistory: true,
+        );
+        return;
+      }
       _loadGeneration += 1;
       await _player.pause();
       await _player.seek(Duration.zero);
       return;
     }
-    _index += 1;
-    await _loadCurrent();
+    final request = _queueRequest;
+    if (request == null) return;
+    await _requestPlayback(
+      request: request,
+      index: _index + 1,
+      initialPosition: Duration.zero,
+      autoPlay: true,
+      recordHistory: true,
+    );
   }
 
   @override
@@ -335,8 +298,28 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
       await seek(Duration.zero);
       return;
     }
-    _index -= 1;
-    await _loadCurrent();
+    final request = _queueRequest;
+    if (request == null) return;
+    await _requestPlayback(
+      request: request,
+      index: _index - 1,
+      initialPosition: Duration.zero,
+      autoPlay: true,
+      recordHistory: true,
+    );
+  }
+
+  @override
+  Future<void> skipToQueueItem(int index) async {
+    final request = _queueRequest;
+    if (request == null || index < 0 || index >= _songs.length) return;
+    await _requestPlayback(
+      request: request,
+      index: index,
+      initialPosition: Duration.zero,
+      autoPlay: true,
+      recordHistory: index != _index,
+    );
   }
 
   void _broadcastState(PlaybackEvent event) {
@@ -357,6 +340,14 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
           ProcessingState.completed => AudioProcessingState.completed,
         },
         playing: _player.playing,
+        repeatMode: switch (_order) {
+          PlaybackOrder.repeatOne => AudioServiceRepeatMode.one,
+          PlaybackOrder.repeatAll => AudioServiceRepeatMode.all,
+          _ => AudioServiceRepeatMode.none,
+        },
+        shuffleMode: _order == PlaybackOrder.shuffle
+            ? AudioServiceShuffleMode.all
+            : AudioServiceShuffleMode.none,
         updatePosition: _player.position,
         bufferedPosition: _player.bufferedPosition,
         speed: _player.speed,

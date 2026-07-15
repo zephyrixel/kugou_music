@@ -6,6 +6,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/features/player/player_queue_sheet.dart';
 
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
@@ -30,11 +31,14 @@ class MiniPlayer extends ConsumerWidget {
                   child: Row(
                     children: [
                       const SizedBox(width: 12),
-                      SongArtwork(
-                        url: item.artUri?.toString(),
-                        cacheId: 'song:${item.id}',
-                        size: 48,
-                        radius: 12,
+                      Hero(
+                        tag: 'player-artwork:${item.id}',
+                        child: SongArtwork(
+                          url: item.artUri?.toString(),
+                          cacheId: 'song:${item.id}',
+                          size: 48,
+                          radius: 12,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -62,21 +66,37 @@ class MiniPlayer extends ConsumerWidget {
                       StreamBuilder<PlaybackState>(
                         stream: handler.playbackState,
                         builder: (context, stateSnapshot) {
-                          final playing = stateSnapshot.data?.playing ?? false;
+                          final state = stateSnapshot.data;
+                          final playing = state?.playing ?? false;
+                          final loading =
+                              state?.processingState ==
+                                  AudioProcessingState.loading ||
+                              state?.processingState ==
+                                  AudioProcessingState.buffering;
                           return IconButton(
-                            onPressed: playing ? handler.pause : handler.play,
-                            icon: Icon(
-                              playing
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                            ),
+                            tooltip: loading ? '正在加载' : (playing ? '暂停' : '播放'),
+                            onPressed: loading
+                                ? null
+                                : (playing ? handler.pause : handler.play),
+                            icon: loading
+                                ? const SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    playing
+                                        ? Icons.pause_rounded
+                                        : Icons.play_arrow_rounded,
+                                  ),
                           );
                         },
                       ),
                       IconButton(
-                        tooltip: '下一首',
-                        onPressed: handler.skipToNext,
-                        icon: const Icon(Icons.skip_next_rounded),
+                        tooltip: '播放队列',
+                        onPressed: () => showPlayerQueueSheet(context, handler),
+                        icon: const Icon(Icons.queue_music_rounded),
                       ),
                       const SizedBox(width: 6),
                     ],
@@ -100,21 +120,39 @@ class _MiniProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
     stream: handler.durationStream,
-    builder: (context, durationSnapshot) => StreamBuilder<Duration>(
-      stream: handler.positionStream,
-      builder: (context, positionSnapshot) {
-        final duration = durationSnapshot.data?.inMilliseconds ?? 0;
-        final position = positionSnapshot.data?.inMilliseconds ?? 0;
-        final value = duration <= 0
-            ? 0.0
-            : (position / duration).clamp(0.0, 1.0);
-        return LinearProgressIndicator(
-          value: value,
-          minHeight: 2,
-          backgroundColor: KgColors.divider,
-          color: KgColors.accent,
-        );
-      },
+    builder: (context, durationSnapshot) => StreamBuilder<PlaybackState>(
+      stream: handler.playbackState,
+      builder: (context, stateSnapshot) => StreamBuilder<Duration>(
+        stream: handler.positionStream,
+        builder: (context, positionSnapshot) {
+          final duration = durationSnapshot.data?.inMilliseconds ?? 0;
+          final position = positionSnapshot.data?.inMilliseconds ?? 0;
+          final value = duration <= 0
+              ? 0.0
+              : (position / duration).clamp(0.0, 1.0);
+          final buffered = duration <= 0
+              ? 0.0
+              : ((stateSnapshot.data?.bufferedPosition.inMilliseconds ?? 0) /
+                        duration)
+                    .clamp(0.0, 1.0);
+          return Stack(
+            children: [
+              LinearProgressIndicator(
+                value: buffered,
+                minHeight: 2,
+                backgroundColor: KgColors.divider,
+                color: Colors.white30,
+              ),
+              LinearProgressIndicator(
+                value: value,
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+                color: KgColors.accent,
+              ),
+            ],
+          );
+        },
+      ),
     ),
   );
 }

@@ -88,6 +88,35 @@ class LibraryStore {
     );
   }
 
+  Future<List<Song>> playlistTracksPage(
+    String localId, {
+    required int page,
+    required int pageSize,
+  }) async {
+    final offset = (page - 1) * pageSize;
+    final query =
+        database.select(database.storedPlaylistTracks).join([
+            innerJoin(
+              database.storedSongs,
+              database.storedSongs.id.equalsExp(
+                database.storedPlaylistTracks.songId,
+              ),
+            ),
+          ])
+          ..where(database.storedPlaylistTracks.playlistLocalId.equals(localId))
+          ..orderBy([OrderingTerm.asc(database.storedPlaylistTracks.position)])
+          ..limit(pageSize, offset: offset);
+    final rows = await query.get();
+    return rows
+        .map(
+          (row) => _songFromRow(
+            row.readTable(database.storedSongs),
+            fileId: row.readTable(database.storedPlaylistTracks).fileId,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   Future<LibrarySyncState?> get syncState => (database.select(
     database.librarySyncStates,
   )..where((row) => row.singletonId.equals(1))).getSingleOrNull();

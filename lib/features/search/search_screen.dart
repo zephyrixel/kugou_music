@@ -8,6 +8,8 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
@@ -255,7 +257,28 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         final song = songs[itemIndex];
         return SongTile(
           song: song,
-          onTap: () => playSong(context, ref, song, queue: songs),
+          onTap: () => playSong(
+            context,
+            ref,
+            song,
+            queueRequest: PlaybackQueueRequest(
+              origin: PlaybackQueueOrigin(
+                kind: PlaybackQueueOriginKind.search,
+                title: '搜索：$_keyword',
+                id: _keyword,
+                totalCount: _songPager.total ?? songs.length,
+              ),
+              songs: List.unmodifiable(songs),
+              source: SearchPlaybackQueueSource(
+                repository: ref.read(musicRepositoryProvider),
+                keyword: _keyword,
+                userId: ref.read(authControllerProvider).snapshot.userId,
+              ),
+              nextPage: _songPager.nextPage,
+              hasMore: _songPager.hasMore,
+              pageSize: _songPager.pageSize,
+            ),
+          ),
           trailing: SongTileActions(song: song),
         );
       },

@@ -21,7 +21,13 @@ enum AuthStatus {
 }
 
 class AuthController extends ChangeNotifier with WidgetsBindingObserver {
-  AuthController(this._sdk, this._storage, this._database, this._library);
+  AuthController(
+    this._sdk,
+    this._storage,
+    this._database,
+    this._library, {
+    this.onSessionCleared,
+  });
 
   static const refreshInterval = Duration(hours: 12);
   static const _lastRefreshKey = 'kugou_lite_last_refresh_at';
@@ -30,6 +36,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   final FlutterSecureStorage _storage;
   final AppDatabase _database;
   final LibraryRepository _library;
+  final Future<void> Function()? onSessionCleared;
   Timer? _refreshTimer;
   Timer? _countdownTimer;
   bool _disposed = false;
@@ -158,6 +165,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     String? message,
   }) async {
     await _sdk.logout();
+    await onSessionCleared?.call();
     await _storage.delete(key: _lastRefreshKey);
     await _database.clearAccountCache();
     await _library.deactivate();

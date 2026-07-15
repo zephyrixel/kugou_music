@@ -7,6 +7,7 @@ import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/music_sdk.dart';
 
 /// Feature-facing library API: Drift read model + online write-back.
 class LibraryRepository {
@@ -34,6 +35,57 @@ class LibraryRepository {
   Stream<List<HistoryEntry>> watchHistory() => _store.watchHistory();
   Stream<List<Song>> watchPlaylistTracks(String localId) =>
       _store.watchPlaylistTracks(localId);
+
+  Future<SearchPage> playbackQueuePage(
+    String localId, {
+    required int page,
+    int pageSize = LibraryRemote.pageSize,
+  }) async {
+    final playlist = await _store.playlist(localId);
+    if (playlist == null) throw StateError('歌单不存在');
+    final local = await _store.playlistTracksPage(
+      localId,
+      page: page,
+      pageSize: pageSize,
+    );
+    final start = (page - 1) * pageSize;
+    final localIsComplete =
+        local.length == pageSize ||
+        playlist.tracksLoaded ||
+        (playlist.count > 0 && start + local.length >= playlist.count);
+    if (localIsComplete) {
+      return SearchPage(
+        songs: local,
+        page: page,
+        pageSize: pageSize,
+        total: playlist.count,
+      );
+    }
+
+    final remote = await _remote.fetchTracksPage(
+      playlist,
+      page: page,
+      pageSize: pageSize,
+    );
+    await _store.appendPlaylistTracks(
+      localId,
+      remote.songs,
+      startPosition: start,
+      totalCount: remote.total,
+    );
+    if (!canLoadNextPage(
+      loadedItemCount: start + remote.songs.length,
+      lastPageItemCount: remote.songs.length,
+      pageSize: remote.pageSize,
+      total: remote.total,
+    )) {
+      await _store.markPlaylistTracksLoaded(
+        localId,
+        count: start + remote.songs.length,
+      );
+    }
+    return remote;
+  }
   Stream<LibrarySyncStatus> get syncStatuses async* {
     yield _status;
     yield* _statuses.stream;

@@ -14,7 +14,7 @@ features/*
     │       ├── LibraryStore ── Drift CRUD / watch
     │       └── LibraryRemote ── core/native/MusicSdk
     │                              └── FRB ── Rust kugou_bridge
-    │                                               └── kugou_sdk 0.2.2 / Lite
+    │                                               └── kugou_sdk 0.2.3 / Lite
     ├── core/cache/MusicRepository ── 推荐、搜索与资料响应缓存
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
@@ -48,6 +48,14 @@ features/*
 7. 播放地址使用 `LockCachingAudioSource` 渐进写入 1 GB LRU 缓存；缓存键由歌曲
    hash、实际音质和试听状态组成，临时签名 URL 不参与资源身份。
 8. 进度条仅在用户结束拖动时调用一次 `seek`，避免连续 Range 请求。
+9. 切歌先解析地址与准备缓存源，`setAudioSource` 成功后才原子提交歌曲、封面、
+   队列索引和音质状态；过期请求不得覆盖新请求。
+10. 队列保留每日推荐、搜索或歌单等来源信息，并在接近末尾时按页加载；已缓存
+    的搜索/公开歌单页和 Drift 内歌单页优先复用。
+11. 支持顺序、列表循环、单曲循环和分批随机；自动续播会跳过明确不可播歌曲，
+    网络或认证错误则停止并向 UI 暴露错误。
+12. 当前账号的队列、顺序模式和播放位置保存为单条本地响应快照；重启后恢复但
+    不自动播放，退出账号时随账号缓存一起清除。
 
 ## 缓存策略
 
