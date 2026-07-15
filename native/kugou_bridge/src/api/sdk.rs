@@ -237,6 +237,9 @@ pub struct CloudPlaylistPageDto {
 pub struct PlaylistTracksRequestDto {
     pub list_id: Option<u64>,
     pub global_collection_id: Option<String>,
+    /// Prefer gid path when `global_collection_id` is set (newest-first).
+    /// `owned` only selects `tracks_by_listid` when **no** gid is available
+    /// (oldest-first physical order). Callers should pass gid for UI lists.
     pub owned: bool,
     pub page: u32,
     pub page_size: u32,
@@ -660,7 +663,23 @@ pub async fn get_playlist_tracks(
     let page_size = request.page_size.clamp(1, 100);
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
-    let value = if request.owned {
+    // Prefer gid whenever present: public path is newest-first (official UI).
+    // Own-list `tracks_by_listid` is oldest-first — only when no gid.
+    // Compatible with kugou_sdk =0.2.2 (no new fields required).
+    let gid = request
+        .global_collection_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    let value = if let Some(gid) = gid {
+        runtime
+            .client
+            .playlists()
+            .tracks(&mut session, gid, Pagination::new(page, page_size))
+            .await
+            .map_err(BridgeError::from_sdk)?
+            .data
+    } else if request.owned {
         let list_id = request
             .list_id
             .filter(|id| *id > 0)
@@ -673,18 +692,9 @@ pub async fn get_playlist_tracks(
             .map_err(BridgeError::from_sdk)?
             .data
     } else {
-        let gid = request
-            .global_collection_id
-            .as_deref()
-            .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| BridgeError::invalid_argument("playlist requires collection id"))?;
-        runtime
-            .client
-            .playlists()
-            .tracks(&mut session, gid, Pagination::new(page, page_size))
-            .await
-            .map_err(BridgeError::from_sdk)?
-            .data
+        return Err(BridgeError::invalid_argument(
+            "playlist requires collection id",
+        ));
     };
     let items = songs_to_dtos_with_artwork(&runtime.client, &mut session, &value.items).await;
     Ok(SongPageDto {

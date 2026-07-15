@@ -131,6 +131,9 @@ extension _LibrarySyncPull on LibrarySyncService {
   }
 
   Future<List<LibraryHistoryEntry>> _fetchHistory(_SyncContext context) async {
+    // Upstream cloud history pages are oldest→newest (`ot` asc); `bp` continues
+    // toward newer plays. We page until the limit, then sort newest-first for UI
+    // (official「最近播放」). Do not append pages raw without this sort.
     final entries = <String, LibraryHistoryEntry>{};
     String? cursor;
     while (_isCurrent(context) &&

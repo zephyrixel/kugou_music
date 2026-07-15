@@ -296,15 +296,21 @@ class KugouMusicSdk implements MusicSdk {
     CloudPlaylist playlist, {
     int page = 1,
     int pageSize = 50,
-  }) => _tracks(
-    bridge.PlaylistTracksRequestDto(
-      listId: playlist.listId,
-      globalCollectionId: playlist.globalCollectionId,
-      owned: !playlist.isCollected,
-      page: page,
-      pageSize: pageSize,
-    ),
-  );
+  }) {
+    // Official UI is newest-first. SDK `tracks(gid)` matches that; own-list
+    // `tracks_by_listid` is oldest-first. Prefer gid whenever present (0.2.2+).
+    final gid = playlist.globalCollectionId?.trim();
+    final hasGid = gid != null && gid.isNotEmpty;
+    return _tracks(
+      bridge.PlaylistTracksRequestDto(
+        listId: playlist.listId,
+        globalCollectionId: hasGid ? gid : playlist.globalCollectionId,
+        owned: !playlist.isCollected && !hasGid,
+        page: page,
+        pageSize: pageSize,
+      ),
+    );
+  }
 
   @override
   Future<SearchPage> publicPlaylistTracks(
