@@ -3,6 +3,7 @@ import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/lyric.dart';
 import 'package:kgmusic/core/models/playlist.dart';
+import 'package:kgmusic/core/models/recommendation.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
@@ -17,6 +18,18 @@ abstract interface class MusicSdk {
   Future<AuthSnapshot> registerDevice();
   Future<void> logout();
   Future<List<Song>> everydayRecommendations();
+  Future<RecommendationBatch> personalFm(PersonalFmInput input);
+  Future<RecommendationBatch> heartRadio({
+    List<int> currentMixSongIds = const [],
+  });
+  Future<void> reportRecommendationHistory(
+    List<RecommendationHistoryEvent> items,
+  );
+  Future<void> reportRecommendationRepeated(
+    List<String> hashes, {
+    required int remainSongCount,
+  });
+  Future<void> reportRecommendationFavoriteClick(Song song);
   Future<SearchPage> search(String keyword, {int page = 1, int pageSize = 30});
   Future<PlaylistSearchPage> searchPlaylists(
     String keyword, {
@@ -88,6 +101,9 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
       smsAuth: value.smsAuth,
       cloudLibrary: value.cloudLibrary,
       playlistMutations: value.playlistMutations,
+      personalFm: value.personalFm,
+      heartRadio: value.heartRadio,
+      recommendationReports: value.recommendationReports,
     );
   }
 
@@ -128,6 +144,80 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
     await _persistSession();
     return result.songs.map(_songFromDto).toList(growable: false);
   });
+
+  @override
+  Future<RecommendationBatch> personalFm(PersonalFmInput input) =>
+      _guard(() async {
+        final value = await bridge.getPersonalFm(
+          request: bridge.PersonalFmRequestDto(
+            action: switch (input.action) {
+              PersonalFmAction.play => bridge.PersonalFmActionDto.play,
+              PersonalFmAction.skip => bridge.PersonalFmActionDto.skip,
+              PersonalFmAction.garbage => bridge.PersonalFmActionDto.garbage,
+            },
+            currentSong: input.currentSong == null
+                ? null
+                : _songToDto(input.currentSong!),
+            remainSongCount: input.remainSongCount,
+            playtimeSecs: input.playtimeSecs,
+            markList: input.markList,
+          ),
+        );
+        await _persistSession();
+        return _recommendationBatch(value);
+      });
+
+  @override
+  Future<RecommendationBatch> heartRadio({
+    List<int> currentMixSongIds = const [],
+  }) => _guard(() async {
+    final value = await bridge.getHeartRadio(
+      request: bridge.HeartRadioRequestDto(
+        currentMixSongIds: currentMixSongIds,
+      ),
+    );
+    await _persistSession();
+    return _recommendationBatch(value);
+  });
+
+  @override
+  Future<void> reportRecommendationHistory(
+    List<RecommendationHistoryEvent> items,
+  ) => _guard(
+    () => bridge.reportRecommendationHistory(
+      items: items
+          .map(
+            (item) => bridge.RecommendationHistoryItemDto(
+              action: switch (item.action) {
+                RecommendationHistoryAction.play =>
+                  bridge.RecommendationHistoryActionDto.play,
+                RecommendationHistoryAction.collect =>
+                  bridge.RecommendationHistoryActionDto.collect,
+                RecommendationHistoryAction.trash =>
+                  bridge.RecommendationHistoryActionDto.trash,
+              },
+              song: _songToDto(item.song),
+            ),
+          )
+          .toList(growable: false),
+    ),
+  );
+
+  @override
+  Future<void> reportRecommendationRepeated(
+    List<String> hashes, {
+    required int remainSongCount,
+  }) => _guard(
+    () => bridge.reportRecommendationRepeated(
+      hashes: hashes,
+      remainSongCount: remainSongCount,
+    ),
+  );
+
+  @override
+  Future<void> reportRecommendationFavoriteClick(Song song) => _guard(
+    () => bridge.reportRecommendationFavoriteClick(song: _songToDto(song)),
+  );
 
   @override
   Future<SearchPage> search(
@@ -626,6 +716,14 @@ PlaylistSearchHit _searchHit(bridge.PlaylistSearchHitDto value) =>
       tags: value.tags,
     );
 
+RecommendationBatch _recommendationBatch(bridge.RecommendationBatchDto value) =>
+    RecommendationBatch(
+      title: value.title,
+      subtitle: value.subtitle,
+      markList: value.markList,
+      songs: value.songs.map(_songFromDto).toList(growable: false),
+    );
+
 class SdkCapabilities {
   const SdkCapabilities({
     required this.platform,
@@ -635,6 +733,9 @@ class SdkCapabilities {
     required this.smsAuth,
     required this.cloudLibrary,
     required this.playlistMutations,
+    this.personalFm = false,
+    this.heartRadio = false,
+    this.recommendationReports = false,
   });
   final String platform;
   final bool songSearch;
@@ -643,6 +744,9 @@ class SdkCapabilities {
   final bool smsAuth;
   final bool cloudLibrary;
   final bool playlistMutations;
+  final bool personalFm;
+  final bool heartRadio;
+  final bool recommendationReports;
 }
 
 class SearchPage {

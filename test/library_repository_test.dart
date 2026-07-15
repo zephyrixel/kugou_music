@@ -279,6 +279,9 @@ HistoryEntry _historyEntry(int mixSongId, DateTime playedAt) => HistoryEntry(
 );
 
 class _FakeMusicSdk implements MusicSdk {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   List<Playlist> playlists = const [];
   final Map<int, List<Song>> tracksByListId = {};
   List<HistoryEntry> historyItems = const [];

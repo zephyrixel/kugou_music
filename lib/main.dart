@@ -15,6 +15,9 @@ import 'package:kgmusic/core/player/audio_service_config.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/player/playback_queue_store.dart';
+import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
+import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
+import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/src/rust/frb_generated.dart';
 
 Future<void> main() async {
@@ -24,9 +27,19 @@ Future<void> main() async {
   final database = AppDatabase();
   final sdk = KugouMusicSdk(const FlutterSecureStorage());
   await sdk.initialize();
+  final appErrorBus = AppErrorBus();
+  final recommendationReporter = RecommendationReporter(sdk, appErrorBus);
+  final recommendationPlayback = RecommendationPlayback(
+    sdk,
+    recommendationReporter,
+  );
   final libraryStore = LibraryStore(database);
   final libraryRemote = LibraryRemote(sdk);
-  final library = LibraryRepository(libraryStore, libraryRemote);
+  final library = LibraryRepository(
+    libraryStore,
+    libraryRemote,
+    recommendationReporter,
+  );
   final audioCache = await AudioCacheManager.create();
   final musicRepository = MusicRepository(sdk, database);
   final queueStore = PlaybackQueueStore(database);
@@ -34,6 +47,7 @@ Future<void> main() async {
     musicRepository: musicRepository,
     libraryRepository: library,
     sdk: sdk,
+    recommendationPlayback: recommendationPlayback,
   );
   final audioHandler = await AudioService.init<MusicAudioHandler>(
     builder: () => MusicAudioHandler(
@@ -55,6 +69,13 @@ Future<void> main() async {
         musicRepositoryProvider.overrideWithValue(musicRepository),
         libraryRepositoryProvider.overrideWithValue(library),
         audioCacheProvider.overrideWithValue(audioCache),
+        appErrorBusProvider.overrideWithValue(appErrorBus),
+        recommendationReporterProvider.overrideWithValue(
+          recommendationReporter,
+        ),
+        recommendationPlaybackProvider.overrideWithValue(
+          recommendationPlayback,
+        ),
         audioHandlerProvider.overrideWithValue(audioHandler),
       ],
       child: const KgMusicApp(),

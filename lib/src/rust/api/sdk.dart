@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sdk.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `bool_for_keys`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `lyric_document_to_dto`, `nonempty_artwork`, `object_value_for_key`, `playlist_tracks_route`, `runtime`, `scalar_string_for_keys`, `search_playlist_to_dto`, `select_hash`, `song_dto_to_lyric_ref`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`, `vip_product_to_dto`
+// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `bool_for_keys`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `lyric_document_to_dto`, `nonempty_artwork`, `object_value_for_key`, `playlist_tracks_route`, `runtime`, `scalar_string_for_keys`, `search_playlist_to_dto`, `select_hash`, `song_dto_to_lyric_ref`, `song_dto_to_song_ref`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`, `vip_product_to_dto`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `PlaylistTracksRoute`, `SongDetailEnrichment`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 Future<SdkCapabilitiesDto> initializeSdk() =>
@@ -47,6 +47,31 @@ Future<PlaylistSearchPageDto> searchPlaylists({
 
 Future<RecommendationDto> getEverydayRecommendations() =>
     RustLib.instance.api.crateApiSdkGetEverydayRecommendations();
+
+Future<RecommendationBatchDto> getPersonalFm({
+  required PersonalFmRequestDto request,
+}) => RustLib.instance.api.crateApiSdkGetPersonalFm(request: request);
+
+Future<RecommendationBatchDto> getHeartRadio({
+  required HeartRadioRequestDto request,
+}) => RustLib.instance.api.crateApiSdkGetHeartRadio(request: request);
+
+Future<void> reportRecommendationHistory({
+  required List<RecommendationHistoryItemDto> items,
+}) => RustLib.instance.api.crateApiSdkReportRecommendationHistory(items: items);
+
+Future<void> reportRecommendationRepeated({
+  required List<String> hashes,
+  required int remainSongCount,
+}) => RustLib.instance.api.crateApiSdkReportRecommendationRepeated(
+  hashes: hashes,
+  remainSongCount: remainSongCount,
+);
+
+Future<void> reportRecommendationFavoriteClick({required SongDto song}) =>
+    RustLib.instance.api.crateApiSdkReportRecommendationFavoriteClick(
+      song: song,
+    );
 
 Future<PlaybackResolutionDto> resolvePlayback({
   required ResolvePlaybackRequestDto request,
@@ -355,6 +380,22 @@ class CloudPlaylistPageDto {
           totalVersion == other.totalVersion;
 }
 
+class HeartRadioRequestDto {
+  final List<int> currentMixSongIds;
+
+  const HeartRadioRequestDto({required this.currentMixSongIds});
+
+  @override
+  int get hashCode => currentMixSongIds.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HeartRadioRequestDto &&
+          runtimeType == other.runtimeType &&
+          currentMixSongIds == other.currentMixSongIds;
+}
+
 class HistoryPageDto {
   final List<HistorySongDto> items;
   final String? cursor;
@@ -525,6 +566,43 @@ class LyricWordDto {
           startMs == other.startMs &&
           durationMs == other.durationMs &&
           text == other.text;
+}
+
+enum PersonalFmActionDto { play, skip, garbage }
+
+class PersonalFmRequestDto {
+  final PersonalFmActionDto action;
+  final SongDto? currentSong;
+  final int remainSongCount;
+  final int? playtimeSecs;
+  final String? markList;
+
+  const PersonalFmRequestDto({
+    required this.action,
+    this.currentSong,
+    required this.remainSongCount,
+    this.playtimeSecs,
+    this.markList,
+  });
+
+  @override
+  int get hashCode =>
+      action.hashCode ^
+      currentSong.hashCode ^
+      remainSongCount.hashCode ^
+      playtimeSecs.hashCode ^
+      markList.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PersonalFmRequestDto &&
+          runtimeType == other.runtimeType &&
+          action == other.action &&
+          currentSong == other.currentSong &&
+          remainSongCount == other.remainSongCount &&
+          playtimeSecs == other.playtimeSecs &&
+          markList == other.markList;
 }
 
 @freezed
@@ -754,6 +832,34 @@ class PlaylistTracksRequestDto {
           pageSize == other.pageSize;
 }
 
+class RecommendationBatchDto {
+  final String title;
+  final String? subtitle;
+  final String? markList;
+  final List<SongDto> songs;
+
+  const RecommendationBatchDto({
+    required this.title,
+    this.subtitle,
+    this.markList,
+    required this.songs,
+  });
+
+  @override
+  int get hashCode =>
+      title.hashCode ^ subtitle.hashCode ^ markList.hashCode ^ songs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecommendationBatchDto &&
+          runtimeType == other.runtimeType &&
+          title == other.title &&
+          subtitle == other.subtitle &&
+          markList == other.markList &&
+          songs == other.songs;
+}
+
 class RecommendationDto {
   final String title;
   final String? subtitle;
@@ -789,6 +895,29 @@ class RecommendationDto {
           songs == other.songs;
 }
 
+enum RecommendationHistoryActionDto { play, collect, trash }
+
+class RecommendationHistoryItemDto {
+  final RecommendationHistoryActionDto action;
+  final SongDto song;
+
+  const RecommendationHistoryItemDto({
+    required this.action,
+    required this.song,
+  });
+
+  @override
+  int get hashCode => action.hashCode ^ song.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecommendationHistoryItemDto &&
+          runtimeType == other.runtimeType &&
+          action == other.action &&
+          song == other.song;
+}
+
 class ResolvePlaybackRequestDto {
   final SongDto song;
   final AudioQualityDto quality;
@@ -821,6 +950,9 @@ class SdkCapabilitiesDto {
   final bool smsAuth;
   final bool cloudLibrary;
   final bool playlistMutations;
+  final bool personalFm;
+  final bool heartRadio;
+  final bool recommendationReports;
 
   const SdkCapabilitiesDto({
     required this.platform,
@@ -830,6 +962,9 @@ class SdkCapabilitiesDto {
     required this.smsAuth,
     required this.cloudLibrary,
     required this.playlistMutations,
+    required this.personalFm,
+    required this.heartRadio,
+    required this.recommendationReports,
   });
 
   @override
@@ -840,7 +975,10 @@ class SdkCapabilitiesDto {
       dailyRecommendation.hashCode ^
       smsAuth.hashCode ^
       cloudLibrary.hashCode ^
-      playlistMutations.hashCode;
+      playlistMutations.hashCode ^
+      personalFm.hashCode ^
+      heartRadio.hashCode ^
+      recommendationReports.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -853,7 +991,10 @@ class SdkCapabilitiesDto {
           dailyRecommendation == other.dailyRecommendation &&
           smsAuth == other.smsAuth &&
           cloudLibrary == other.cloudLibrary &&
-          playlistMutations == other.playlistMutations;
+          playlistMutations == other.playlistMutations &&
+          personalFm == other.personalFm &&
+          heartRadio == other.heartRadio &&
+          recommendationReports == other.recommendationReports;
 }
 
 class SearchRequestDto {

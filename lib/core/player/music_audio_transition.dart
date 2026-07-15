@@ -137,6 +137,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       _previewEnd = prepared.previewEnd;
       _previewStopped = false;
       final replacingQueue = !identical(_queueRequest, request);
+      if (replacingQueue) _prefetchAttemptedSongId = null;
       final committedQueue = [...request.songs];
       committedQueue[index] = prepared.song;
       _queueRequest = request.copyWith(songs: committedQueue);
@@ -177,6 +178,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       } else {
         await _player.pause();
       }
+      _maybePrefetchQueue();
     });
     _commitTail = next;
     return next;
@@ -243,7 +245,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       if (_order == PlaybackOrder.shuffle) {
         while (_shuffleRemaining.isNotEmpty || _queueRequest?.hasMore == true) {
           try {
-            await skipToNext();
+            await _skipToNextInternal();
             return;
           } on _PlaybackUnavailableException {
             _messages.add('已跳过一首暂时无法播放的歌曲');

@@ -43,7 +43,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  HeartRadioRequestDto dco_decode_box_autoadd_heart_radio_request_dto(
+    dynamic raw,
+  );
+
+  @protected
   LyricDocumentDto dco_decode_box_autoadd_lyric_document_dto(dynamic raw);
+
+  @protected
+  PersonalFmRequestDto dco_decode_box_autoadd_personal_fm_request_dto(
+    dynamic raw,
+  );
 
   @protected
   PlaylistEditInputDto dco_decode_box_autoadd_playlist_edit_input_dto(
@@ -80,6 +90,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CloudPlaylistPageDto dco_decode_cloud_playlist_page_dto(dynamic raw);
+
+  @protected
+  HeartRadioRequestDto dco_decode_heart_radio_request_dto(dynamic raw);
 
   @protected
   HistoryPageDto dco_decode_history_page_dto(dynamic raw);
@@ -128,6 +141,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<RecommendationHistoryItemDto>
+  dco_decode_list_recommendation_history_item_dto(dynamic raw);
+
+  @protected
   List<SongDto> dco_decode_list_song_dto(dynamic raw);
 
   @protected
@@ -161,7 +178,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? dco_decode_opt_box_autoadd_bool(dynamic raw);
 
   @protected
+  SongDto? dco_decode_opt_box_autoadd_song_dto(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  PersonalFmActionDto dco_decode_personal_fm_action_dto(dynamic raw);
+
+  @protected
+  PersonalFmRequestDto dco_decode_personal_fm_request_dto(dynamic raw);
 
   @protected
   PlaybackResolutionDto dco_decode_playback_resolution_dto(dynamic raw);
@@ -187,7 +213,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlaylistTracksRequestDto dco_decode_playlist_tracks_request_dto(dynamic raw);
 
   @protected
+  RecommendationBatchDto dco_decode_recommendation_batch_dto(dynamic raw);
+
+  @protected
   RecommendationDto dco_decode_recommendation_dto(dynamic raw);
+
+  @protected
+  RecommendationHistoryActionDto dco_decode_recommendation_history_action_dto(
+    dynamic raw,
+  );
+
+  @protected
+  RecommendationHistoryItemDto dco_decode_recommendation_history_item_dto(
+    dynamic raw,
+  );
 
   @protected
   ResolvePlaybackRequestDto dco_decode_resolve_playback_request_dto(
@@ -264,7 +303,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  HeartRadioRequestDto sse_decode_box_autoadd_heart_radio_request_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LyricDocumentDto sse_decode_box_autoadd_lyric_document_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PersonalFmRequestDto sse_decode_box_autoadd_personal_fm_request_dto(
     SseDeserializer deserializer,
   );
 
@@ -305,6 +354,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CloudPlaylistPageDto sse_decode_cloud_playlist_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HeartRadioRequestDto sse_decode_heart_radio_request_dto(
     SseDeserializer deserializer,
   );
 
@@ -365,6 +419,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<RecommendationHistoryItemDto>
+  sse_decode_list_recommendation_history_item_dto(SseDeserializer deserializer);
+
+  @protected
   List<SongDto> sse_decode_list_song_dto(SseDeserializer deserializer);
 
   @protected
@@ -400,7 +458,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool? sse_decode_opt_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  SongDto? sse_decode_opt_box_autoadd_song_dto(SseDeserializer deserializer);
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  PersonalFmActionDto sse_decode_personal_fm_action_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PersonalFmRequestDto sse_decode_personal_fm_request_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   PlaybackResolutionDto sse_decode_playback_resolution_dto(
@@ -438,7 +509,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RecommendationBatchDto sse_decode_recommendation_batch_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RecommendationDto sse_decode_recommendation_dto(SseDeserializer deserializer);
+
+  @protected
+  RecommendationHistoryActionDto sse_decode_recommendation_history_action_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RecommendationHistoryItemDto sse_decode_recommendation_history_item_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ResolvePlaybackRequestDto sse_decode_resolve_playback_request_dto(
@@ -531,8 +617,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_heart_radio_request_dto(
+    HeartRadioRequestDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_lyric_document_dto(
     LyricDocumentDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_personal_fm_request_dto(
+    PersonalFmRequestDto self,
     SseSerializer serializer,
   );
 
@@ -584,6 +682,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_cloud_playlist_page_dto(
     CloudPlaylistPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_heart_radio_request_dto(
+    HeartRadioRequestDto self,
     SseSerializer serializer,
   );
 
@@ -663,6 +767,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_recommendation_history_item_dto(
+    List<RecommendationHistoryItemDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_song_dto(List<SongDto> self, SseSerializer serializer);
 
   @protected
@@ -705,7 +815,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_bool(bool? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_song_dto(
+    SongDto? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_personal_fm_action_dto(
+    PersonalFmActionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_personal_fm_request_dto(
+    PersonalFmRequestDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_playback_resolution_dto(
@@ -750,8 +878,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_recommendation_batch_dto(
+    RecommendationBatchDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_recommendation_dto(
     RecommendationDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_recommendation_history_action_dto(
+    RecommendationHistoryActionDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_recommendation_history_item_dto(
+    RecommendationHistoryItemDto self,
     SseSerializer serializer,
   );
 

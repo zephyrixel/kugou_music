@@ -17,6 +17,9 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
+import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
+import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
+import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/features/auth/auth_controller.dart';
 
 final musicSdkProvider = Provider<MusicSdk>(
@@ -54,6 +57,22 @@ final audioHandlerProvider = Provider<MusicAudioHandler>(
 
 final audioCacheProvider = Provider<AudioCacheManager>(
   (ref) => throw UnimplementedError('audioCacheProvider must be overridden'),
+);
+
+final appErrorBusProvider = Provider<AppErrorBus>(
+  (ref) => throw UnimplementedError('appErrorBusProvider must be overridden'),
+);
+
+final recommendationReporterProvider = Provider<RecommendationReporter>(
+  (ref) => throw UnimplementedError(
+    'recommendationReporterProvider must be overridden',
+  ),
+);
+
+final recommendationPlaybackProvider = Provider<RecommendationPlayback>(
+  (ref) => throw UnimplementedError(
+    'recommendationPlaybackProvider must be overridden',
+  ),
 );
 
 final cacheCoordinatorProvider = Provider<CacheCoordinator>(

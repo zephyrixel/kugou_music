@@ -9,6 +9,7 @@ import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
+import 'package:kgmusic/features/home/recommendation_cards.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -70,6 +71,13 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 30),
+                    const KgSectionHeader(
+                      title: '为你推荐',
+                      subtitle: '连续播放，越听越懂你',
+                    ),
+                    const SizedBox(height: 14),
+                    const SizedBox(height: 188, child: RecommendationCards()),
                     const SizedBox(height: 30),
                     const KgSectionHeader(
                       title: '每日推荐',

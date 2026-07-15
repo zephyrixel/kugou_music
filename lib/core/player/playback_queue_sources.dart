@@ -2,22 +2,31 @@ import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
 
 class PlaybackQueueSourceFactory {
   const PlaybackQueueSourceFactory({
     required this.musicRepository,
     required this.libraryRepository,
     required this.sdk,
+    required this.recommendationPlayback,
   });
 
   final MusicRepository musicRepository;
   final LibraryRepository libraryRepository;
   final MusicSdk sdk;
+  final RecommendationPlayback recommendationPlayback;
 
   Future<PlaybackQueueSource?> restore(
     PlaybackQueueOrigin origin, {
     required int pageSize,
   }) async {
+    final recommendationKind = RecommendationPlayback.kindForOrigin(
+      origin.kind,
+    );
+    if (recommendationKind != null) {
+      return recommendationPlayback.createSource(recommendationKind);
+    }
     final id = origin.id;
     if (id == null || id.isEmpty) return null;
     final auth = await sdk.authState();
@@ -61,7 +70,8 @@ class SearchPlaybackQueueSource implements PlaybackQueueSource {
   final int pageSize;
 
   @override
-  Future<PlaybackQueuePage> loadPage(int page) async {
+  Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request) async {
+    final page = request.page;
     final value = await repository
         .search(keyword, userId: userId, page: page, pageSize: pageSize)
         .first;
@@ -88,7 +98,8 @@ class PublicPlaylistPlaybackQueueSource implements PlaybackQueueSource {
   final int pageSize;
 
   @override
-  Future<PlaybackQueuePage> loadPage(int page) async {
+  Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request) async {
+    final page = request.page;
     final value = await repository
         .publicPlaylistTracks(
           globalCollectionId,
@@ -118,7 +129,8 @@ class LibraryPlaylistPlaybackQueueSource implements PlaybackQueueSource {
   final int pageSize;
 
   @override
-  Future<PlaybackQueuePage> loadPage(int page) async {
+  Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request) async {
+    final page = request.page;
     final value = await repository.playbackQueuePage(
       localId,
       page: page,

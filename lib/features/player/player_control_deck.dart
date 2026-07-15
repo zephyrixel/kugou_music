@@ -37,13 +37,17 @@ class PlayerControlDeck extends StatelessWidget {
           _TrackHeading(item: item, song: song, compact: compact),
           if (song != null) ...[
             SizedBox(height: gap),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: _QualitySelector(
-                handler: handler,
-                song: song!,
-                compact: compact,
-              ),
+            Row(
+              children: [
+                _QualitySelector(
+                  handler: handler,
+                  song: song!,
+                  compact: compact,
+                ),
+                const Spacer(),
+                if (handler.isRecommendationQueue)
+                  _DislikeButton(handler: handler, compact: compact),
+              ],
             ),
           ],
           SizedBox(height: gap),
@@ -60,6 +64,31 @@ class PlayerControlDeck extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DislikeButton extends StatelessWidget {
+  const _DislikeButton({required this.handler, required this.compact});
+
+  final MusicAudioHandler handler;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => TextButton.icon(
+    onPressed: () async {
+      try {
+        await handler.dislikeCurrent();
+      } catch (error) {
+        if (context.mounted) showAppError(context, error);
+      }
+    },
+    style: TextButton.styleFrom(
+      foregroundColor: KgColors.textMuted,
+      minimumSize: Size(0, compact ? 34 : 40),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+    ),
+    icon: const Icon(Icons.thumb_down_alt_outlined, size: 17),
+    label: Text('不感兴趣', style: TextStyle(fontSize: compact ? 11 : 12)),
+  );
 }
 
 class _TrackHeading extends StatelessWidget {

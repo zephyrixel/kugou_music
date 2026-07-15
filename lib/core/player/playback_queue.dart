@@ -26,6 +26,8 @@ enum PlaybackQueueOriginKind {
   publicPlaylist,
   favorites,
   history,
+  personalFm,
+  heartRadio,
 }
 
 extension PlaybackQueueOriginKindInfo on PlaybackQueueOriginKind {
@@ -37,6 +39,8 @@ extension PlaybackQueueOriginKindInfo on PlaybackQueueOriginKind {
     PlaybackQueueOriginKind.publicPlaylist => '公开歌单',
     PlaybackQueueOriginKind.favorites => '我喜欢',
     PlaybackQueueOriginKind.history => '最近播放',
+    PlaybackQueueOriginKind.personalFm => '猜你喜欢',
+    PlaybackQueueOriginKind.heartRadio => '红心电台',
   };
 }
 
@@ -70,19 +74,43 @@ class PlaybackQueuePage {
     required this.pageSize,
     required this.songs,
     this.total,
+    this.hasMore,
   });
 
   final int page;
   final int pageSize;
   final List<Song> songs;
   final int? total;
+  final bool? hasMore;
+}
+
+class PlaybackQueueLoadRequest {
+  const PlaybackQueueLoadRequest({
+    required this.page,
+    required this.currentIndex,
+    required this.songs,
+    required this.position,
+  });
+
+  final int page;
+  final int currentIndex;
+  final List<Song> songs;
+  final Duration position;
+
+  Song? get currentSong => currentIndex >= 0 && currentIndex < songs.length
+      ? songs[currentIndex]
+      : null;
+
+  int get remainingCount => currentIndex < 0
+      ? songs.length
+      : (songs.length - currentIndex - 1).clamp(0, songs.length);
 }
 
 /// A source-backed queue request. The loader is intentionally small so feature
 /// pages can provide cached/local implementations without coupling the player
 /// to a specific repository.
 abstract interface class PlaybackQueueSource {
-  Future<PlaybackQueuePage> loadPage(int page);
+  Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request);
 }
 
 class PlaybackQueueRequest {

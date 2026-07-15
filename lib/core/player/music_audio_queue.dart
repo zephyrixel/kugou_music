@@ -1,6 +1,31 @@
 part of 'music_audio_handler.dart';
 
 extension MusicAudioQueueCommands on MusicAudioHandler {
+  void _maybePrefetchQueue() {
+    _prefetchTimer?.cancel();
+    final request = _queueRequest;
+    if (request == null || !request.hasMore || request.source == null) return;
+    final remaining = _index < 0 ? _songs.length : _songs.length - _index - 1;
+    if (remaining == 0) {
+      unawaited(loadMoreQueue().catchError((_) {}));
+      return;
+    }
+    if (remaining > 2 || _index < 0 || _index >= _songs.length) return;
+    final source = request.source;
+    final songId = _songs[_index].id;
+    if (_prefetchAttemptedSongId == songId) return;
+    _prefetchTimer = Timer(const Duration(seconds: 5), () {
+      if (!identical(_queueRequest?.source, source) ||
+          _index < 0 ||
+          _index >= _songs.length ||
+          _songs[_index].id != songId) {
+        return;
+      }
+      _prefetchAttemptedSongId = songId;
+      unawaited(loadMoreQueue().catchError((_) {}));
+    });
+  }
+
   void _emitQueueState({Object? error}) {
     final request = _queueRequest;
     if (request == null) return;
@@ -19,42 +44,71 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
   }
 
   Future<void> loadMoreQueue() async {
+    final current = _loadMoreOperation;
+    if (current != null) return current;
     final request = _queueRequest;
     final source = request?.source;
-    if (request == null || source == null || !request.hasMore || _loadingMore) {
+    if (request == null || source == null || !request.hasMore) {
       return;
     }
-    _loadingMore = true;
-    _emitQueueState();
-    Object? loadError;
-    try {
-      final page = await source.loadPage(request.nextPage);
-      final known = _songs.map((item) => item.id).toSet();
-      final appended = page.songs.where((item) => known.add(item.id)).toList();
-      final merged = [..._songs, ...appended];
-      final hasMore = page.total == null
-          ? page.songs.length >= page.pageSize
-          : merged.length < page.total!;
-      _queueRequest = request.copyWith(
-        songs: merged,
-        nextPage: page.page + 1,
-        hasMore: hasMore,
-        origin: request.origin.copyWith(totalCount: page.total),
-      );
-      _songs = List.unmodifiable(merged);
-      if (_order == PlaybackOrder.shuffle) {
-        _shuffleRemaining.addAll(appended.map((item) => item.id));
-      }
-      _publishMediaQueue();
-      _emitQueueState();
-      unawaited(_persistQueue());
-    } catch (error) {
-      loadError = error;
-      rethrow;
-    } finally {
-      _loadingMore = false;
-      _emitQueueState(error: loadError);
-    }
+    late final Future<void> tracked;
+    tracked =
+        () async {
+          _loadingMore = true;
+          _emitQueueState();
+          Object? loadError;
+          try {
+            final page = await source.loadPage(
+              PlaybackQueueLoadRequest(
+                page: request.nextPage,
+                currentIndex: _index,
+                songs: _songs,
+                position: _player.position,
+              ),
+            );
+            final activeRequest = _queueRequest;
+            if (activeRequest == null ||
+                !identical(activeRequest.source, source)) {
+              return;
+            }
+            final known = _songs.map((item) => item.id).toSet();
+            final appended = page.songs
+                .where((item) => known.add(item.id))
+                .toList();
+            final merged = [..._songs, ...appended];
+            final hasMore =
+                page.hasMore ??
+                (page.total == null
+                    ? page.songs.length >= page.pageSize
+                    : merged.length < page.total!);
+            _queueRequest = activeRequest.copyWith(
+              songs: merged,
+              nextPage: page.page + 1,
+              hasMore: hasMore,
+              origin: activeRequest.origin.copyWith(totalCount: page.total),
+            );
+            _songs = List.unmodifiable(merged);
+            if (_order == PlaybackOrder.shuffle) {
+              _shuffleRemaining.addAll(appended.map((item) => item.id));
+            }
+            _publishMediaQueue();
+            _emitQueueState();
+            unawaited(_persistQueue());
+          } catch (error) {
+            loadError = error;
+            rethrow;
+          } finally {
+            _loadingMore = false;
+            _emitQueueState(error: loadError);
+          }
+        }().whenComplete(() {
+          if (identical(_loadMoreOperation, tracked)) {
+            _loadMoreOperation = null;
+            _maybePrefetchQueue();
+          }
+        });
+    _loadMoreOperation = tracked;
+    return tracked;
   }
 
   Future<void> setPlaybackOrder(PlaybackOrder order) async {
@@ -179,6 +233,8 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
 
   Future<void> clearQueue() async {
     _loadGeneration += 1;
+    _prefetchTimer?.cancel();
+    _prefetchAttemptedSongId = null;
     await _persistTail.catchError((_) {});
     _audioCache.setActive(null);
     _currentAudioHandle = null;

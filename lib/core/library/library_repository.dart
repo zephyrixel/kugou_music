@@ -8,13 +8,15 @@ import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 
 /// Feature-facing library API: Drift read model + online write-back.
 class LibraryRepository {
-  LibraryRepository(this._store, this._remote);
+  LibraryRepository(this._store, this._remote, [this._reporter]);
 
   final LibraryStore _store;
   final LibraryRemote _remote;
+  final RecommendationReporter? _reporter;
 
   final StreamController<LibrarySyncStatus> _statuses =
       StreamController.broadcast(sync: true);
@@ -337,6 +339,7 @@ class LibraryRepository {
         }
         await _remote.removeSong(listId, fileId);
       }
+      _reporter?.reportFavoriteChanged(song, liked: present);
     } catch (error) {
       await _store.restoreTrackMembership(
         localId,
@@ -461,6 +464,7 @@ class LibraryRepository {
   Future<void> recordPlayed(Song song) async {
     if (_userId == null) return;
     final entry = await _store.recordPlayed(song);
+    _reporter?.reportPlayed(entry.song);
     final mixSongId = entry.song.mixSongId;
     if (mixSongId == null) return;
     unawaited(

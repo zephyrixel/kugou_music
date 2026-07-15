@@ -1,10 +1,11 @@
 use kugou_sdk::user::{YOUTH_DAY_VIP_SOURCE_MINE, YouthDayVipClaimRequest};
 use kugou_sdk::{
-    AudioQuality, CollectRequest, HistoryFetchRequest, HistorySongOp, HistoryUploadRequest,
-    KugouClient, KugouError, LyricDocument, LyricFormat, LyricSearchRequest, Pagination,
+    AudioQuality, ClientPlaylistItem, CollectRequest, FreshSongAction, FreshSongsRequest,
+    HeartRadioRequest, HistoryFetchRequest, HistorySongOp, HistoryUploadRequest, KugouClient,
+    KugouError, LyricDocument, LyricFormat, LyricSearchRequest, Pagination, PersonalFmRequest,
     PlatformProfile, PlaybackOutcome, PlaybackRequest, PlaylistEditRequest, PlaylistKind,
-    PlaylistTrackInput, ResourceHashes, SearchPlaylist, SearchRequest, Session, SongRef,
-    UserPlaylist,
+    PlaylistTrackInput, ReportHistoryRequest, ReportRepeatedRequest, ResourceHashes,
+    SearchPlaylist, SearchRequest, Session, SongRef, UserPlaylist,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -33,6 +34,9 @@ pub struct SdkCapabilitiesDto {
     pub sms_auth: bool,
     pub cloud_library: bool,
     pub playlist_mutations: bool,
+    pub personal_fm: bool,
+    pub heart_radio: bool,
+    pub recommendation_reports: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +120,48 @@ pub struct RecommendationDto {
     pub artwork_url: Option<String>,
     pub creation_date: Option<String>,
     pub songs: Vec<SongDto>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PersonalFmActionDto {
+    Play,
+    Skip,
+    Garbage,
+}
+
+#[derive(Debug, Clone)]
+pub struct PersonalFmRequestDto {
+    pub action: PersonalFmActionDto,
+    pub current_song: Option<SongDto>,
+    pub remain_song_count: u32,
+    pub playtime_secs: Option<u64>,
+    pub mark_list: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HeartRadioRequestDto {
+    pub current_mix_song_ids: Vec<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecommendationBatchDto {
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub mark_list: Option<String>,
+    pub songs: Vec<SongDto>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecommendationHistoryActionDto {
+    Play,
+    Collect,
+    Trash,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecommendationHistoryItemDto {
+    pub action: RecommendationHistoryActionDto,
+    pub song: SongDto,
 }
 
 #[derive(Debug, Clone)]
@@ -388,6 +434,9 @@ pub fn get_sdk_capabilities() -> SdkCapabilitiesDto {
         sms_auth: true,
         cloud_library: true,
         playlist_mutations: true,
+        personal_fm: true,
+        heart_radio: true,
+        recommendation_reports: true,
     }
 }
 
@@ -540,6 +589,136 @@ pub async fn get_everyday_recommendations() -> Result<RecommendationDto, BridgeE
         creation_date: response.data.creation_date,
         songs,
     })
+}
+
+pub async fn get_personal_fm(
+    request: PersonalFmRequestDto,
+) -> Result<RecommendationBatchDto, BridgeError> {
+    let runtime = runtime()?;
+    let current_song = request.current_song.as_ref().map(song_dto_to_song_ref);
+    let mut fm_request = match request.action {
+        PersonalFmActionDto::Play => current_song
+            .as_ref()
+            .map(|song| PersonalFmRequest::next(request.remain_song_count, song))
+            .unwrap_or_else(|| {
+                PersonalFmRequest::start().remain_songcnt(request.remain_song_count)
+            }),
+        PersonalFmActionDto::Skip => PersonalFmRequest::skip(
+            current_song
+                .as_ref()
+                .ok_or_else(|| BridgeError::invalid_argument("skip requires current song"))?,
+        )
+        .remain_songcnt(request.remain_song_count),
+        PersonalFmActionDto::Garbage => PersonalFmRequest::garbage(
+            current_song
+                .as_ref()
+                .ok_or_else(|| BridgeError::invalid_argument("garbage requires current song"))?,
+        )
+        .remain_songcnt(request.remain_song_count),
+    };
+    if let Some(playtime) = request.playtime_secs {
+        fm_request = fm_request.playtime(playtime);
+    }
+    if let Some(mark_list) = request.mark_list.filter(|value| !value.trim().is_empty()) {
+        fm_request = fm_request.mark_list(mark_list);
+    }
+
+    let mut session = runtime.session.lock().await;
+    let response = runtime
+        .client
+        .recommend()
+        .personal_fm(&mut session, fm_request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    let songs =
+        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
+    Ok(RecommendationBatchDto {
+        title: "猜你喜欢".to_owned(),
+        subtitle: response.data.mark.clone(),
+        mark_list: response.data.mark_list,
+        songs,
+    })
+}
+
+pub async fn get_heart_radio(
+    request: HeartRadioRequestDto,
+) -> Result<RecommendationBatchDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let response = runtime
+        .client
+        .recommend()
+        .heart_radio(
+            &mut session,
+            HeartRadioRequest::new().curr_mixids(request.current_mix_song_ids),
+        )
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    let songs =
+        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
+    Ok(RecommendationBatchDto {
+        title: "红心电台".to_owned(),
+        subtitle: response.data.intro,
+        mark_list: None,
+        songs,
+    })
+}
+
+pub async fn report_recommendation_history(
+    items: Vec<RecommendationHistoryItemDto>,
+) -> Result<(), BridgeError> {
+    if items.is_empty() {
+        return Err(BridgeError::invalid_argument(
+            "recommendation history report requires items",
+        ));
+    }
+    let rows = items
+        .iter()
+        .map(recommendation_history_item_to_sdk)
+        .collect();
+    let request = ReportHistoryRequest::new(rows).map_err(BridgeError::from_sdk)?;
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .recommend()
+        .report_history(&mut session, request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
+}
+
+pub async fn report_recommendation_repeated(
+    hashes: Vec<String>,
+    remain_song_count: u32,
+) -> Result<(), BridgeError> {
+    let request = ReportRepeatedRequest::from_hashes(hashes)
+        .map_err(BridgeError::from_sdk)?
+        .remain(remain_song_count);
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .recommend()
+        .report_repeated(&mut session, request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
+}
+
+pub async fn report_recommendation_favorite_click(song: SongDto) -> Result<(), BridgeError> {
+    let song = song_dto_to_song_ref(&song);
+    let request = FreshSongsRequest::new(vec![FreshSongAction::from_song("click_red", &song)])
+        .map_err(BridgeError::from_sdk)?;
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .recommend()
+        .fresh_songs(&mut session, request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
 }
 
 pub async fn resolve_playback(
@@ -1174,8 +1353,23 @@ fn song_to_dto_with_enrichment(
 }
 
 fn song_dto_to_lyric_ref(song: &SongDto) -> SongRef {
+    let mut result = song_dto_to_song_ref(song);
+    // Lyrics deliberately search by the standard FileHash, not the currently
+    // selected playback-quality hash.
+    result.resources.high = None;
+    result.resources.flac = None;
+    result.resources.hires = None;
+    result.resources.super_hash = None;
+    result
+}
+
+fn song_dto_to_song_ref(song: &SongDto) -> SongRef {
     let mut resources = ResourceHashes::default();
     resources.standard = song.hashes.standard.clone();
+    resources.high = song.hashes.high.clone();
+    resources.flac = song.hashes.flac.clone();
+    resources.hires = song.hashes.hi_res.clone();
+    resources.super_hash = song.hashes.super_hash.clone();
     let mut result = SongRef::default();
     result.name = Some(song.title.clone());
     result.album = song.album.clone();
@@ -1187,6 +1381,15 @@ fn song_dto_to_lyric_ref(song: &SongDto) -> SongRef {
     result.privilege = song.privilege;
     result.file_id = song.file_id;
     result
+}
+
+fn recommendation_history_item_to_sdk(item: &RecommendationHistoryItemDto) -> ClientPlaylistItem {
+    let song = song_dto_to_song_ref(&item.song);
+    match item.action {
+        RecommendationHistoryActionDto::Play => ClientPlaylistItem::play(&song),
+        RecommendationHistoryActionDto::Collect => ClientPlaylistItem::collect(&song),
+        RecommendationHistoryActionDto::Trash => ClientPlaylistItem::trash(&song),
+    }
 }
 
 fn lyric_document_to_dto(document: LyricDocument) -> LyricDocumentDto {
@@ -1642,6 +1845,9 @@ mod tests {
         assert_eq!(capabilities.platform, "lite");
         assert!(capabilities.sms_auth);
         assert!(capabilities.playlist_mutations);
+        assert!(capabilities.personal_fm);
+        assert!(capabilities.heart_radio);
+        assert!(capabilities.recommendation_reports);
     }
 
     #[test]
@@ -1709,6 +1915,36 @@ mod tests {
         assert_eq!(json["keyword"], "BEYOND - 海阔天空");
         assert_eq!(json["duration_ms"], 326_000);
         assert_eq!(json["album_audio_id"], 42);
+    }
+
+    #[test]
+    fn recommendation_report_mapping_preserves_song_identity_and_action() {
+        let song = SongDto {
+            id: "mix:42".into(),
+            title: "测试歌曲".into(),
+            artist: Some("测试歌手".into()),
+            album: None,
+            duration_secs: Some(180),
+            artwork_url: None,
+            privilege: None,
+            album_id: None,
+            mix_song_id: Some(42),
+            file_id: None,
+            hashes: AudioHashesDto {
+                standard: Some("STANDARD".into()),
+                high: Some("HIGH".into()),
+                flac: None,
+                hi_res: None,
+                super_hash: None,
+            },
+        };
+        let row = recommendation_history_item_to_sdk(&RecommendationHistoryItemDto {
+            action: RecommendationHistoryActionDto::Collect,
+            song,
+        });
+        assert_eq!(row.action, ClientPlaylistItem::ACTION_COLLECT);
+        assert_eq!(row.hash.as_deref(), Some("STANDARD"));
+        assert_eq!(row.mix_song_id, Some(42));
     }
 
     #[test]

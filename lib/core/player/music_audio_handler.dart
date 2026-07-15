@@ -13,6 +13,7 @@ import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/player/playback_queue_store.dart';
+import 'package:kgmusic/core/recommendation/recommendation_queue_source.dart';
 import 'package:kgmusic/core/player/system_media_projection.dart';
 
 part 'music_audio_queue.dart';
@@ -66,6 +67,9 @@ class MusicAudioHandler extends BaseAudioHandler
   PlaybackQueueRequest? _queueRequest;
   PlaybackQueueState? _queueState;
   bool _loadingMore = false;
+  Future<void>? _loadMoreOperation;
+  Timer? _prefetchTimer;
+  String? _prefetchAttemptedSongId;
   PlaybackOrder _order = PlaybackOrder.sequential;
   final Random _random = Random();
   final Set<String> _shuffleRemaining = {};
@@ -83,6 +87,8 @@ class MusicAudioHandler extends BaseAudioHandler
   Duration get position => _player.position;
   List<Song> get songs => List.unmodifiable(_songs);
   int get currentIndex => _index;
+  bool get isRecommendationQueue =>
+      _queueRequest?.source is RecommendationFeedbackSource;
 
   Future<void> _configureSession() async {
     final session = await AudioSession.instance;
@@ -259,6 +265,8 @@ class MusicAudioHandler extends BaseAudioHandler
   @override
   Future<void> stop() async {
     _loadGeneration += 1;
+    _prefetchTimer?.cancel();
+    _prefetchAttemptedSongId = null;
     await _persistQueue();
     _audioCache.setActive(null);
     _currentAudioHandle = null;
@@ -268,8 +276,22 @@ class MusicAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToNext() async {
+    final feedback = _recommendationFeedbackContext();
+    final source = _queueRequest?.source;
+    await _skipToNextInternal();
+    if (_order == PlaybackOrder.repeatOne) return;
+    final RecommendationFeedbackSource? feedbackSource =
+        source is RecommendationFeedbackSource
+        ? source as RecommendationFeedbackSource
+        : null;
+    if (feedback != null && feedbackSource != null) {
+      feedbackSource.reportSkip(feedback);
+    }
+  }
+
+  Future<void> _skipToNextInternal({bool honorRepeatOne = true}) async {
     if (_songs.isEmpty || _index < 0) return;
-    if (_order == PlaybackOrder.repeatOne) {
+    if (honorRepeatOne && _order == PlaybackOrder.repeatOne) {
       await seek(Duration.zero);
       await play();
       return;
@@ -358,12 +380,47 @@ class MusicAudioHandler extends BaseAudioHandler
   Future<void> skipToQueueItem(int index) async {
     final request = _queueRequest;
     if (request == null || index < 0 || index >= _songs.length) return;
+    final feedback = index > _index ? _recommendationFeedbackContext() : null;
+    final source = request.source;
     await _requestPlayback(
       request: request,
       index: index,
       initialPosition: Duration.zero,
       autoPlay: true,
       recordHistory: index != _index,
+    );
+    final RecommendationFeedbackSource? feedbackSource =
+        source is RecommendationFeedbackSource
+        ? source as RecommendationFeedbackSource
+        : null;
+    if (feedback != null && feedbackSource != null) {
+      feedbackSource.reportSkip(feedback);
+    }
+  }
+
+  Future<void> dislikeCurrent() async {
+    final feedback = _recommendationFeedbackContext();
+    final source = _queueRequest?.source;
+    final RecommendationFeedbackSource? feedbackSource =
+        source is RecommendationFeedbackSource
+        ? source as RecommendationFeedbackSource
+        : null;
+    if (feedback == null || feedbackSource == null) return;
+    await _skipToNextInternal(honorRepeatOne: false);
+    feedbackSource.reportDislike(feedback);
+  }
+
+  RecommendationFeedbackContext? _recommendationFeedbackContext() {
+    final source = _queueRequest?.source;
+    if (source is! RecommendationFeedbackSource ||
+        _index < 0 ||
+        _index >= _songs.length) {
+      return null;
+    }
+    return RecommendationFeedbackContext(
+      song: _songs[_index],
+      remainSongCount: (_songs.length - _index - 1).clamp(0, _songs.length),
+      position: _player.position,
     );
   }
 

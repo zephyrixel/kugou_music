@@ -14,6 +14,7 @@ import 'package:kgmusic/features/search/search_screen.dart';
 import 'package:kgmusic/features/account/account_screen.dart';
 import 'package:kgmusic/features/auth/auth_gate.dart';
 import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
+import 'package:kgmusic/core/widgets/app_error_bus.dart';
 
 class KgMusicApp extends ConsumerStatefulWidget {
   const KgMusicApp({super.key});
@@ -80,8 +81,10 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     debugShowCheckedModeBanner: false,
     theme: buildKgTheme(),
     routerConfig: _router,
-    builder: (context, child) =>
-        AuthGate(child: child ?? const SizedBox.shrink()),
+    builder: (context, child) => AppErrorListener(
+      bus: ref.watch(appErrorBusProvider),
+      child: AuthGate(child: child ?? const SizedBox.shrink()),
+    ),
   );
 }
 
