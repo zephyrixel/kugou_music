@@ -16,6 +16,7 @@ extension LibraryStoreActions on LibraryStore {
     final key = 'track:$playlistLocalId:${song.id}';
     if (present) {
       await _upsertSong(song);
+      final position = await _nextFrontPosition(playlistLocalId);
       final pending = await _outbox(key);
       final pendingPayload = pending == null
           ? const <String, Object?>{}
@@ -30,7 +31,7 @@ extension LibraryStoreActions on LibraryStore {
               fileId: Value(
                 remotePresent ? pendingPayload['fileId'] as int? : null,
               ),
-              position: Value(playlistRow.count),
+              position: Value(position),
               remotePresent: Value(remotePresent),
             ),
           );

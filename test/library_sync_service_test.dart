@@ -93,6 +93,79 @@ void main() {
     expect(sync.status.failed, isTrue);
   });
 
+  test(
+    'history reaches newer cursor pages before keeping latest 100',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      sdk.tracksByListId[2] = const [];
+      final start = DateTime.utc(2026, 1, 1);
+      final older = List.generate(
+        100,
+        (index) =>
+            _historyEntry(1000 + index, start.add(Duration(minutes: index))),
+      );
+      final newest = _historyEntry(2000, DateTime.utc(2026, 1, 2));
+      sdk.historyPages[null] = CloudHistoryPage(
+        items: older,
+        cursor: 'newer',
+        hasMore: true,
+        total: 101,
+      );
+      sdk.historyPages['newer'] = CloudHistoryPage(
+        items: [newest],
+        hasMore: false,
+        total: 101,
+      );
+
+      await sync.activate(99);
+
+      final history = await store.watchHistory().first;
+      expect(sdk.historyCursors, [null, 'newer']);
+      expect(history, hasLength(100));
+      expect(history.first.song.id, newest.song.id);
+      expect(
+        history.map((entry) => entry.song.id),
+        isNot(contains('mix:1000')),
+      );
+    },
+  );
+
+  test(
+    'missing gid file id is recovered through listid before removal',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      sdk.tracksByListId[2] = const [remoteSongWithoutFileId];
+      sdk.physicalTracksByListId[2] = [
+        ...List.generate(100, _physicalDecoy),
+        remotePhysicalSong,
+      ];
+      await sync.activate(99);
+      await store.toggleFavorite(remoteSongWithoutFileId);
+
+      await sync.sync();
+
+      expect(sdk.calls, ['physical:2:1', 'physical:2:2', 'remove:2:420']);
+      expect(await store.pendingCount(), 0);
+    },
+  );
+
+  test(
+    'removal remains pending when listid cannot provide a file id',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      sdk.tracksByListId[2] = const [remoteSongWithoutFileId];
+      sdk.physicalTracksByListId[2] = const [remoteSongWithoutFileId];
+      await sync.activate(99);
+      await store.toggleFavorite(remoteSongWithoutFileId);
+
+      await sync.sync();
+
+      expect(sdk.calls, ['physical:2:1']);
+      expect(await store.pendingCount(), 1);
+      expect(sync.status.failed, isTrue);
+    },
+  );
+
   test('stale account baseline cannot overwrite the active account', () async {
     final gate = Completer<void>();
     final started = Completer<void>();
@@ -124,6 +197,7 @@ void main() {
 
 const _favoritePlaylist = CloudPlaylist(
   listId: 2,
+  globalCollectionId: 'collection_3_99_2_0',
   name: '我喜欢',
   isPrivate: true,
   isMyFavorite: true,
@@ -133,6 +207,21 @@ const _favoritePlaylist = CloudPlaylist(
 
 const remoteSong = Song(
   id: 'mix:42',
+  title: 'Remote Song',
+  mixSongId: 42,
+  fileId: 420,
+  hashes: AudioHashes(standard: 'remote-hash'),
+);
+
+const remoteSongWithoutFileId = Song(
+  id: 'mix:42',
+  title: 'Remote Song',
+  mixSongId: 42,
+  hashes: AudioHashes(standard: 'remote-hash'),
+);
+
+const remotePhysicalSong = Song(
+  id: 'physical:42',
   title: 'Remote Song',
   mixSongId: 42,
   fileId: 420,
@@ -163,10 +252,33 @@ const localSong = Song(
   hashes: AudioHashes(standard: 'local-hash'),
 );
 
+CloudHistoryEntry _historyEntry(int mixSongId, DateTime playedAt) =>
+    CloudHistoryEntry(
+      song: Song(
+        id: 'mix:$mixSongId',
+        title: 'History $mixSongId',
+        mixSongId: mixSongId,
+        hashes: AudioHashes(standard: 'history-$mixSongId'),
+      ),
+      playedAt: playedAt,
+      playCount: 1,
+    );
+
+Song _physicalDecoy(int index) => Song(
+  id: 'mix:${3000 + index}',
+  title: 'Physical $index',
+  mixSongId: 3000 + index,
+  fileId: 5000 + index,
+  hashes: AudioHashes(standard: 'physical-$index'),
+);
+
 class _FakeMusicSdk implements MusicSdk {
   List<CloudPlaylist> playlists = const [];
   final Map<int, List<Song>> tracksByListId = {};
+  final Map<int, List<Song>> physicalTracksByListId = {};
   List<CloudHistoryEntry> historyItems = const [];
+  final Map<String?, CloudHistoryPage> historyPages = {};
+  final List<String?> historyCursors = [];
   final List<String> calls = [];
   final List<CloudHistoryUpload> historyUploads = [];
   bool failAdds = false;
@@ -204,20 +316,33 @@ class _FakeMusicSdk implements MusicSdk {
     int pageSize = 50,
   }) async {
     final songs = tracksByListId[playlist.listId] ?? const [];
-    return SearchPage(
-      songs: page == 1 ? songs : const [],
+    return _page(songs, page: page, pageSize: pageSize);
+  }
+
+  @override
+  Future<SearchPage> playlistTracksByListId(
+    int listId, {
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    calls.add('physical:$listId:$page');
+    return _page(
+      physicalTracksByListId[listId] ?? const [],
       page: page,
       pageSize: pageSize,
-      total: songs.length,
     );
   }
 
   @override
-  Future<CloudHistoryPage> cloudHistory({String? cursor}) async =>
-      CloudHistoryPage(
-        items: cursor == null ? historyItems : const [],
-        hasMore: false,
-      );
+  Future<CloudHistoryPage> cloudHistory({String? cursor}) async {
+    historyCursors.add(cursor);
+    final configured = historyPages[cursor];
+    if (configured != null) return configured;
+    return CloudHistoryPage(
+      items: cursor == null ? historyItems : const [],
+      hasMore: false,
+    );
+  }
 
   @override
   Future<PlaylistMutation> createPlaylist(
@@ -259,8 +384,30 @@ class _FakeMusicSdk implements MusicSdk {
   }
 
   @override
+  Future<void> removeSongFromPlaylist(int listId, int fileId) async {
+    calls.add('remove:$listId:$fileId');
+  }
+
+  @override
   Future<void> uploadHistory(List<CloudHistoryUpload> items) async {
     historyUploads.addAll(items);
+  }
+
+  SearchPage _page(
+    List<Song> songs, {
+    required int page,
+    required int pageSize,
+  }) {
+    final start = (page - 1) * pageSize;
+    final items = start >= songs.length
+        ? const <Song>[]
+        : songs.skip(start).take(pageSize).toList(growable: false);
+    return SearchPage(
+      songs: items,
+      page: page,
+      pageSize: pageSize,
+      total: songs.length,
+    );
   }
 
   @override

@@ -44,6 +44,20 @@ void main() {
     expect(_payload(operations.single)['verify'], isTrue);
   });
 
+  test('new local track stays ahead of newest-first remote tracks', () async {
+    await store.replacePlaylistTracks('remote:2', const [songA, songB]);
+
+    await store.setTrackMembership('remote:2', songC, present: true);
+    await store.setTrackMembership('remote:2', songD, present: true);
+
+    expect((await store.watchFavoriteSongs().first).map((song) => song.id), [
+      songD.id,
+      songC.id,
+      songA.id,
+      songB.id,
+    ]);
+  });
+
   test('remote refresh cannot overwrite pending local favorite', () async {
     await store.toggleFavorite(songA);
 
@@ -106,6 +120,27 @@ const songA = Song(
   title: 'Song A',
   mixSongId: 42,
   hashes: AudioHashes(standard: 'hash-a'),
+);
+
+const songB = Song(
+  id: 'mix:43',
+  title: 'Song B',
+  mixSongId: 43,
+  hashes: AudioHashes(standard: 'hash-b'),
+);
+
+const songC = Song(
+  id: 'mix:44',
+  title: 'Song C',
+  mixSongId: 44,
+  hashes: AudioHashes(standard: 'hash-c'),
+);
+
+const songD = Song(
+  id: 'mix:45',
+  title: 'Song D',
+  mixSongId: 45,
+  hashes: AudioHashes(standard: 'hash-d'),
 );
 
 Map<String, Object?> _payload(PendingLibraryOperation operation) =>

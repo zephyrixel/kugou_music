@@ -181,10 +181,48 @@ extension _LibrarySyncPush on LibrarySyncService {
       return;
     }
 
-    final fileId = remoteSong?.fileId ?? payload['fileId'] as int?;
-    if (fileId != null && _isCurrent(context)) {
-      await _sdk.removeSongFromPlaylist(playlist!.remoteListId!, fileId);
+    var fileId = remoteSong?.fileId ?? payload['fileId'] as int?;
+    if (fileId == null && remoteSong != null) {
+      fileId = await _findTrackFileId(context, playlist!.remoteListId!, song);
+      if (!_isCurrent(context)) return;
     }
+    if (fileId == null) {
+      throw StateError('云端歌曲存在，但无法取得删除所需的 fileId');
+    }
+    await _sdk.removeSongFromPlaylist(playlist!.remoteListId!, fileId);
+  }
+
+  Future<int?> _findTrackFileId(
+    _SyncContext context,
+    int listId,
+    Song target,
+  ) async {
+    var page = 1;
+    var loaded = 0;
+    while (_isCurrent(context)) {
+      final response = await _sdk.playlistTracksByListId(
+        listId,
+        page: page,
+        pageSize: LibrarySyncService._pageSize,
+      );
+      if (!_isCurrent(context) || response.songs.isEmpty) return null;
+      loaded += response.songs.length;
+      final fileId = response.songs
+          .where((song) => _sameSong(song, target) && song.fileId != null)
+          .map((song) => song.fileId!)
+          .firstOrNull;
+      if (fileId != null) return fileId;
+      if (!canLoadNextPage(
+        loadedItemCount: loaded,
+        lastPageItemCount: response.songs.length,
+        pageSize: response.pageSize,
+        total: response.total,
+      )) {
+        return null;
+      }
+      page += 1;
+    }
+    return null;
   }
 
   Future<void> _pushHistory(
@@ -281,3 +319,24 @@ extension _LibrarySyncPush on LibrarySyncService {
 
 Map<String, Object?> _payload(String value) =>
     (jsonDecode(value) as Map).cast<String, Object?>();
+
+bool _sameSong(Song left, Song right) {
+  if (left.id == right.id) return true;
+  if (left.mixSongId != null && left.mixSongId == right.mixSongId) return true;
+  final hashes = _songHashes(left);
+  return hashes.isNotEmpty &&
+      hashes.intersection(_songHashes(right)).isNotEmpty;
+}
+
+Set<String> _songHashes(Song song) =>
+    [
+          song.hashes.standard,
+          song.hashes.high,
+          song.hashes.flac,
+          song.hashes.hiRes,
+          song.hashes.superHash,
+        ]
+        .whereType<String>()
+        .map((hash) => hash.trim().toLowerCase())
+        .where((hash) => hash.isNotEmpty)
+        .toSet();

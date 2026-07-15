@@ -35,6 +35,11 @@ abstract interface class MusicSdk {
     int page = 1,
     int pageSize = 50,
   });
+  Future<SearchPage> playlistTracksByListId(
+    int listId, {
+    int page = 1,
+    int pageSize = 50,
+  });
   Future<SearchPage> publicPlaylistTracks(
     String globalCollectionId, {
     int page = 1,
@@ -311,6 +316,20 @@ class KugouMusicSdk implements MusicSdk {
       ),
     );
   }
+
+  @override
+  Future<SearchPage> playlistTracksByListId(
+    int listId, {
+    int page = 1,
+    int pageSize = 50,
+  }) => _tracks(
+    bridge.PlaylistTracksRequestDto(
+      listId: listId,
+      owned: true,
+      page: page,
+      pageSize: pageSize,
+    ),
+  );
 
   @override
   Future<SearchPage> publicPlaylistTracks(

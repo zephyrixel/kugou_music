@@ -656,45 +656,65 @@ pub async fn get_cloud_playlists(
     })
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum PlaylistTracksRoute<'a> {
+    Gid(&'a str),
+    ListId(u64),
+}
+
+fn playlist_tracks_route(
+    request: &PlaylistTracksRequestDto,
+) -> Result<PlaylistTracksRoute<'_>, BridgeError> {
+    if let Some(gid) = request
+        .global_collection_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(PlaylistTracksRoute::Gid(gid));
+    }
+    if request.owned {
+        return request
+            .list_id
+            .filter(|id| *id > 0)
+            .map(PlaylistTracksRoute::ListId)
+            .ok_or_else(|| BridgeError::invalid_argument("owned playlist requires list_id"));
+    }
+    Err(BridgeError::invalid_argument(
+        "playlist requires collection id",
+    ))
+}
+
 pub async fn get_playlist_tracks(
     request: PlaylistTracksRequestDto,
 ) -> Result<SongPageDto, BridgeError> {
     let page = request.page.max(1);
     let page_size = request.page_size.clamp(1, 100);
+    let route = playlist_tracks_route(&request)?;
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
     // Prefer gid whenever present: public path is newest-first (official UI).
     // Own-list `tracks_by_listid` is oldest-first — only when no gid.
     // Compatible with kugou_sdk =0.2.2 (no new fields required).
-    let gid = request
-        .global_collection_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty());
-    let value = if let Some(gid) = gid {
-        runtime
-            .client
-            .playlists()
-            .tracks(&mut session, gid, Pagination::new(page, page_size))
-            .await
-            .map_err(BridgeError::from_sdk)?
-            .data
-    } else if request.owned {
-        let list_id = request
-            .list_id
-            .filter(|id| *id > 0)
-            .ok_or_else(|| BridgeError::invalid_argument("owned playlist requires list_id"))?;
-        runtime
-            .client
-            .playlists()
-            .tracks_by_listid(&mut session, list_id, Pagination::new(page, page_size))
-            .await
-            .map_err(BridgeError::from_sdk)?
-            .data
-    } else {
-        return Err(BridgeError::invalid_argument(
-            "playlist requires collection id",
-        ));
+    let value = match route {
+        PlaylistTracksRoute::Gid(gid) => {
+            runtime
+                .client
+                .playlists()
+                .tracks(&mut session, gid, Pagination::new(page, page_size))
+                .await
+                .map_err(BridgeError::from_sdk)?
+                .data
+        }
+        PlaylistTracksRoute::ListId(list_id) => {
+            runtime
+                .client
+                .playlists()
+                .tracks_by_listid(&mut session, list_id, Pagination::new(page, page_size))
+                .await
+                .map_err(BridgeError::from_sdk)?
+                .data
+        }
     };
     let items = songs_to_dtos_with_artwork(&runtime.client, &mut session, &value.items).await;
     Ok(SongPageDto {
@@ -1346,6 +1366,33 @@ mod tests {
         assert_eq!(capabilities.platform, "lite");
         assert!(capabilities.sms_auth);
         assert!(capabilities.playlist_mutations);
+    }
+
+    #[test]
+    fn playlist_tracks_prefers_gid_and_keeps_listid_as_explicit_fallback() {
+        let with_gid = PlaylistTracksRequestDto {
+            list_id: Some(2),
+            global_collection_id: Some("  collection_3_1_2_0  ".into()),
+            owned: true,
+            page: 1,
+            page_size: 50,
+        };
+        assert_eq!(
+            playlist_tracks_route(&with_gid).unwrap(),
+            PlaylistTracksRoute::Gid("collection_3_1_2_0")
+        );
+
+        let by_list_id = PlaylistTracksRequestDto {
+            list_id: Some(2),
+            global_collection_id: None,
+            owned: true,
+            page: 1,
+            page_size: 50,
+        };
+        assert_eq!(
+            playlist_tracks_route(&by_list_id).unwrap(),
+            PlaylistTracksRoute::ListId(2)
+        );
     }
 
     #[test]

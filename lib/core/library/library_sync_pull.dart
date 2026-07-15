@@ -132,12 +132,12 @@ extension _LibrarySyncPull on LibrarySyncService {
 
   Future<List<LibraryHistoryEntry>> _fetchHistory(_SyncContext context) async {
     // Upstream cloud history pages are oldest→newest (`ot` asc); `bp` continues
-    // toward newer plays. We page until the limit, then sort newest-first for UI
-    // (official「最近播放」). Do not append pages raw without this sort.
+    // toward newer plays. We must reach the terminal cursor before taking the
+    // newest 100; stopping at 100 rows would retain the oldest part instead.
     final entries = <String, LibraryHistoryEntry>{};
+    final seenCursors = <String>{};
     String? cursor;
-    while (_isCurrent(context) &&
-        entries.length < LibrarySyncService._historyLimit) {
+    while (_isCurrent(context)) {
       final response = await _sdk.cloudHistory(cursor: cursor);
       if (!_isCurrent(context)) break;
       for (final item in response.items) {
@@ -151,7 +151,10 @@ extension _LibrarySyncPull on LibrarySyncService {
         }
       }
       final next = response.cursor;
-      if (!response.hasMore || next == null || next.isEmpty || next == cursor) {
+      if (!response.hasMore ||
+          next == null ||
+          next.isEmpty ||
+          !seenCursors.add(next)) {
         break;
       }
       cursor = next;

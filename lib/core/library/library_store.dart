@@ -154,6 +154,18 @@ class LibraryStore {
           ))
           .getSingleOrNull();
 
+  Future<int> _nextFrontPosition(String playlistLocalId) async {
+    final first =
+        await (database.select(database.storedPlaylistTracks)
+              ..where((row) => row.playlistLocalId.equals(playlistLocalId))
+              ..orderBy([(row) => OrderingTerm.asc(row.position)])
+              ..limit(1))
+            .getSingleOrNull();
+    // Remote snapshots use 0..n. Pending local inserts use decreasing negative
+    // positions so newest-first stays O(1) without rewriting the whole list.
+    return first == null ? 0 : first.position - 1;
+  }
+
   Future<LibraryHistoryEntry?> historyEntry(String songId) async {
     final row =
         await (database.select(database.storedSongs)..where(
