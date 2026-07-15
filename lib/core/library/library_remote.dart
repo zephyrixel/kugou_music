@@ -42,32 +42,12 @@ class LibraryRemote {
     return result;
   }
 
-  Future<List<Song>> fetchAllTracks(Playlist playlist) async {
-    final result = <Song>[];
-    final known = <String>{};
-    var page = 1;
-    while (true) {
-      final response = await _sdk.playlistTracks(
-        playlist,
-        page: page,
-        pageSize: pageSize,
-      );
-      if (response.songs.isEmpty) break;
-      for (final song in response.songs) {
-        if (known.add(song.id)) result.add(song);
-      }
-      if (!canLoadNextPage(
-        loadedItemCount: result.length,
-        lastPageItemCount: response.songs.length,
-        pageSize: response.pageSize,
-        total: response.total,
-      )) {
-        break;
-      }
-      page += 1;
-    }
-    return result;
-  }
+  /// Single page of playlist tracks (newest-first when gid path is used).
+  Future<SearchPage> fetchTracksPage(
+    Playlist playlist, {
+    required int page,
+    int pageSize = LibraryRemote.pageSize,
+  }) => _sdk.playlistTracks(playlist, page: page, pageSize: pageSize);
 
   /// Cloud history is oldest→newest; walk until limit then return newest-first.
   Future<List<HistoryEntry>> fetchHistory() async {

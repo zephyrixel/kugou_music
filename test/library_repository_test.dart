@@ -88,6 +88,37 @@ void main() {
     expect((await store.watchPlaylistTracks('remote:4').first).single.id, localSong.id);
   });
 
+  test('playlist tracks load page-by-page into Drift', () async {
+    sdk.playlists = const [_favoritePlaylist, _customPlaylist];
+    sdk.tracksByListId[4] = [
+      for (var i = 0; i < 5; i++)
+        Song(
+          id: 'p-$i',
+          title: 'P$i',
+          mixSongId: 700 + i,
+          hashes: AudioHashes(standard: 'p$i'),
+        ),
+    ];
+    sdk.tracksPageSize = 2;
+    await library.activate(99);
+
+    final progressive = <int>[];
+    final sub = store.watchPlaylistTracks('remote:4').listen((songs) {
+      progressive.add(songs.length);
+    });
+
+    await library.ensurePlaylistLoaded('remote:4');
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    expect(sdk.trackCalls, ['gid:4:1', 'gid:4:2', 'gid:4:3']);
+    expect((await store.watchPlaylistTracks('remote:4').first).length, 5);
+    expect((await store.playlist('remote:4'))?.tracksLoaded, isTrue);
+    // UI should have seen intermediate sizes, not only the final 5.
+    expect(progressive.any((n) => n > 0 && n < 5), isTrue);
+    expect(progressive.last, 5);
+  });
+
   test('failed favorite rolls back local membership', () async {
     sdk.playlists = const [_favoritePlaylist];
     sdk.tracksByListId[2] = const [];
@@ -213,6 +244,8 @@ class _FakeMusicSdk implements MusicSdk {
   final List<String> trackCalls = [];
   final List<HistoryUpload> historyUploads = [];
   bool addShouldFail = false;
+  /// When set, [playlistTracks] slices [tracksByListId] into pages of this size.
+  int? tracksPageSize;
   Completer<void>? nextCloudPlaylistsGate;
   Completer<void>? nextCloudPlaylistsStarted;
 
@@ -316,10 +349,7 @@ class _FakeMusicSdk implements MusicSdk {
   }) async {
     final listId = playlist.listId;
     trackCalls.add('gid:${listId ?? playlist.globalCollectionId}:$page');
-    final songs = listId == null
-        ? const <Song>[]
-        : (tracksByListId[listId] ?? const <Song>[]);
-    return SearchPage(songs: songs, page: page, pageSize: pageSize, total: songs.length);
+    return _pageTracks(listId, page: page, pageSize: pageSize);
   }
 
   @override
@@ -329,8 +359,25 @@ class _FakeMusicSdk implements MusicSdk {
     int pageSize = 50,
   }) async {
     trackCalls.add('listid:$listId:$page');
-    final songs = tracksByListId[listId] ?? const <Song>[];
-    return SearchPage(songs: songs, page: page, pageSize: pageSize, total: songs.length);
+    return _pageTracks(listId, page: page, pageSize: pageSize);
+  }
+
+  SearchPage _pageTracks(int? listId, {required int page, required int pageSize}) {
+    final all = listId == null
+        ? const <Song>[]
+        : (tracksByListId[listId] ?? const <Song>[]);
+    final size = tracksPageSize ?? pageSize;
+    final start = (page - 1) * size;
+    if (start >= all.length) {
+      return SearchPage(songs: const [], page: page, pageSize: size, total: all.length);
+    }
+    final end = (start + size).clamp(0, all.length);
+    return SearchPage(
+      songs: all.sublist(start, end),
+      page: page,
+      pageSize: size,
+      total: all.length,
+    );
   }
 
   @override

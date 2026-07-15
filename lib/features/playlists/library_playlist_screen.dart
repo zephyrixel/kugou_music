@@ -7,6 +7,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
+import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
 
@@ -58,6 +59,8 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
       libraryPlaylistTracksProvider(widget.playlist.localId!),
     );
     final songs = tracks.value ?? const <Song>[];
+    // Header prefers cloud metadata count while pages are still arriving.
+    final count = playlist.count > songs.length ? playlist.count : songs.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -86,9 +89,10 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         title: playlist.name,
         artwork: playlist.artworkUrl,
         cacheId: 'playlist:${playlist.localId}',
-        count: songs.length,
+        count: count,
         songs: songs,
-        loading: _loading,
+        // Only full-screen spinner when nothing to show yet.
+        loading: _loading && songs.isEmpty,
         error: _loadError,
         onRefresh: () => _load(force: true),
         onRetry: _load,
@@ -99,6 +103,12 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
                     .read(libraryRepositoryProvider)
                     .removeSong(playlist.localId!, song)
               : null,
+        ),
+        // Reuse the same footer used by public playlists / search.
+        footerSlivers: loadMoreFooterSlivers(
+          loading: _loading && songs.isNotEmpty,
+          error: songs.isNotEmpty ? _loadError : null,
+          onRetry: _load,
         ),
       ),
     );

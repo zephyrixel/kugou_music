@@ -231,6 +231,63 @@ class LibraryStore {
             ),
           );
 
+  /// Clear tracks and mark unloaded — first step of progressive page load.
+  /// Keeps [StoredPlaylists.count] so the header does not flash to 0.
+  Future<void> clearPlaylistTracks(String localId) =>
+      database.transaction(() async {
+        await (database.delete(
+          database.storedPlaylistTracks,
+        )..where((row) => row.playlistLocalId.equals(localId))).go();
+        await (database.update(
+          database.storedPlaylists,
+        )..where((row) => row.localId.equals(localId))).write(
+          const StoredPlaylistsCompanion(tracksLoaded: Value(false)),
+        );
+      });
+
+  /// Append one page of tracks at contiguous positions starting at [startPosition].
+  Future<void> appendPlaylistTracks(
+    String localId,
+    List<Song> songs, {
+    required int startPosition,
+    int? totalCount,
+  }) => database.transaction(() async {
+    for (var index = 0; index < songs.length; index++) {
+      final song = songs[index];
+      await _upsertSong(song);
+      await database
+          .into(database.storedPlaylistTracks)
+          .insertOnConflictUpdate(
+            StoredPlaylistTracksCompanion.insert(
+              playlistLocalId: localId,
+              songId: song.id,
+              fileId: Value(song.fileId),
+              position: Value(startPosition + index),
+            ),
+          );
+    }
+    final count = totalCount ?? (startPosition + songs.length);
+    await (database.update(
+      database.storedPlaylists,
+    )..where((row) => row.localId.equals(localId))).write(
+      StoredPlaylistsCompanion(count: Value(count)),
+    );
+  });
+
+  Future<void> markPlaylistTracksLoaded(
+    String localId, {
+    required int count,
+  }) =>
+      (database.update(
+        database.storedPlaylists,
+      )..where((row) => row.localId.equals(localId))).write(
+        StoredPlaylistsCompanion(
+          tracksLoaded: const Value(true),
+          count: Value(count),
+        ),
+      );
+
+  /// Full replace (tests / one-shot callers). Prefer progressive append for UI.
   Future<void> replacePlaylistTracks(String localId, List<Song> songs) =>
       database.transaction(() async {
         await (database.delete(

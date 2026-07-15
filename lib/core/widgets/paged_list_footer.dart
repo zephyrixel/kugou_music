@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
 
-/// Footer widgets for a [PagedListController]: spinner or retry row.
-///
-/// Returns plain widgets (not slivers) so both ListView and CustomScrollView
-/// can wrap them as needed.
-List<Widget> pagedListFooters(
-  PagedListController controller, {
-  Future<void> Function()? onRetryMore,
+/// Bottom-of-list loading / error row used by public playlists, search, and
+/// library progressive track loads.
+List<Widget> loadMoreFooters({
+  required bool loading,
+  Object? error,
+  Future<void> Function()? onRetry,
 }) {
-  if (controller.loadingMore) {
+  if (loading) {
     return const [
       Padding(
         padding: EdgeInsets.all(20),
@@ -18,22 +17,43 @@ List<Widget> pagedListFooters(
       ),
     ];
   }
-  final error = controller.loadMoreError;
   if (error != null) {
     return [
       PlaylistLoadError(
         error: error,
-        retry: onRetryMore ?? () => controller.loadMore(),
+        retry: onRetry ?? () async {},
       ),
     ];
   }
   return const [];
 }
 
-/// Same as [pagedListFooters] wrapped in [SliverToBoxAdapter]s.
+List<Widget> loadMoreFooterSlivers({
+  required bool loading,
+  Object? error,
+  Future<void> Function()? onRetry,
+}) =>
+    loadMoreFooters(loading: loading, error: error, onRetry: onRetry)
+        .map((child) => SliverToBoxAdapter(child: child))
+        .toList(growable: false);
+
+/// Convenience for [PagedListController].
+List<Widget> pagedListFooters(
+  PagedListController controller, {
+  Future<void> Function()? onRetryMore,
+}) =>
+    loadMoreFooters(
+      loading: controller.loadingMore,
+      error: controller.loadMoreError,
+      onRetry: onRetryMore ?? () => controller.loadMore(),
+    );
+
 List<Widget> pagedListFooterSlivers(
   PagedListController controller, {
   Future<void> Function()? onRetryMore,
-}) => pagedListFooters(controller, onRetryMore: onRetryMore)
-    .map((child) => SliverToBoxAdapter(child: child))
-    .toList(growable: false);
+}) =>
+    loadMoreFooterSlivers(
+      loading: controller.loadingMore,
+      error: controller.loadMoreError,
+      onRetry: onRetryMore ?? () => controller.loadMore(),
+    );

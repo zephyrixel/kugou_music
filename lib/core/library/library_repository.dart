@@ -4,6 +4,7 @@ import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_store.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
+import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 
@@ -23,6 +24,10 @@ class LibraryRepository {
   int? _runningGeneration;
   bool _disposed = false;
 
+  /// localId → in-flight progressive track load (page-by-page into Drift).
+  final Map<String, Future<void>> _trackLoads = {};
+  final Map<String, int> _trackLoadTokens = {};
+
   Stream<List<Playlist>> watchPlaylists() => _store.watchPlaylists();
   Stream<List<Song>> watchFavorites() => _store.watchFavoriteSongs();
   Stream<Set<String>> watchFavoriteIds() => _store.watchFavoriteSongIds();
@@ -35,6 +40,10 @@ class LibraryRepository {
   }
 
   LibrarySyncStatus get status => _status;
+
+  /// True while remote pages are still being written for [localId].
+  bool isPlaylistTrackLoading(String localId) =>
+      _trackLoads.containsKey(localId);
 
   Future<void> activate(int userId) async {
     final generation = ++_generation;
@@ -125,19 +134,94 @@ class LibraryRepository {
     return tracked;
   }
 
-  Future<void> ensurePlaylistLoaded(String localId, {bool force = false}) async {
+  /// Load playlist tracks page-by-page into Drift (UI updates via watch after each page).
+  ///
+  /// Coalesces concurrent callers for the same [localId]. When [force], clears
+  /// and restarts even if already loaded.
+  Future<void> ensurePlaylistLoaded(
+    String localId, {
+    bool force = false,
+  }) async {
     final generation = _generation;
     final userId = _userId;
     if (userId == null) return;
     final playlist = await _store.playlist(localId);
-    if (!_isCurrent(generation, userId) ||
-        playlist == null ||
-        (playlist.tracksLoaded && !force)) {
-      return;
+    if (!_isCurrent(generation, userId) || playlist == null) return;
+    if (playlist.tracksLoaded && !force) return;
+
+    final existing = _trackLoads[localId];
+    if (existing != null && !force) return existing;
+
+    final token = (_trackLoadTokens[localId] ?? 0) + 1;
+    _trackLoadTokens[localId] = token;
+
+    final tracked = _loadAllPlaylistTracks(
+      localId,
+      playlist: playlist,
+      generation: generation,
+      userId: userId,
+      token: token,
+    );
+    _trackLoads[localId] = tracked;
+    try {
+      await tracked;
+    } finally {
+      if (identical(_trackLoads[localId], tracked)) {
+        _trackLoads.remove(localId);
+      }
     }
-    final tracks = await _remote.fetchAllTracks(playlist);
-    if (!_isCurrent(generation, userId)) return;
-    await _store.replacePlaylistTracks(localId, tracks);
+  }
+
+  Future<void> _loadAllPlaylistTracks(
+    String localId, {
+    required Playlist playlist,
+    required int generation,
+    required int userId,
+    required int token,
+  }) async {
+    bool stillCurrent() =>
+        _isCurrent(generation, userId) && _trackLoadTokens[localId] == token;
+
+    await _store.clearPlaylistTracks(localId);
+    if (!stillCurrent()) return;
+
+    var page = 1;
+    var loaded = 0;
+    final known = <String>{};
+
+    while (true) {
+      if (!stillCurrent()) return;
+
+      final response = await _remote.fetchTracksPage(playlist, page: page);
+      if (!stillCurrent()) return;
+
+      final fresh = <Song>[];
+      for (final song in response.songs) {
+        if (known.add(song.id)) fresh.add(song);
+      }
+      if (fresh.isNotEmpty || response.total != null) {
+        await _store.appendPlaylistTracks(
+          localId,
+          fresh,
+          startPosition: loaded,
+          totalCount: response.total,
+        );
+        loaded += fresh.length;
+      }
+      if (!stillCurrent()) return;
+
+      final hasMore = canLoadNextPage(
+        loadedItemCount: loaded,
+        lastPageItemCount: response.songs.length,
+        pageSize: response.pageSize,
+        total: response.total,
+      );
+      if (!hasMore) {
+        await _store.markPlaylistTracksLoaded(localId, count: loaded);
+        return;
+      }
+      page += 1;
+    }
   }
 
   Future<void> ensureFavoriteLoaded({bool force = false}) async {
@@ -358,6 +442,10 @@ class LibraryRepository {
     _disposed = true;
     _generation += 1;
     _userId = null;
+    for (final localId in _trackLoadTokens.keys.toList()) {
+      _trackLoadTokens[localId] = (_trackLoadTokens[localId] ?? 0) + 1;
+    }
+    _trackLoads.clear();
     await _statuses.close();
   }
 }
