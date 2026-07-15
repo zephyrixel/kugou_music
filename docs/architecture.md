@@ -105,4 +105,7 @@ SDK 尚未稳定或缺失的接口不使用假数据。对应入口保持隐藏�
 3. 在 `MusicSdk` 增加稳定领域接口和映射。
 4. 最后增加 feature 页面与 capability gate。
 
-建议下一轮优先实现 Lite 登录/二维码、歌词时间轴、排行榜详情、热门歌单与分页搜索。
+公开歌单详情与搜索（歌曲/歌单）共用 `PagedListController` 做无限滚动分页；
+库内自有歌单仍按 `ensurePlaylistLoaded` 全量懒加载进 Drift。
+
+建议下一轮优先实现 Lite 登录/二维码、歌词时间轴、排行榜详情与热门歌单。
