@@ -6,10 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/widgets/play_song.dart';
-import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
-import 'package:kgmusic/features/playlists/playlist_header.dart';
+import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
 
 class LibraryPlaylistScreen extends ConsumerStatefulWidget {
   const LibraryPlaylistScreen({super.key, required this.playlist});
@@ -68,9 +67,9 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'edit' && !playlist.isCollected) {
-                  _edit(playlist);
+                  unawaited(_edit(playlist));
                 }
-                if (value == 'delete') _delete(playlist);
+                if (value == 'delete') unawaited(_delete(playlist));
               },
               itemBuilder: (_) => [
                 if (!playlist.isCollected)
@@ -83,166 +82,72 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
             ),
         ],
       ),
-      body: RefreshIndicator(
+      body: PlaylistSongsView(
+        title: playlist.name,
+        artwork: playlist.artworkUrl,
+        cacheId: 'playlist:${playlist.localId}',
+        count: songs.length,
+        songs: songs,
+        loading: _loading,
+        error: _loadError,
         onRefresh: () => _load(force: true),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: PlaylistHeader(
-                title: playlist.name,
-                artwork: playlist.artworkUrl,
-                cacheId: 'playlist:${playlist.localId}',
-                count: songs.length,
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
-                    onPressed: songs.isEmpty
-                        ? null
-                        : () => playSong(context, ref, songs.first, queue: songs),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('播放全部'),
-                  ),
-                ),
-              ),
-            ),
-            if (_loading && songs.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_loadError != null && songs.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: PlaylistLoadError(error: _loadError!, retry: _load),
-              )
-            else if (songs.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: Text('歌单中没有歌曲')),
-              )
-            else
-              SliverList.builder(
-                itemCount: songs.length,
-                itemBuilder: (context, index) {
-                  final song = songs[index];
-                  return SongTile(
-                    song: song,
-                    index: index + 1,
-                    onTap: () => playSong(context, ref, song, queue: songs),
-                    trailing: SongTileActions(
-                      song: song,
-                      onRemove: playlist.isWritable
-                          ? () => ref
-                                .read(libraryRepositoryProvider)
-                                .removeSong(playlist.localId!, song)
-                          : null,
-                    ),
-                  );
-                },
-              ),
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
-          ],
+        onRetry: _load,
+        songTrailing: (context, ref, song) => SongTileActions(
+          song: song,
+          onRemove: playlist.isWritable
+              ? () => ref
+                    .read(libraryRepositoryProvider)
+                    .removeSong(playlist.localId!, song)
+              : null,
         ),
       ),
     );
   }
 
   Future<void> _edit(Playlist playlist) async {
-    final name = TextEditingController(text: playlist.name);
-    final intro = TextEditingController(text: playlist.intro);
-    final tags = TextEditingController(text: playlist.tags);
-    var private = playlist.isPrivate;
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('编辑歌单'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: '名称'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: intro,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: '简介'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: tags,
-                decoration: const InputDecoration(labelText: '标签（逗号分隔）'),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('私密歌单'),
-                value: private,
-                onChanged: (value) => setState(() => private = value),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => context.pop(false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => context.pop(true),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
-      ),
+    final result = await promptPlaylistEdit(
+      context,
+      name: playlist.name,
+      intro: playlist.intro ?? '',
+      tags: playlist.tags ?? '',
+      private: playlist.isPrivate,
     );
-    final nextName = name.text.trim();
-    final nextIntro = intro.text.trim();
-    final nextTags = tags.text.trim();
-    name.dispose();
-    intro.dispose();
-    tags.dispose();
-    if (accepted != true || nextName.isEmpty) return;
-    await ref
-        .read(libraryRepositoryProvider)
-        .editPlaylist(
-          playlist.localId!,
-          name: nextName,
-          intro: nextIntro,
-          tags: nextTags,
-          private: private,
-        );
+    if (result == null) return;
+    try {
+      await ref
+          .read(libraryRepositoryProvider)
+          .editPlaylist(
+            playlist.localId!,
+            name: result.name,
+            intro: result.intro,
+            tags: result.tags,
+            private: result.private,
+          );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 
   Future<void> _delete(Playlist playlist) async {
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(playlist.isCollected ? '取消收藏歌单？' : '删除歌单？'),
-        content: const Text('操作会写入本机并同步到云端。'),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => context.pop(true),
-            child: const Text('确认'),
-          ),
-        ],
-      ),
+    final accepted = await confirmDialog(
+      context,
+      title: playlist.isCollected ? '取消收藏歌单？' : '删除歌单？',
+      content: '操作会写入本机并同步到云端。',
     );
-    if (accepted != true) return;
-    await ref.read(libraryRepositoryProvider).deletePlaylist(playlist.localId!);
-    if (mounted) context.pop();
+    if (!accepted) return;
+    try {
+      await ref.read(libraryRepositoryProvider).deletePlaylist(playlist.localId!);
+      if (mounted) context.pop();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 }

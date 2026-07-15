@@ -6,6 +6,7 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
 class AccountScreen extends ConsumerWidget {
@@ -287,49 +288,16 @@ class _InlineError extends StatelessWidget {
 }
 
 Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
-  final name = TextEditingController();
-  var private = false;
-  final accepted = await showDialog<bool>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text('创建歌单'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: '歌单名称'),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('设为私密'),
-              value: private,
-              onChanged: (value) => setState(() => private = value),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => context.pop(true),
-            child: const Text('创建'),
-          ),
-        ],
-      ),
-    ),
+  final result = await promptPlaylistName(
+    context,
+    title: '创建歌单',
+    confirmLabel: '创建',
   );
-  final value = name.text.trim();
-  name.dispose();
-  if (accepted != true || value.isEmpty) return;
+  if (result == null) return;
   try {
     await ref
         .read(libraryRepositoryProvider)
-        .createPlaylist(value, private: private);
+        .createPlaylist(result.name, private: result.private);
   } catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(
@@ -340,43 +308,21 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
 }
 
 Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-  final accepted = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('退出登录？'),
-      content: const Text('本机音乐库会被清除；下次登录将从云端重新建立。'),
-      actions: [
-        TextButton(
-          onPressed: () => context.pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => context.pop(true),
-          child: const Text('退出'),
-        ),
-      ],
-    ),
+  final accepted = await confirmDialog(
+    context,
+    title: '退出登录？',
+    content: '本机音乐库会被清除；下次登录将从云端重新建立。',
+    confirmLabel: '退出',
   );
-  if (accepted == true) await ref.read(authControllerProvider).logout();
+  if (accepted) await ref.read(authControllerProvider).logout();
 }
 
 Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
-  final accepted = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('清理临时缓存？'),
-      content: const Text('会清理歌曲文件、图片和接口缓存；音乐库与登录状态会保留。'),
-      actions: [
-        TextButton(
-          onPressed: () => context.pop(false),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => context.pop(true),
-          child: const Text('清理'),
-        ),
-      ],
-    ),
+  final accepted = await confirmDialog(
+    context,
+    title: '清理临时缓存？',
+    content: '会清理歌曲文件、图片和接口缓存；音乐库与登录状态会保留。',
+    confirmLabel: '清理',
   );
   if (accepted != true) return;
   try {

@@ -3,14 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
-import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/pagination.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
-import 'package:kgmusic/core/widgets/play_song.dart';
-import 'package:kgmusic/core/widgets/song_tile.dart';
-import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
+import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
 
 class PublicPlaylistScreen extends ConsumerStatefulWidget {
   const PublicPlaylistScreen({super.key, required this.playlist});
@@ -143,97 +141,41 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(backgroundColor: Colors.transparent),
-    body: RefreshIndicator(
+    body: PlaylistSongsView(
+      title: widget.playlist.name,
+      artwork: widget.playlist.artworkUrl,
+      cacheId: 'playlist:${widget.playlist.globalCollectionId}',
+      count: _total ?? widget.playlist.songCount ?? _songs.length,
+      songs: _songs,
+      loading: _initialLoading,
+      error: _initialError,
+      scrollController: _scrollController,
       onRefresh: () => _load(reset: true),
-      child: CustomScrollView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: PlaylistHeader(
-              title: widget.playlist.name,
-              artwork: widget.playlist.artworkUrl,
-              cacheId: 'playlist:${widget.playlist.globalCollectionId}',
-              count: _total ?? widget.playlist.songCount ?? _songs.length,
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              child: Row(
-                children: [
-                  FilledButton.icon(
-                    onPressed: _songs.isEmpty
-                        ? null
-                        : () => playSong(context, ref, _songs.first, queue: _songs),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('播放全部'),
-                  ),
-                  const Spacer(),
-                  OutlinedButton.icon(
-                    onPressed: widget.playlist.globalCollectionId == null
-                        ? null
-                        : _collect,
-                    icon: const Icon(Icons.library_add_outlined),
-                    label: const Text('收藏歌单'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_initialLoading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_initialError != null && _songs.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: PlaylistLoadError(
-                error: _initialError!,
-                retry: () => _load(reset: true),
-              ),
-            )
-          else if (_songs.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: Text('歌单中没有歌曲')),
-            )
-          else
-            SliverList.builder(
-              itemCount: _songs.length,
-              itemBuilder: (context, index) {
-                final song = _songs[index];
-                return SongTile(
-                  song: song,
-                  index: index + 1,
-                  onTap: () => playSong(context, ref, song, queue: _songs),
-                  trailing: SongTileActions(song: song),
-                );
-              },
-            ),
-          if (_loadingMore)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
-            )
-          else if (_loadMoreError != null)
-            SliverToBoxAdapter(
-              child: PlaylistLoadError(error: _loadMoreError!, retry: _load),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
+      onRetry: () => _load(reset: true),
+      trailing: OutlinedButton.icon(
+        onPressed: widget.playlist.globalCollectionId == null ? null : _collect,
+        icon: const Icon(Icons.library_add_outlined),
+        label: const Text('收藏歌单'),
       ),
+      footerSlivers: [
+        if (_loadingMore)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          )
+        else if (_loadMoreError != null)
+          SliverToBoxAdapter(
+            child: PlaylistLoadError(error: _loadMoreError!, retry: _load),
+          ),
+      ],
     ),
   );
 
   Future<void> _collect() async {
     try {
-      await ref
-          .read(libraryRepositoryProvider)
-          .collectPlaylist(widget.playlist);
+      await ref.read(libraryRepositoryProvider).collectPlaylist(widget.playlist);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
