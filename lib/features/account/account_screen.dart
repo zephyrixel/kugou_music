@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/library/library_models.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
@@ -199,9 +200,7 @@ class _SyncCard extends ConsumerWidget {
     final text = switch (status.phase) {
       LibrarySyncPhase.syncing => '正在同步音乐库…',
       LibrarySyncPhase.failed =>
-        '有 ${status.pendingCount} 项待同步${status.message == null ? '' : ' · ${status.message}'}',
-      LibrarySyncPhase.idle when status.pendingCount > 0 =>
-        '${status.pendingCount} 项等待同步',
+        status.message == null ? '同步失败' : '同步失败 · ${status.message}',
       LibrarySyncPhase.idle => '音乐库已同步',
     };
     return ListTile(
@@ -248,7 +247,7 @@ class _SectionHeader extends StatelessWidget {
 class _PlaylistRow extends StatelessWidget {
   const _PlaylistRow({required this.playlist});
 
-  final LibraryPlaylist playlist;
+  final Playlist playlist;
 
   @override
   Widget build(BuildContext context) => ListTile(
@@ -345,7 +344,7 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('退出登录？'),
-      content: const Text('本机音乐库和待同步操作会被清除；下次登录将从云端重新建立。'),
+      content: const Text('本机音乐库会被清除；下次登录将从云端重新建立。'),
       actions: [
         TextButton(
           onPressed: () => context.pop(false),
@@ -366,7 +365,7 @@ Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('清理临时缓存？'),
-      content: const Text('会清理歌曲文件、图片和接口缓存；音乐库、待同步操作与登录状态会保留。'),
+      content: const Text('会清理歌曲文件、图片和接口缓存；音乐库与登录状态会保留。'),
       actions: [
         TextButton(
           onPressed: () => context.pop(false),

@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:kgmusic/core/cache/cache_codec.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/models/account.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 

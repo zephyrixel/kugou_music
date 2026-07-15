@@ -21,9 +21,8 @@ class SongTileActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final favorites = ref.watch(favoriteSongsProvider);
-    final likedSongs = favorites.value ?? const <Song>[];
-    final liked = likedSongs.any((item) => item.id == song.id);
+    final ids = ref.watch(favoriteSongIdsProvider);
+    final liked = ids.value?.contains(song.id) ?? false;
     return SizedBox.square(
       dimension: 40,
       child: PopupMenuButton<_SongAction>(
@@ -35,19 +34,16 @@ class SongTileActions extends ConsumerWidget {
           switch (action) {
             case _SongAction.favorite:
               await toggleSongFavorite(context, ref, song);
-              break;
             case _SongAction.addToPlaylist:
-              await showAddToCloudPlaylist(context, ref, song);
-              break;
+              await showAddToPlaylist(context, ref, song);
             case _SongAction.remove:
               await onRemove?.call();
-              break;
           }
         },
         itemBuilder: (context) => [
           PopupMenuItem(
             value: _SongAction.favorite,
-            enabled: !favorites.isLoading,
+            enabled: !ids.isLoading,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(

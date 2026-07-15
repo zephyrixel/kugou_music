@@ -148,22 +148,15 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> logout() async {
-    await _sdk.logout();
-    await _storage.delete(key: _lastRefreshKey);
-    await _database.clearAccountCache();
-    await _library.deactivate();
-    _libraryReady = false;
-    snapshot = const AuthSnapshot(
-      authenticated: false,
-      fingerprintRegistered: false,
-    );
-    status = AuthStatus.guest;
-    message = null;
-    _notify();
-  }
+  Future<void> logout() => _clearSession(next: AuthStatus.guest);
 
-  Future<void> _expire(String reason) async {
+  Future<void> _expire(String reason) =>
+      _clearSession(next: AuthStatus.expired, message: reason);
+
+  Future<void> _clearSession({
+    required AuthStatus next,
+    String? message,
+  }) async {
     await _sdk.logout();
     await _storage.delete(key: _lastRefreshKey);
     await _database.clearAccountCache();
@@ -173,8 +166,8 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       authenticated: false,
       fingerprintRegistered: false,
     );
-    status = AuthStatus.expired;
-    message = reason;
+    status = next;
+    this.message = message;
     _notify();
   }
 

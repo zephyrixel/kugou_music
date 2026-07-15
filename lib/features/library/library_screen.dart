@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -101,9 +102,7 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
               itemCount: songs.length,
               itemBuilder: (context, index) => SongTile(
                 song: songs[index],
-                onTap: () => ref
-                    .read(audioHandlerProvider)
-                    .playSong(songs[index], queueSongs: songs),
+                onTap: () => playSong(context, ref, songs[index], queue: songs),
                 trailing: IconButton(
                   tooltip: '取消喜欢',
                   onPressed: () => ref
@@ -143,9 +142,7 @@ class _HistorySongs extends ConsumerWidget {
           itemCount: songs.length,
           itemBuilder: (context, index) => SongTile(
             song: songs[index],
-            onTap: () => ref
-                .read(audioHandlerProvider)
-                .playSong(songs[index], queueSongs: songs),
+            onTap: () => playSong(context, ref, songs[index], queue: songs),
           ),
         );
       },

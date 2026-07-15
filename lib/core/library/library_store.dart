@@ -1,28 +1,17 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart';
 import 'package:kgmusic/core/database/app_database.dart';
-import 'package:kgmusic/core/library/library_models.dart';
+import 'package:kgmusic/core/models/history_entry.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 
-part 'library_store_actions.dart';
-part 'library_store_snapshot.dart';
-
-abstract final class LibraryOperation {
-  static const playlistUpsert = 'playlistUpsert';
-  static const playlistDelete = 'playlistDelete';
-  static const playlistTrack = 'playlistTrack';
-  static const history = 'history';
-}
-
+/// Drift-backed read model for the local music library (no outbox).
 class LibraryStore {
   const LibraryStore(this.database);
 
   final AppDatabase database;
 
-  Stream<List<LibraryPlaylist>> watchPlaylists() =>
+  Stream<List<Playlist>> watchPlaylists() =>
       (database.select(database.storedPlaylists)
-            ..where((row) => row.deleted.equals(false))
             ..orderBy([(row) => OrderingTerm.asc(row.sortOrder)]))
           .watch()
           .map((rows) => rows.map(_playlistFromRow).toList(growable: false));
@@ -34,8 +23,7 @@ class LibraryStore {
         database.storedPlaylists.localId.equalsExp(
               database.storedPlaylistTracks.playlistLocalId,
             ) &
-            database.storedPlaylists.isMyFavorite.equals(true) &
-            database.storedPlaylists.deleted.equals(false),
+            database.storedPlaylists.isMyFavorite.equals(true),
       ),
       innerJoin(
         database.storedSongs,
@@ -54,7 +42,11 @@ class LibraryStore {
     );
   }
 
-  Stream<List<LibraryHistoryEntry>> watchHistory() =>
+  Stream<Set<String>> watchFavoriteSongIds() => watchFavoriteSongs().map(
+    (songs) => songs.map((song) => song.id).toSet(),
+  );
+
+  Stream<List<HistoryEntry>> watchHistory() =>
       (database.select(database.storedSongs)
             ..where((row) => row.lastPlayedAt.isNotNull())
             ..orderBy([(row) => OrderingTerm.desc(row.lastPlayedAt)])
@@ -63,7 +55,7 @@ class LibraryStore {
           .map(
             (rows) => rows
                 .map(
-                  (row) => LibraryHistoryEntry(
+                  (row) => HistoryEntry(
                     song: _songFromRow(row),
                     playedAt: row.lastPlayedAt!,
                     playCount: row.playCount,
@@ -96,11 +88,6 @@ class LibraryStore {
     );
   }
 
-  Stream<int> watchPendingCount() => database
-      .select(database.libraryOutbox)
-      .watch()
-      .map((rows) => rows.length);
-
   Stream<LibrarySyncState?> watchSyncState() => (database.select(
     database.librarySyncStates,
   )..where((row) => row.singletonId.equals(1))).watchSingleOrNull();
@@ -109,31 +96,20 @@ class LibraryStore {
     database.librarySyncStates,
   )..where((row) => row.singletonId.equals(1))).getSingleOrNull();
 
-  Future<LibraryPlaylist?> playlist(String localId) async {
+  Future<Playlist?> playlist(String localId) async {
     final row = await (database.select(
       database.storedPlaylists,
     )..where((item) => item.localId.equals(localId))).getSingleOrNull();
     return row == null ? null : _playlistFromRow(row);
   }
 
-  Future<LibraryPlaylist?> favoritePlaylist() async {
+  Future<Playlist?> favoritePlaylist() async {
     final row =
-        await (database.select(database.storedPlaylists)..where(
-              (item) =>
-                  item.isMyFavorite.equals(true) & item.deleted.equals(false),
-            ))
+        await (database.select(database.storedPlaylists)
+              ..where((item) => item.isMyFavorite.equals(true)))
             .getSingleOrNull();
     return row == null ? null : _playlistFromRow(row);
   }
-
-  Future<List<int>> knownRemotePlaylistIds() async =>
-      (await (database.select(database.storedPlaylists)..where(
-                (row) =>
-                    row.remoteListId.isNotNull() & row.deleted.equals(false),
-              ))
-              .get())
-          .map((row) => row.remoteListId!)
-          .toList(growable: false);
 
   Future<Song?> song(String id) async {
     final row = await (database.select(
@@ -142,133 +118,105 @@ class LibraryStore {
     return row == null ? null : _songFromRow(row);
   }
 
-  Future<StoredPlaylistTrack?> playlistTrack(
-    String playlistLocalId,
-    String songId,
-  ) =>
-      (database.select(database.storedPlaylistTracks)..where(
-            (row) =>
-                row.playlistLocalId.equals(playlistLocalId) &
-                row.songId.equals(songId),
-          ))
-          .getSingleOrNull();
-
-  Future<int> _nextFrontPosition(String playlistLocalId) async {
-    final first =
-        await (database.select(database.storedPlaylistTracks)
-              ..where((row) => row.playlistLocalId.equals(playlistLocalId))
-              ..orderBy([(row) => OrderingTerm.asc(row.position)])
-              ..limit(1))
-            .getSingleOrNull();
-    // Remote snapshots use 0..n. Pending local inserts use decreasing negative
-    // positions so newest-first stays O(1) without rewriting the whole list.
-    return first == null ? 0 : first.position - 1;
-  }
-
-  Future<LibraryHistoryEntry?> historyEntry(String songId) async {
+  Future<int?> trackFileId(String playlistLocalId, String songId) async {
     final row =
-        await (database.select(database.storedSongs)..where(
-              (song) => song.id.equals(songId) & song.lastPlayedAt.isNotNull(),
+        await (database.select(database.storedPlaylistTracks)..where(
+              (item) =>
+                  item.playlistLocalId.equals(playlistLocalId) &
+                  item.songId.equals(songId),
             ))
             .getSingleOrNull();
-    if (row == null) return null;
-    return LibraryHistoryEntry(
-      song: _songFromRow(row),
-      playedAt: row.lastPlayedAt!,
-      playCount: row.playCount,
-    );
+    return row?.fileId;
   }
 
-  Future<List<PendingLibraryOperation>> readyOperations({
-    int limit = 50,
-  }) async {
-    final now = DateTime.now();
-    final rows =
-        await (database.select(database.libraryOutbox)
-              ..where(
-                (row) =>
-                    row.nextAttemptAt.isNull() |
-                    row.nextAttemptAt.isSmallerOrEqualValue(now),
-              )
-              ..orderBy([(row) => OrderingTerm.asc(row.createdAt)])
-              ..limit(limit))
-            .get();
-    final operations = rows
-        .map(
-          (row) => PendingLibraryOperation(
-            key: row.dedupeKey,
-            operation: row.operation,
-            payload: row.payload,
-            revision: row.revision,
-            attempts: row.attempts,
-          ),
-        )
-        .toList(growable: false);
-    operations.sort(
-      (a, b) => _operationPriority(
-        a.operation,
-      ).compareTo(_operationPriority(b.operation)),
-    );
-    return operations;
+  Future<bool> isTrackMember(String playlistLocalId, String songId) async {
+    final row =
+        await (database.select(database.storedPlaylistTracks)..where(
+              (item) =>
+                  item.playlistLocalId.equals(playlistLocalId) &
+                  item.songId.equals(songId),
+            ))
+            .getSingleOrNull();
+    return row != null;
   }
 
-  Future<List<PendingLibraryOperation>> claimReadyOperations({
-    int limit = 50,
-  }) => database.transaction(() async {
-    final operations = await readyOperations(limit: limit);
-    for (final operation in operations) {
-      await (database.update(database.libraryOutbox)..where(
-            (row) =>
-                row.dedupeKey.equals(operation.key) &
-                row.revision.equals(operation.revision),
-          ))
-          .write(
-            LibraryOutboxCompanion(attempts: Value(operation.attempts + 1)),
-          );
-    }
-    return operations;
+  Future<void> clearLibrary() => database.transaction(() async {
+    await database.delete(database.storedPlaylistTracks).go();
+    await database.delete(database.storedPlaylists).go();
+    await database.delete(database.storedSongs).go();
+    await database.delete(database.librarySyncStates).go();
   });
 
-  Future<int> pendingCount() async =>
-      (await database.select(database.libraryOutbox).get()).length;
+  /// Full replace of library metadata + history (baseline or refresh).
+  Future<void> replaceLibrary({
+    required int userId,
+    required List<Playlist> playlists,
+    required List<HistoryEntry> history,
+  }) => database.transaction(() async {
+    final previous = await database.select(database.storedPlaylists).get();
+    final tracksLoadedByLocalId = {
+      for (final row in previous)
+        if (row.tracksLoaded) row.localId: true,
+    };
+    final previousTracks = <String, List<StoredPlaylistTrack>>{};
+    for (final row in previous) {
+      if (tracksLoadedByLocalId[row.localId] != true) continue;
+      previousTracks[row.localId] = await (database.select(
+        database.storedPlaylistTracks,
+      )..where((t) => t.playlistLocalId.equals(row.localId))).get();
+    }
 
-  Future<DateTime?> nextRetryAt() async {
-    final row =
-        await (database.select(database.libraryOutbox)
-              ..where((item) => item.nextAttemptAt.isNotNull())
-              ..orderBy([(item) => OrderingTerm.asc(item.nextAttemptAt)])
-              ..limit(1))
-            .getSingleOrNull();
-    return row?.nextAttemptAt;
-  }
+    await database.delete(database.storedPlaylistTracks).go();
+    await database.delete(database.storedPlaylists).go();
 
-  Future<void> retryNow() => (database.update(
-    database.libraryOutbox,
-  )).write(const LibraryOutboxCompanion(nextAttemptAt: Value(null)));
-
-  Future<void> completeOperation(String key, int revision) =>
-      (database.delete(database.libraryOutbox)..where(
-            (row) => row.dedupeKey.equals(key) & row.revision.equals(revision),
-          ))
-          .go();
-
-  Future<void> failOperation(
-    PendingLibraryOperation operation,
-    String error,
-    DateTime retryAt,
-  ) =>
-      (database.update(database.libraryOutbox)..where(
-            (row) =>
-                row.dedupeKey.equals(operation.key) &
-                row.revision.equals(operation.revision),
-          ))
-          .write(
-            LibraryOutboxCompanion(
-              attempts: Value(operation.attempts + 1),
-              nextAttemptAt: Value(retryAt),
-              lastError: Value(error),
+    for (var index = 0; index < playlists.length; index++) {
+      final playlist = playlists[index];
+      final localId = playlist.localId!;
+      final keepTracks = tracksLoadedByLocalId[localId] == true;
+      await database
+          .into(database.storedPlaylists)
+          .insert(
+            _playlistCompanion(
+              playlist.copyWith(tracksLoaded: keepTracks),
+              sortOrder: index,
             ),
           );
+      final tracks = previousTracks[localId];
+      if (keepTracks && tracks != null) {
+        for (final track in tracks) {
+          await database
+              .into(database.storedPlaylistTracks)
+              .insert(
+                StoredPlaylistTracksCompanion.insert(
+                  playlistLocalId: localId,
+                  songId: track.songId,
+                  fileId: Value(track.fileId),
+                  position: Value(track.position),
+                ),
+              );
+        }
+      }
+    }
+
+    for (final entry in history) {
+      await _upsertSong(
+        entry.song,
+        lastPlayedAt: entry.playedAt,
+        playCount: entry.playCount,
+      );
+    }
+
+    await database
+        .into(database.librarySyncStates)
+        .insertOnConflictUpdate(
+          LibrarySyncStatesCompanion.insert(
+            userId: userId,
+            baselineComplete: const Value(true),
+            lastSyncedAt: Value(DateTime.now()),
+            lastError: const Value(null),
+          ),
+        );
+  });
 
   Future<void> setSyncResult({required int userId, String? error}) =>
       (database.update(database.librarySyncStates)..where(
@@ -283,48 +231,265 @@ class LibraryStore {
             ),
           );
 
-  Future<LibraryOutboxData?> _outbox(String key) => (database.select(
-    database.libraryOutbox,
-  )..where((row) => row.dedupeKey.equals(key))).getSingleOrNull();
+  Future<void> replacePlaylistTracks(String localId, List<Song> songs) =>
+      database.transaction(() async {
+        await (database.delete(
+          database.storedPlaylistTracks,
+        )..where((row) => row.playlistLocalId.equals(localId))).go();
+        for (var index = 0; index < songs.length; index++) {
+          final song = songs[index];
+          await _upsertSong(song);
+          await database
+              .into(database.storedPlaylistTracks)
+              .insert(
+                StoredPlaylistTracksCompanion.insert(
+                  playlistLocalId: localId,
+                  songId: song.id,
+                  fileId: Value(song.fileId),
+                  position: Value(index),
+                ),
+              );
+        }
+        await (database.update(
+          database.storedPlaylists,
+        )..where((row) => row.localId.equals(localId))).write(
+          StoredPlaylistsCompanion(
+            tracksLoaded: const Value(true),
+            count: Value(songs.length),
+          ),
+        );
+      });
+
+  Future<void> upsertPlaylist(Playlist playlist, {int? sortOrder}) async {
+    final count = sortOrder ?? await _playlistCount();
+    await database
+        .into(database.storedPlaylists)
+        .insertOnConflictUpdate(
+          _playlistCompanion(playlist, sortOrder: count),
+        );
+  }
+
+  Future<void> updatePlaylistMeta(
+    String localId, {
+    required String name,
+    required String intro,
+    required String tags,
+    required bool private,
+  }) =>
+      (database.update(
+        database.storedPlaylists,
+      )..where((row) => row.localId.equals(localId))).write(
+        StoredPlaylistsCompanion(
+          name: Value(name),
+          intro: Value(intro),
+          tags: Value(tags),
+          isPrivate: Value(private),
+        ),
+      );
+
+  Future<void> deletePlaylistLocal(String localId) =>
+      database.transaction(() async {
+        await (database.delete(
+          database.storedPlaylistTracks,
+        )..where((row) => row.playlistLocalId.equals(localId))).go();
+        await (database.delete(
+          database.storedPlaylists,
+        )..where((row) => row.localId.equals(localId))).go();
+      });
+
+  Future<void> attachRemoteIds(
+    String localId, {
+    required int listId,
+    String? globalCollectionId,
+  }) =>
+      (database.update(
+        database.storedPlaylists,
+      )..where((row) => row.localId.equals(localId))).write(
+        StoredPlaylistsCompanion(
+          remoteListId: Value(listId),
+          globalCollectionId: globalCollectionId == null
+              ? const Value.absent()
+              : Value(globalCollectionId),
+        ),
+      );
+
+  /// Optimistic membership change. Returns previous membership for rollback.
+  Future<({bool wasPresent, int? fileId, int previousCount})>
+  setTrackMembershipLocal(
+    String playlistLocalId,
+    Song song, {
+    required bool present,
+  }) => database.transaction(() async {
+    final playlistRow = await (database.select(
+      database.storedPlaylists,
+    )..where((row) => row.localId.equals(playlistLocalId))).getSingleOrNull();
+    if (playlistRow == null) {
+      throw StateError('歌单不存在：$playlistLocalId');
+    }
+    final existing =
+        await (database.select(database.storedPlaylistTracks)..where(
+              (row) =>
+                  row.playlistLocalId.equals(playlistLocalId) &
+                  row.songId.equals(song.id),
+            ))
+            .getSingleOrNull();
+    final wasPresent = existing != null;
+    if (wasPresent == present) {
+      return (
+        wasPresent: wasPresent,
+        fileId: existing?.fileId,
+        previousCount: playlistRow.count,
+      );
+    }
+
+    if (present) {
+      await _upsertSong(song);
+      final position = await _nextFrontPosition(playlistLocalId);
+      await database
+          .into(database.storedPlaylistTracks)
+          .insert(
+            StoredPlaylistTracksCompanion.insert(
+              playlistLocalId: playlistLocalId,
+              songId: song.id,
+              fileId: Value(song.fileId),
+              position: Value(position),
+            ),
+          );
+    } else {
+      await (database.delete(database.storedPlaylistTracks)..where(
+            (row) =>
+                row.playlistLocalId.equals(playlistLocalId) &
+                row.songId.equals(song.id),
+          ))
+          .go();
+    }
+
+    final nextCount = present
+        ? playlistRow.count + 1
+        : (playlistRow.count - 1).clamp(0, 1 << 31);
+    await (database.update(
+      database.storedPlaylists,
+    )..where((row) => row.localId.equals(playlistLocalId))).write(
+      StoredPlaylistsCompanion(count: Value(nextCount)),
+    );
+    return (
+      wasPresent: wasPresent,
+      fileId: existing?.fileId,
+      previousCount: playlistRow.count,
+    );
+  });
+
+  Future<void> restoreTrackMembership(
+    String playlistLocalId,
+    Song song, {
+    required bool present,
+    int? fileId,
+    required int count,
+  }) => database.transaction(() async {
+    await (database.delete(database.storedPlaylistTracks)..where(
+          (row) =>
+              row.playlistLocalId.equals(playlistLocalId) &
+              row.songId.equals(song.id),
+        ))
+        .go();
+    if (present) {
+      await _upsertSong(song);
+      final position = await _nextFrontPosition(playlistLocalId);
+      await database
+          .into(database.storedPlaylistTracks)
+          .insert(
+            StoredPlaylistTracksCompanion.insert(
+              playlistLocalId: playlistLocalId,
+              songId: song.id,
+              fileId: Value(fileId ?? song.fileId),
+              position: Value(position),
+            ),
+          );
+    }
+    await (database.update(
+      database.storedPlaylists,
+    )..where((row) => row.localId.equals(playlistLocalId))).write(
+      StoredPlaylistsCompanion(count: Value(count)),
+    );
+  });
+
+  Future<void> markTrackFileId(
+    String playlistLocalId,
+    String songId, {
+    int? fileId,
+  }) =>
+      (database.update(database.storedPlaylistTracks)..where(
+            (row) =>
+                row.playlistLocalId.equals(playlistLocalId) &
+                row.songId.equals(songId),
+          ))
+          .write(StoredPlaylistTracksCompanion(fileId: Value(fileId)));
+
+  Future<HistoryEntry> recordPlayed(Song song, {DateTime? playedAt}) =>
+      database.transaction(() async {
+        final existing = await (database.select(
+          database.storedSongs,
+        )..where((row) => row.id.equals(song.id))).getSingleOrNull();
+        final count = (existing?.playCount ?? 0) + 1;
+        final at = playedAt ?? DateTime.now();
+        await _upsertSong(song, lastPlayedAt: at, playCount: count);
+        return HistoryEntry(song: song, playedAt: at, playCount: count);
+      });
+
+  Future<int> _nextFrontPosition(String playlistLocalId) async {
+    final first =
+        await (database.select(database.storedPlaylistTracks)
+              ..where((row) => row.playlistLocalId.equals(playlistLocalId))
+              ..orderBy([(row) => OrderingTerm.asc(row.position)])
+              ..limit(1))
+            .getSingleOrNull();
+    // Remote snapshots use 0..n. Local inserts use decreasing negatives so
+    // newest-first stays O(1) without rewriting the whole list.
+    return first == null ? 0 : first.position - 1;
+  }
 
   Future<int> _playlistCount() async =>
       (await database.select(database.storedPlaylists).get()).length;
 
-  Future<void> _enqueue({
-    required String key,
-    required String operation,
-    required Map<String, Object?> payload,
+  Future<void> _upsertSong(
+    Song song, {
+    DateTime? lastPlayedAt,
+    int? playCount,
   }) async {
-    final existing = await _outbox(key);
-    final now = DateTime.now();
+    final existing = await (database.select(
+      database.storedSongs,
+    )..where((row) => row.id.equals(song.id))).getSingleOrNull();
     await database
-        .into(database.libraryOutbox)
+        .into(database.storedSongs)
         .insertOnConflictUpdate(
-          LibraryOutboxCompanion.insert(
-            dedupeKey: key,
-            operation: operation,
-            payload: jsonEncode(payload),
-            revision: Value((existing?.revision ?? 0) + 1),
-            attempts: const Value(0),
-            nextAttemptAt: const Value(null),
-            lastError: const Value(null),
-            createdAt: existing?.createdAt ?? now,
-            updatedAt: now,
+          StoredSongsCompanion.insert(
+            id: song.id,
+            title: song.title.isEmpty ? existing?.title ?? '未知歌曲' : song.title,
+            artist: Value(song.artist ?? existing?.artist),
+            album: Value(song.album ?? existing?.album),
+            durationSecs: Value(song.durationSecs ?? existing?.durationSecs),
+            artworkUrl: Value(song.artworkUrl ?? existing?.artworkUrl),
+            privilege: Value(song.privilege ?? existing?.privilege),
+            albumId: Value(song.albumId ?? existing?.albumId),
+            mixSongId: Value(song.mixSongId ?? existing?.mixSongId),
+            hashStandard: Value(song.hashes.standard ?? existing?.hashStandard),
+            hashHigh: Value(song.hashes.high ?? existing?.hashHigh),
+            hashFlac: Value(song.hashes.flac ?? existing?.hashFlac),
+            hashHiRes: Value(song.hashes.hiRes ?? existing?.hashHiRes),
+            hashSuper: Value(song.hashes.superHash ?? existing?.hashSuper),
+            lastPlayedAt: Value(lastPlayedAt ?? existing?.lastPlayedAt),
+            playCount: Value(playCount ?? existing?.playCount ?? 0),
           ),
         );
   }
-
-  Future<void> _deleteOutboxPrefix(String prefix) => (database.delete(
-    database.libraryOutbox,
-  )..where((row) => row.dedupeKey.like('$prefix%'))).go();
 }
 
 StoredPlaylistsCompanion _playlistCompanion(
-  LibraryPlaylist playlist, {
+  Playlist playlist, {
   int? sortOrder,
 }) => StoredPlaylistsCompanion.insert(
-  localId: playlist.localId,
-  remoteListId: Value(playlist.remoteListId),
+  localId: playlist.localId!,
+  remoteListId: Value(playlist.listId),
   globalCollectionId: Value(playlist.globalCollectionId),
   name: playlist.name,
   intro: Value(playlist.intro),
@@ -341,9 +506,9 @@ StoredPlaylistsCompanion _playlistCompanion(
   sortOrder: Value(sortOrder ?? 0),
 );
 
-LibraryPlaylist _playlistFromRow(StoredPlaylist row) => LibraryPlaylist(
+Playlist _playlistFromRow(StoredPlaylist row) => Playlist(
   localId: row.localId,
-  remoteListId: row.remoteListId,
+  listId: row.remoteListId,
   globalCollectionId: row.globalCollectionId,
   name: row.name,
   intro: row.intro,
@@ -378,14 +543,3 @@ Song _songFromRow(StoredSong row, {int? fileId}) => Song(
     superHash: row.hashSuper,
   ),
 );
-
-Map<String, Object?> _decodePayload(String payload) =>
-    (jsonDecode(payload) as Map).cast<String, Object?>();
-
-int _operationPriority(String operation) => switch (operation) {
-  LibraryOperation.playlistUpsert => 0,
-  LibraryOperation.playlistTrack => 1,
-  LibraryOperation.playlistDelete => 2,
-  LibraryOperation.history => 3,
-  _ => 4,
-};

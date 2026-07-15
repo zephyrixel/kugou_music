@@ -1092,21 +1092,6 @@ class $StoredPlaylistsTable extends StoredPlaylists
     ),
     defaultValue: const Constant(false),
   );
-  static const VerificationMeta _deletedMeta = const VerificationMeta(
-    'deleted',
-  );
-  @override
-  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
-    'deleted',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("deleted" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
   @override
   late final GeneratedColumn<String> tags = GeneratedColumn<String>(
@@ -1144,7 +1129,6 @@ class $StoredPlaylistsTable extends StoredPlaylists
     isMyFavorite,
     isDefaultCollect,
     tracksLoaded,
-    deleted,
     tags,
     sortOrder,
   ];
@@ -1269,12 +1253,6 @@ class $StoredPlaylistsTable extends StoredPlaylists
         ),
       );
     }
-    if (data.containsKey('deleted')) {
-      context.handle(
-        _deletedMeta,
-        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
-      );
-    }
     if (data.containsKey('tags')) {
       context.handle(
         _tagsMeta,
@@ -1352,10 +1330,6 @@ class $StoredPlaylistsTable extends StoredPlaylists
         DriftSqlType.bool,
         data['${effectivePrefix}tracks_loaded'],
       )!,
-      deleted: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}deleted'],
-      )!,
       tags: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}tags'],
@@ -1388,7 +1362,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
   final bool isMyFavorite;
   final bool isDefaultCollect;
   final bool tracksLoaded;
-  final bool deleted;
   final String? tags;
   final int sortOrder;
   const StoredPlaylist({
@@ -1406,7 +1379,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     required this.isMyFavorite,
     required this.isDefaultCollect,
     required this.tracksLoaded,
-    required this.deleted,
     this.tags,
     required this.sortOrder,
   });
@@ -1441,7 +1413,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     map['is_my_favorite'] = Variable<bool>(isMyFavorite);
     map['is_default_collect'] = Variable<bool>(isDefaultCollect);
     map['tracks_loaded'] = Variable<bool>(tracksLoaded);
-    map['deleted'] = Variable<bool>(deleted);
     if (!nullToAbsent || tags != null) {
       map['tags'] = Variable<String>(tags);
     }
@@ -1479,7 +1450,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       isMyFavorite: Value(isMyFavorite),
       isDefaultCollect: Value(isDefaultCollect),
       tracksLoaded: Value(tracksLoaded),
-      deleted: Value(deleted),
       tags: tags == null && nullToAbsent ? const Value.absent() : Value(tags),
       sortOrder: Value(sortOrder),
     );
@@ -1507,7 +1477,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       isMyFavorite: serializer.fromJson<bool>(json['isMyFavorite']),
       isDefaultCollect: serializer.fromJson<bool>(json['isDefaultCollect']),
       tracksLoaded: serializer.fromJson<bool>(json['tracksLoaded']),
-      deleted: serializer.fromJson<bool>(json['deleted']),
       tags: serializer.fromJson<String?>(json['tags']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
@@ -1530,7 +1499,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       'isMyFavorite': serializer.toJson<bool>(isMyFavorite),
       'isDefaultCollect': serializer.toJson<bool>(isDefaultCollect),
       'tracksLoaded': serializer.toJson<bool>(tracksLoaded),
-      'deleted': serializer.toJson<bool>(deleted),
       'tags': serializer.toJson<String?>(tags),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
@@ -1551,7 +1519,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     bool? isMyFavorite,
     bool? isDefaultCollect,
     bool? tracksLoaded,
-    bool? deleted,
     Value<String?> tags = const Value.absent(),
     int? sortOrder,
   }) => StoredPlaylist(
@@ -1573,7 +1540,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     isMyFavorite: isMyFavorite ?? this.isMyFavorite,
     isDefaultCollect: isDefaultCollect ?? this.isDefaultCollect,
     tracksLoaded: tracksLoaded ?? this.tracksLoaded,
-    deleted: deleted ?? this.deleted,
     tags: tags.present ? tags.value : this.tags,
     sortOrder: sortOrder ?? this.sortOrder,
   );
@@ -1609,7 +1575,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       tracksLoaded: data.tracksLoaded.present
           ? data.tracksLoaded.value
           : this.tracksLoaded,
-      deleted: data.deleted.present ? data.deleted.value : this.deleted,
       tags: data.tags.present ? data.tags.value : this.tags,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
@@ -1632,7 +1597,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           ..write('isMyFavorite: $isMyFavorite, ')
           ..write('isDefaultCollect: $isDefaultCollect, ')
           ..write('tracksLoaded: $tracksLoaded, ')
-          ..write('deleted: $deleted, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -1655,7 +1619,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     isMyFavorite,
     isDefaultCollect,
     tracksLoaded,
-    deleted,
     tags,
     sortOrder,
   );
@@ -1677,7 +1640,6 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           other.isMyFavorite == this.isMyFavorite &&
           other.isDefaultCollect == this.isDefaultCollect &&
           other.tracksLoaded == this.tracksLoaded &&
-          other.deleted == this.deleted &&
           other.tags == this.tags &&
           other.sortOrder == this.sortOrder);
 }
@@ -1697,7 +1659,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
   final Value<bool> isMyFavorite;
   final Value<bool> isDefaultCollect;
   final Value<bool> tracksLoaded;
-  final Value<bool> deleted;
   final Value<String?> tags;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -1716,7 +1677,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.isMyFavorite = const Value.absent(),
     this.isDefaultCollect = const Value.absent(),
     this.tracksLoaded = const Value.absent(),
-    this.deleted = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1736,7 +1696,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.isMyFavorite = const Value.absent(),
     this.isDefaultCollect = const Value.absent(),
     this.tracksLoaded = const Value.absent(),
-    this.deleted = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1757,7 +1716,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Expression<bool>? isMyFavorite,
     Expression<bool>? isDefaultCollect,
     Expression<bool>? tracksLoaded,
-    Expression<bool>? deleted,
     Expression<String>? tags,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -1778,7 +1736,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
       if (isMyFavorite != null) 'is_my_favorite': isMyFavorite,
       if (isDefaultCollect != null) 'is_default_collect': isDefaultCollect,
       if (tracksLoaded != null) 'tracks_loaded': tracksLoaded,
-      if (deleted != null) 'deleted': deleted,
       if (tags != null) 'tags': tags,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
@@ -1800,7 +1757,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Value<bool>? isMyFavorite,
     Value<bool>? isDefaultCollect,
     Value<bool>? tracksLoaded,
-    Value<bool>? deleted,
     Value<String?>? tags,
     Value<int>? sortOrder,
     Value<int>? rowid,
@@ -1820,7 +1776,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
       isMyFavorite: isMyFavorite ?? this.isMyFavorite,
       isDefaultCollect: isDefaultCollect ?? this.isDefaultCollect,
       tracksLoaded: tracksLoaded ?? this.tracksLoaded,
-      deleted: deleted ?? this.deleted,
       tags: tags ?? this.tags,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
@@ -1872,9 +1827,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     if (tracksLoaded.present) {
       map['tracks_loaded'] = Variable<bool>(tracksLoaded.value);
     }
-    if (deleted.present) {
-      map['deleted'] = Variable<bool>(deleted.value);
-    }
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
@@ -1904,7 +1856,6 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
           ..write('isMyFavorite: $isMyFavorite, ')
           ..write('isDefaultCollect: $isDefaultCollect, ')
           ..write('tracksLoaded: $tracksLoaded, ')
-          ..write('deleted: $deleted, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -1960,28 +1911,12 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
-  static const VerificationMeta _remotePresentMeta = const VerificationMeta(
-    'remotePresent',
-  );
-  @override
-  late final GeneratedColumn<bool> remotePresent = GeneratedColumn<bool>(
-    'remote_present',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("remote_present" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
   @override
   List<GeneratedColumn> get $columns => [
     playlistLocalId,
     songId,
     fileId,
     position,
-    remotePresent,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2026,15 +1961,6 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
         position.isAcceptableOrUnknown(data['position']!, _positionMeta),
       );
     }
-    if (data.containsKey('remote_present')) {
-      context.handle(
-        _remotePresentMeta,
-        remotePresent.isAcceptableOrUnknown(
-          data['remote_present']!,
-          _remotePresentMeta,
-        ),
-      );
-    }
     return context;
   }
 
@@ -2060,10 +1986,6 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
         DriftSqlType.int,
         data['${effectivePrefix}position'],
       )!,
-      remotePresent: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}remote_present'],
-      )!,
     );
   }
 
@@ -2079,13 +2001,11 @@ class StoredPlaylistTrack extends DataClass
   final String songId;
   final int? fileId;
   final int position;
-  final bool remotePresent;
   const StoredPlaylistTrack({
     required this.playlistLocalId,
     required this.songId,
     this.fileId,
     required this.position,
-    required this.remotePresent,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2096,7 +2016,6 @@ class StoredPlaylistTrack extends DataClass
       map['file_id'] = Variable<int>(fileId);
     }
     map['position'] = Variable<int>(position);
-    map['remote_present'] = Variable<bool>(remotePresent);
     return map;
   }
 
@@ -2108,7 +2027,6 @@ class StoredPlaylistTrack extends DataClass
           ? const Value.absent()
           : Value(fileId),
       position: Value(position),
-      remotePresent: Value(remotePresent),
     );
   }
 
@@ -2122,7 +2040,6 @@ class StoredPlaylistTrack extends DataClass
       songId: serializer.fromJson<String>(json['songId']),
       fileId: serializer.fromJson<int?>(json['fileId']),
       position: serializer.fromJson<int>(json['position']),
-      remotePresent: serializer.fromJson<bool>(json['remotePresent']),
     );
   }
   @override
@@ -2133,7 +2050,6 @@ class StoredPlaylistTrack extends DataClass
       'songId': serializer.toJson<String>(songId),
       'fileId': serializer.toJson<int?>(fileId),
       'position': serializer.toJson<int>(position),
-      'remotePresent': serializer.toJson<bool>(remotePresent),
     };
   }
 
@@ -2142,13 +2058,11 @@ class StoredPlaylistTrack extends DataClass
     String? songId,
     Value<int?> fileId = const Value.absent(),
     int? position,
-    bool? remotePresent,
   }) => StoredPlaylistTrack(
     playlistLocalId: playlistLocalId ?? this.playlistLocalId,
     songId: songId ?? this.songId,
     fileId: fileId.present ? fileId.value : this.fileId,
     position: position ?? this.position,
-    remotePresent: remotePresent ?? this.remotePresent,
   );
   StoredPlaylistTrack copyWithCompanion(StoredPlaylistTracksCompanion data) {
     return StoredPlaylistTrack(
@@ -2158,9 +2072,6 @@ class StoredPlaylistTrack extends DataClass
       songId: data.songId.present ? data.songId.value : this.songId,
       fileId: data.fileId.present ? data.fileId.value : this.fileId,
       position: data.position.present ? data.position.value : this.position,
-      remotePresent: data.remotePresent.present
-          ? data.remotePresent.value
-          : this.remotePresent,
     );
   }
 
@@ -2170,15 +2081,13 @@ class StoredPlaylistTrack extends DataClass
           ..write('playlistLocalId: $playlistLocalId, ')
           ..write('songId: $songId, ')
           ..write('fileId: $fileId, ')
-          ..write('position: $position, ')
-          ..write('remotePresent: $remotePresent')
+          ..write('position: $position')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(playlistLocalId, songId, fileId, position, remotePresent);
+  int get hashCode => Object.hash(playlistLocalId, songId, fileId, position);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2186,8 +2095,7 @@ class StoredPlaylistTrack extends DataClass
           other.playlistLocalId == this.playlistLocalId &&
           other.songId == this.songId &&
           other.fileId == this.fileId &&
-          other.position == this.position &&
-          other.remotePresent == this.remotePresent);
+          other.position == this.position);
 }
 
 class StoredPlaylistTracksCompanion
@@ -2196,14 +2104,12 @@ class StoredPlaylistTracksCompanion
   final Value<String> songId;
   final Value<int?> fileId;
   final Value<int> position;
-  final Value<bool> remotePresent;
   final Value<int> rowid;
   const StoredPlaylistTracksCompanion({
     this.playlistLocalId = const Value.absent(),
     this.songId = const Value.absent(),
     this.fileId = const Value.absent(),
     this.position = const Value.absent(),
-    this.remotePresent = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   StoredPlaylistTracksCompanion.insert({
@@ -2211,7 +2117,6 @@ class StoredPlaylistTracksCompanion
     required String songId,
     this.fileId = const Value.absent(),
     this.position = const Value.absent(),
-    this.remotePresent = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : playlistLocalId = Value(playlistLocalId),
        songId = Value(songId);
@@ -2220,7 +2125,6 @@ class StoredPlaylistTracksCompanion
     Expression<String>? songId,
     Expression<int>? fileId,
     Expression<int>? position,
-    Expression<bool>? remotePresent,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2228,7 +2132,6 @@ class StoredPlaylistTracksCompanion
       if (songId != null) 'song_id': songId,
       if (fileId != null) 'file_id': fileId,
       if (position != null) 'position': position,
-      if (remotePresent != null) 'remote_present': remotePresent,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2238,7 +2141,6 @@ class StoredPlaylistTracksCompanion
     Value<String>? songId,
     Value<int?>? fileId,
     Value<int>? position,
-    Value<bool>? remotePresent,
     Value<int>? rowid,
   }) {
     return StoredPlaylistTracksCompanion(
@@ -2246,7 +2148,6 @@ class StoredPlaylistTracksCompanion
       songId: songId ?? this.songId,
       fileId: fileId ?? this.fileId,
       position: position ?? this.position,
-      remotePresent: remotePresent ?? this.remotePresent,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2266,9 +2167,6 @@ class StoredPlaylistTracksCompanion
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
-    if (remotePresent.present) {
-      map['remote_present'] = Variable<bool>(remotePresent.value);
-    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2282,579 +2180,6 @@ class StoredPlaylistTracksCompanion
           ..write('songId: $songId, ')
           ..write('fileId: $fileId, ')
           ..write('position: $position, ')
-          ..write('remotePresent: $remotePresent, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $LibraryOutboxTable extends LibraryOutbox
-    with TableInfo<$LibraryOutboxTable, LibraryOutboxData> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $LibraryOutboxTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _dedupeKeyMeta = const VerificationMeta(
-    'dedupeKey',
-  );
-  @override
-  late final GeneratedColumn<String> dedupeKey = GeneratedColumn<String>(
-    'dedupe_key',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _operationMeta = const VerificationMeta(
-    'operation',
-  );
-  @override
-  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
-    'operation',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _payloadMeta = const VerificationMeta(
-    'payload',
-  );
-  @override
-  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
-    'payload',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _revisionMeta = const VerificationMeta(
-    'revision',
-  );
-  @override
-  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
-    'revision',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  );
-  static const VerificationMeta _attemptsMeta = const VerificationMeta(
-    'attempts',
-  );
-  @override
-  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
-    'attempts',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _nextAttemptAtMeta = const VerificationMeta(
-    'nextAttemptAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> nextAttemptAt =
-      GeneratedColumn<DateTime>(
-        'next_attempt_at',
-        aliasedName,
-        true,
-        type: DriftSqlType.dateTime,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _lastErrorMeta = const VerificationMeta(
-    'lastError',
-  );
-  @override
-  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
-    'last_error',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    dedupeKey,
-    operation,
-    payload,
-    revision,
-    attempts,
-    nextAttemptAt,
-    lastError,
-    createdAt,
-    updatedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'library_outbox';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<LibraryOutboxData> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('dedupe_key')) {
-      context.handle(
-        _dedupeKeyMeta,
-        dedupeKey.isAcceptableOrUnknown(data['dedupe_key']!, _dedupeKeyMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_dedupeKeyMeta);
-    }
-    if (data.containsKey('operation')) {
-      context.handle(
-        _operationMeta,
-        operation.isAcceptableOrUnknown(data['operation']!, _operationMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_operationMeta);
-    }
-    if (data.containsKey('payload')) {
-      context.handle(
-        _payloadMeta,
-        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_payloadMeta);
-    }
-    if (data.containsKey('revision')) {
-      context.handle(
-        _revisionMeta,
-        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
-      );
-    }
-    if (data.containsKey('attempts')) {
-      context.handle(
-        _attemptsMeta,
-        attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta),
-      );
-    }
-    if (data.containsKey('next_attempt_at')) {
-      context.handle(
-        _nextAttemptAtMeta,
-        nextAttemptAt.isAcceptableOrUnknown(
-          data['next_attempt_at']!,
-          _nextAttemptAtMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_error')) {
-      context.handle(
-        _lastErrorMeta,
-        lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {dedupeKey};
-  @override
-  LibraryOutboxData map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return LibraryOutboxData(
-      dedupeKey: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}dedupe_key'],
-      )!,
-      operation: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}operation'],
-      )!,
-      payload: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}payload'],
-      )!,
-      revision: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}revision'],
-      )!,
-      attempts: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}attempts'],
-      )!,
-      nextAttemptAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}next_attempt_at'],
-      ),
-      lastError: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}last_error'],
-      ),
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-    );
-  }
-
-  @override
-  $LibraryOutboxTable createAlias(String alias) {
-    return $LibraryOutboxTable(attachedDatabase, alias);
-  }
-}
-
-class LibraryOutboxData extends DataClass
-    implements Insertable<LibraryOutboxData> {
-  final String dedupeKey;
-  final String operation;
-  final String payload;
-  final int revision;
-  final int attempts;
-  final DateTime? nextAttemptAt;
-  final String? lastError;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  const LibraryOutboxData({
-    required this.dedupeKey,
-    required this.operation,
-    required this.payload,
-    required this.revision,
-    required this.attempts,
-    this.nextAttemptAt,
-    this.lastError,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['dedupe_key'] = Variable<String>(dedupeKey);
-    map['operation'] = Variable<String>(operation);
-    map['payload'] = Variable<String>(payload);
-    map['revision'] = Variable<int>(revision);
-    map['attempts'] = Variable<int>(attempts);
-    if (!nullToAbsent || nextAttemptAt != null) {
-      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
-    }
-    if (!nullToAbsent || lastError != null) {
-      map['last_error'] = Variable<String>(lastError);
-    }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  LibraryOutboxCompanion toCompanion(bool nullToAbsent) {
-    return LibraryOutboxCompanion(
-      dedupeKey: Value(dedupeKey),
-      operation: Value(operation),
-      payload: Value(payload),
-      revision: Value(revision),
-      attempts: Value(attempts),
-      nextAttemptAt: nextAttemptAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(nextAttemptAt),
-      lastError: lastError == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastError),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory LibraryOutboxData.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return LibraryOutboxData(
-      dedupeKey: serializer.fromJson<String>(json['dedupeKey']),
-      operation: serializer.fromJson<String>(json['operation']),
-      payload: serializer.fromJson<String>(json['payload']),
-      revision: serializer.fromJson<int>(json['revision']),
-      attempts: serializer.fromJson<int>(json['attempts']),
-      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
-      lastError: serializer.fromJson<String?>(json['lastError']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'dedupeKey': serializer.toJson<String>(dedupeKey),
-      'operation': serializer.toJson<String>(operation),
-      'payload': serializer.toJson<String>(payload),
-      'revision': serializer.toJson<int>(revision),
-      'attempts': serializer.toJson<int>(attempts),
-      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
-      'lastError': serializer.toJson<String?>(lastError),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  LibraryOutboxData copyWith({
-    String? dedupeKey,
-    String? operation,
-    String? payload,
-    int? revision,
-    int? attempts,
-    Value<DateTime?> nextAttemptAt = const Value.absent(),
-    Value<String?> lastError = const Value.absent(),
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) => LibraryOutboxData(
-    dedupeKey: dedupeKey ?? this.dedupeKey,
-    operation: operation ?? this.operation,
-    payload: payload ?? this.payload,
-    revision: revision ?? this.revision,
-    attempts: attempts ?? this.attempts,
-    nextAttemptAt: nextAttemptAt.present
-        ? nextAttemptAt.value
-        : this.nextAttemptAt,
-    lastError: lastError.present ? lastError.value : this.lastError,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
-  LibraryOutboxData copyWithCompanion(LibraryOutboxCompanion data) {
-    return LibraryOutboxData(
-      dedupeKey: data.dedupeKey.present ? data.dedupeKey.value : this.dedupeKey,
-      operation: data.operation.present ? data.operation.value : this.operation,
-      payload: data.payload.present ? data.payload.value : this.payload,
-      revision: data.revision.present ? data.revision.value : this.revision,
-      attempts: data.attempts.present ? data.attempts.value : this.attempts,
-      nextAttemptAt: data.nextAttemptAt.present
-          ? data.nextAttemptAt.value
-          : this.nextAttemptAt,
-      lastError: data.lastError.present ? data.lastError.value : this.lastError,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('LibraryOutboxData(')
-          ..write('dedupeKey: $dedupeKey, ')
-          ..write('operation: $operation, ')
-          ..write('payload: $payload, ')
-          ..write('revision: $revision, ')
-          ..write('attempts: $attempts, ')
-          ..write('nextAttemptAt: $nextAttemptAt, ')
-          ..write('lastError: $lastError, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    dedupeKey,
-    operation,
-    payload,
-    revision,
-    attempts,
-    nextAttemptAt,
-    lastError,
-    createdAt,
-    updatedAt,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is LibraryOutboxData &&
-          other.dedupeKey == this.dedupeKey &&
-          other.operation == this.operation &&
-          other.payload == this.payload &&
-          other.revision == this.revision &&
-          other.attempts == this.attempts &&
-          other.nextAttemptAt == this.nextAttemptAt &&
-          other.lastError == this.lastError &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
-}
-
-class LibraryOutboxCompanion extends UpdateCompanion<LibraryOutboxData> {
-  final Value<String> dedupeKey;
-  final Value<String> operation;
-  final Value<String> payload;
-  final Value<int> revision;
-  final Value<int> attempts;
-  final Value<DateTime?> nextAttemptAt;
-  final Value<String?> lastError;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  final Value<int> rowid;
-  const LibraryOutboxCompanion({
-    this.dedupeKey = const Value.absent(),
-    this.operation = const Value.absent(),
-    this.payload = const Value.absent(),
-    this.revision = const Value.absent(),
-    this.attempts = const Value.absent(),
-    this.nextAttemptAt = const Value.absent(),
-    this.lastError = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  LibraryOutboxCompanion.insert({
-    required String dedupeKey,
-    required String operation,
-    required String payload,
-    this.revision = const Value.absent(),
-    this.attempts = const Value.absent(),
-    this.nextAttemptAt = const Value.absent(),
-    this.lastError = const Value.absent(),
-    required DateTime createdAt,
-    required DateTime updatedAt,
-    this.rowid = const Value.absent(),
-  }) : dedupeKey = Value(dedupeKey),
-       operation = Value(operation),
-       payload = Value(payload),
-       createdAt = Value(createdAt),
-       updatedAt = Value(updatedAt);
-  static Insertable<LibraryOutboxData> custom({
-    Expression<String>? dedupeKey,
-    Expression<String>? operation,
-    Expression<String>? payload,
-    Expression<int>? revision,
-    Expression<int>? attempts,
-    Expression<DateTime>? nextAttemptAt,
-    Expression<String>? lastError,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (dedupeKey != null) 'dedupe_key': dedupeKey,
-      if (operation != null) 'operation': operation,
-      if (payload != null) 'payload': payload,
-      if (revision != null) 'revision': revision,
-      if (attempts != null) 'attempts': attempts,
-      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
-      if (lastError != null) 'last_error': lastError,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  LibraryOutboxCompanion copyWith({
-    Value<String>? dedupeKey,
-    Value<String>? operation,
-    Value<String>? payload,
-    Value<int>? revision,
-    Value<int>? attempts,
-    Value<DateTime?>? nextAttemptAt,
-    Value<String?>? lastError,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
-    Value<int>? rowid,
-  }) {
-    return LibraryOutboxCompanion(
-      dedupeKey: dedupeKey ?? this.dedupeKey,
-      operation: operation ?? this.operation,
-      payload: payload ?? this.payload,
-      revision: revision ?? this.revision,
-      attempts: attempts ?? this.attempts,
-      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
-      lastError: lastError ?? this.lastError,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (dedupeKey.present) {
-      map['dedupe_key'] = Variable<String>(dedupeKey.value);
-    }
-    if (operation.present) {
-      map['operation'] = Variable<String>(operation.value);
-    }
-    if (payload.present) {
-      map['payload'] = Variable<String>(payload.value);
-    }
-    if (revision.present) {
-      map['revision'] = Variable<int>(revision.value);
-    }
-    if (attempts.present) {
-      map['attempts'] = Variable<int>(attempts.value);
-    }
-    if (nextAttemptAt.present) {
-      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
-    }
-    if (lastError.present) {
-      map['last_error'] = Variable<String>(lastError.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('LibraryOutboxCompanion(')
-          ..write('dedupeKey: $dedupeKey, ')
-          ..write('operation: $operation, ')
-          ..write('payload: $payload, ')
-          ..write('revision: $revision, ')
-          ..write('attempts: $attempts, ')
-          ..write('nextAttemptAt: $nextAttemptAt, ')
-          ..write('lastError: $lastError, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3687,7 +3012,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $StoredPlaylistTracksTable storedPlaylistTracks =
       $StoredPlaylistTracksTable(this);
-  late final $LibraryOutboxTable libraryOutbox = $LibraryOutboxTable(this);
   late final $LibrarySyncStatesTable librarySyncStates =
       $LibrarySyncStatesTable(this);
   late final $CachedResponsesTable cachedResponses = $CachedResponsesTable(
@@ -3701,7 +3025,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     storedSongs,
     storedPlaylists,
     storedPlaylistTracks,
-    libraryOutbox,
     librarySyncStates,
     cachedResponses,
   ];
@@ -4140,7 +3463,6 @@ typedef $$StoredPlaylistsTableCreateCompanionBuilder =
       Value<bool> isMyFavorite,
       Value<bool> isDefaultCollect,
       Value<bool> tracksLoaded,
-      Value<bool> deleted,
       Value<String?> tags,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -4161,7 +3483,6 @@ typedef $$StoredPlaylistsTableUpdateCompanionBuilder =
       Value<bool> isMyFavorite,
       Value<bool> isDefaultCollect,
       Value<bool> tracksLoaded,
-      Value<bool> deleted,
       Value<String?> tags,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -4243,11 +3564,6 @@ class $$StoredPlaylistsTableFilterComposer
 
   ColumnFilters<bool> get tracksLoaded => $composableBuilder(
     column: $table.tracksLoaded,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get deleted => $composableBuilder(
-    column: $table.deleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4341,11 +3657,6 @@ class $$StoredPlaylistsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<bool> get deleted => $composableBuilder(
-    column: $table.deleted,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get tags => $composableBuilder(
     column: $table.tags,
     builder: (column) => ColumnOrderings(column),
@@ -4424,9 +3735,6 @@ class $$StoredPlaylistsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<bool> get deleted =>
-      $composableBuilder(column: $table.deleted, builder: (column) => column);
-
   GeneratedColumn<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
 
@@ -4485,7 +3793,6 @@ class $$StoredPlaylistsTableTableManager
                 Value<bool> isMyFavorite = const Value.absent(),
                 Value<bool> isDefaultCollect = const Value.absent(),
                 Value<bool> tracksLoaded = const Value.absent(),
-                Value<bool> deleted = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4504,7 +3811,6 @@ class $$StoredPlaylistsTableTableManager
                 isMyFavorite: isMyFavorite,
                 isDefaultCollect: isDefaultCollect,
                 tracksLoaded: tracksLoaded,
-                deleted: deleted,
                 tags: tags,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -4525,7 +3831,6 @@ class $$StoredPlaylistsTableTableManager
                 Value<bool> isMyFavorite = const Value.absent(),
                 Value<bool> isDefaultCollect = const Value.absent(),
                 Value<bool> tracksLoaded = const Value.absent(),
-                Value<bool> deleted = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4544,7 +3849,6 @@ class $$StoredPlaylistsTableTableManager
                 isMyFavorite: isMyFavorite,
                 isDefaultCollect: isDefaultCollect,
                 tracksLoaded: tracksLoaded,
-                deleted: deleted,
                 tags: tags,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -4580,7 +3884,6 @@ typedef $$StoredPlaylistTracksTableCreateCompanionBuilder =
       required String songId,
       Value<int?> fileId,
       Value<int> position,
-      Value<bool> remotePresent,
       Value<int> rowid,
     });
 typedef $$StoredPlaylistTracksTableUpdateCompanionBuilder =
@@ -4589,7 +3892,6 @@ typedef $$StoredPlaylistTracksTableUpdateCompanionBuilder =
       Value<String> songId,
       Value<int?> fileId,
       Value<int> position,
-      Value<bool> remotePresent,
       Value<int> rowid,
     });
 
@@ -4619,11 +3921,6 @@ class $$StoredPlaylistTracksTableFilterComposer
 
   ColumnFilters<int> get position => $composableBuilder(
     column: $table.position,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get remotePresent => $composableBuilder(
-    column: $table.remotePresent,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4656,11 +3953,6 @@ class $$StoredPlaylistTracksTableOrderingComposer
     column: $table.position,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<bool> get remotePresent => $composableBuilder(
-    column: $table.remotePresent,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$StoredPlaylistTracksTableAnnotationComposer
@@ -4685,11 +3977,6 @@ class $$StoredPlaylistTracksTableAnnotationComposer
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
-
-  GeneratedColumn<bool> get remotePresent => $composableBuilder(
-    column: $table.remotePresent,
-    builder: (column) => column,
-  );
 }
 
 class $$StoredPlaylistTracksTableTableManager
@@ -4739,14 +4026,12 @@ class $$StoredPlaylistTracksTableTableManager
                 Value<String> songId = const Value.absent(),
                 Value<int?> fileId = const Value.absent(),
                 Value<int> position = const Value.absent(),
-                Value<bool> remotePresent = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StoredPlaylistTracksCompanion(
                 playlistLocalId: playlistLocalId,
                 songId: songId,
                 fileId: fileId,
                 position: position,
-                remotePresent: remotePresent,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4755,14 +4040,12 @@ class $$StoredPlaylistTracksTableTableManager
                 required String songId,
                 Value<int?> fileId = const Value.absent(),
                 Value<int> position = const Value.absent(),
-                Value<bool> remotePresent = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StoredPlaylistTracksCompanion.insert(
                 playlistLocalId: playlistLocalId,
                 songId: songId,
                 fileId: fileId,
                 position: position,
-                remotePresent: remotePresent,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4792,288 +4075,6 @@ typedef $$StoredPlaylistTracksTableProcessedTableManager =
         >,
       ),
       StoredPlaylistTrack,
-      PrefetchHooks Function()
-    >;
-typedef $$LibraryOutboxTableCreateCompanionBuilder =
-    LibraryOutboxCompanion Function({
-      required String dedupeKey,
-      required String operation,
-      required String payload,
-      Value<int> revision,
-      Value<int> attempts,
-      Value<DateTime?> nextAttemptAt,
-      Value<String?> lastError,
-      required DateTime createdAt,
-      required DateTime updatedAt,
-      Value<int> rowid,
-    });
-typedef $$LibraryOutboxTableUpdateCompanionBuilder =
-    LibraryOutboxCompanion Function({
-      Value<String> dedupeKey,
-      Value<String> operation,
-      Value<String> payload,
-      Value<int> revision,
-      Value<int> attempts,
-      Value<DateTime?> nextAttemptAt,
-      Value<String?> lastError,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-      Value<int> rowid,
-    });
-
-class $$LibraryOutboxTableFilterComposer
-    extends Composer<_$AppDatabase, $LibraryOutboxTable> {
-  $$LibraryOutboxTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get dedupeKey => $composableBuilder(
-    column: $table.dedupeKey,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get operation => $composableBuilder(
-    column: $table.operation,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get payload => $composableBuilder(
-    column: $table.payload,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get revision => $composableBuilder(
-    column: $table.revision,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get attempts => $composableBuilder(
-    column: $table.attempts,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
-    column: $table.nextAttemptAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get lastError => $composableBuilder(
-    column: $table.lastError,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-}
-
-class $$LibraryOutboxTableOrderingComposer
-    extends Composer<_$AppDatabase, $LibraryOutboxTable> {
-  $$LibraryOutboxTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get dedupeKey => $composableBuilder(
-    column: $table.dedupeKey,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get operation => $composableBuilder(
-    column: $table.operation,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get payload => $composableBuilder(
-    column: $table.payload,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get revision => $composableBuilder(
-    column: $table.revision,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get attempts => $composableBuilder(
-    column: $table.attempts,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
-    column: $table.nextAttemptAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get lastError => $composableBuilder(
-    column: $table.lastError,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$LibraryOutboxTableAnnotationComposer
-    extends Composer<_$AppDatabase, $LibraryOutboxTable> {
-  $$LibraryOutboxTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get dedupeKey =>
-      $composableBuilder(column: $table.dedupeKey, builder: (column) => column);
-
-  GeneratedColumn<String> get operation =>
-      $composableBuilder(column: $table.operation, builder: (column) => column);
-
-  GeneratedColumn<String> get payload =>
-      $composableBuilder(column: $table.payload, builder: (column) => column);
-
-  GeneratedColumn<int> get revision =>
-      $composableBuilder(column: $table.revision, builder: (column) => column);
-
-  GeneratedColumn<int> get attempts =>
-      $composableBuilder(column: $table.attempts, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
-    column: $table.nextAttemptAt,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get lastError =>
-      $composableBuilder(column: $table.lastError, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-}
-
-class $$LibraryOutboxTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $LibraryOutboxTable,
-          LibraryOutboxData,
-          $$LibraryOutboxTableFilterComposer,
-          $$LibraryOutboxTableOrderingComposer,
-          $$LibraryOutboxTableAnnotationComposer,
-          $$LibraryOutboxTableCreateCompanionBuilder,
-          $$LibraryOutboxTableUpdateCompanionBuilder,
-          (
-            LibraryOutboxData,
-            BaseReferences<
-              _$AppDatabase,
-              $LibraryOutboxTable,
-              LibraryOutboxData
-            >,
-          ),
-          LibraryOutboxData,
-          PrefetchHooks Function()
-        > {
-  $$LibraryOutboxTableTableManager(_$AppDatabase db, $LibraryOutboxTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$LibraryOutboxTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$LibraryOutboxTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$LibraryOutboxTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> dedupeKey = const Value.absent(),
-                Value<String> operation = const Value.absent(),
-                Value<String> payload = const Value.absent(),
-                Value<int> revision = const Value.absent(),
-                Value<int> attempts = const Value.absent(),
-                Value<DateTime?> nextAttemptAt = const Value.absent(),
-                Value<String?> lastError = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => LibraryOutboxCompanion(
-                dedupeKey: dedupeKey,
-                operation: operation,
-                payload: payload,
-                revision: revision,
-                attempts: attempts,
-                nextAttemptAt: nextAttemptAt,
-                lastError: lastError,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String dedupeKey,
-                required String operation,
-                required String payload,
-                Value<int> revision = const Value.absent(),
-                Value<int> attempts = const Value.absent(),
-                Value<DateTime?> nextAttemptAt = const Value.absent(),
-                Value<String?> lastError = const Value.absent(),
-                required DateTime createdAt,
-                required DateTime updatedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => LibraryOutboxCompanion.insert(
-                dedupeKey: dedupeKey,
-                operation: operation,
-                payload: payload,
-                revision: revision,
-                attempts: attempts,
-                nextAttemptAt: nextAttemptAt,
-                lastError: lastError,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ),
-      );
-}
-
-typedef $$LibraryOutboxTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $LibraryOutboxTable,
-      LibraryOutboxData,
-      $$LibraryOutboxTableFilterComposer,
-      $$LibraryOutboxTableOrderingComposer,
-      $$LibraryOutboxTableAnnotationComposer,
-      $$LibraryOutboxTableCreateCompanionBuilder,
-      $$LibraryOutboxTableUpdateCompanionBuilder,
-      (
-        LibraryOutboxData,
-        BaseReferences<_$AppDatabase, $LibraryOutboxTable, LibraryOutboxData>,
-      ),
-      LibraryOutboxData,
       PrefetchHooks Function()
     >;
 typedef $$LibrarySyncStatesTableCreateCompanionBuilder =
@@ -5530,8 +4531,6 @@ class $AppDatabaseManager {
       $$StoredPlaylistsTableTableManager(_db, _db.storedPlaylists);
   $$StoredPlaylistTracksTableTableManager get storedPlaylistTracks =>
       $$StoredPlaylistTracksTableTableManager(_db, _db.storedPlaylistTracks);
-  $$LibraryOutboxTableTableManager get libraryOutbox =>
-      $$LibraryOutboxTableTableManager(_db, _db.libraryOutbox);
   $$LibrarySyncStatesTableTableManager get librarySyncStates =>
       $$LibrarySyncStatesTableTableManager(_db, _db.librarySyncStates);
   $$CachedResponsesTableTableManager get cachedResponses =>

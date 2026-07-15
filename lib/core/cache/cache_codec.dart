@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:kgmusic/core/models/account.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 

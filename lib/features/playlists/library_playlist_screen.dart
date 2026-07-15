@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
-import 'package:kgmusic/core/library/library_models.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
@@ -13,7 +14,7 @@ import 'package:kgmusic/features/playlists/playlist_header.dart';
 class LibraryPlaylistScreen extends ConsumerStatefulWidget {
   const LibraryPlaylistScreen({super.key, required this.playlist});
 
-  final LibraryPlaylist playlist;
+  final Playlist playlist;
 
   @override
   ConsumerState<LibraryPlaylistScreen> createState() =>
@@ -39,7 +40,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     try {
       await ref
           .read(libraryRepositoryProvider)
-          .ensurePlaylistLoaded(widget.playlist.localId, force: force);
+          .ensurePlaylistLoaded(widget.playlist.localId!, force: force);
     } catch (error) {
       if (mounted) setState(() => _loadError = error);
     } finally {
@@ -55,7 +56,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         .firstOrNull;
     final playlist = current ?? widget.playlist;
     final tracks = ref.watch(
-      libraryPlaylistTracksProvider(widget.playlist.localId),
+      libraryPlaylistTracksProvider(widget.playlist.localId!),
     );
     final songs = tracks.value ?? const <Song>[];
 
@@ -106,9 +107,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
                   child: FilledButton.icon(
                     onPressed: songs.isEmpty
                         ? null
-                        : () => ref
-                              .read(audioHandlerProvider)
-                              .playSong(songs.first, queueSongs: songs),
+                        : () => playSong(context, ref, songs.first, queue: songs),
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: const Text('播放全部'),
                   ),
@@ -138,15 +137,13 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
                   return SongTile(
                     song: song,
                     index: index + 1,
-                    onTap: () => ref
-                        .read(audioHandlerProvider)
-                        .playSong(song, queueSongs: songs),
+                    onTap: () => playSong(context, ref, song, queue: songs),
                     trailing: SongTileActions(
                       song: song,
                       onRemove: playlist.isWritable
                           ? () => ref
                                 .read(libraryRepositoryProvider)
-                                .removeSong(playlist.localId, song)
+                                .removeSong(playlist.localId!, song)
                           : null,
                     ),
                   );
@@ -159,7 +156,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     );
   }
 
-  Future<void> _edit(LibraryPlaylist playlist) async {
+  Future<void> _edit(Playlist playlist) async {
     final name = TextEditingController(text: playlist.name);
     final intro = TextEditingController(text: playlist.intro);
     final tags = TextEditingController(text: playlist.tags);
@@ -218,7 +215,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     await ref
         .read(libraryRepositoryProvider)
         .editPlaylist(
-          playlist.localId,
+          playlist.localId!,
           name: nextName,
           intro: nextIntro,
           tags: nextTags,
@@ -226,12 +223,12 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         );
   }
 
-  Future<void> _delete(LibraryPlaylist playlist) async {
+  Future<void> _delete(Playlist playlist) async {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(playlist.isCollected ? '取消收藏歌单？' : '删除歌单？'),
-        content: const Text('操作会立即在本机生效，并在后台同步到云端。'),
+        content: const Text('操作会写入本机并同步到云端。'),
         actions: [
           TextButton(
             onPressed: () => context.pop(false),
@@ -245,7 +242,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
       ),
     );
     if (accepted != true) return;
-    await ref.read(libraryRepositoryProvider).deletePlaylist(playlist.localId);
+    await ref.read(libraryRepositoryProvider).deletePlaylist(playlist.localId!);
     if (mounted) context.pop();
   }
 }

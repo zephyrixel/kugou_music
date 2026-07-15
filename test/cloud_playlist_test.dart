@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 
 void main() {
   test('my favorite is a protected writable system playlist', () {
-    const playlist = CloudPlaylist(
+    const playlist = Playlist(
       listId: 2,
       name: '我喜欢',
       isPrivate: true,
@@ -17,7 +17,7 @@ void main() {
   });
 
   test('collected playlists are not track-writable', () {
-    const playlist = CloudPlaylist(
+    const playlist = Playlist(
       listId: 9,
       name: '收藏歌单',
       isPrivate: false,

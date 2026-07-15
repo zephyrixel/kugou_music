@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
@@ -164,9 +165,7 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
                   FilledButton.icon(
                     onPressed: _songs.isEmpty
                         ? null
-                        : () => ref
-                              .read(audioHandlerProvider)
-                              .playSong(_songs.first, queueSongs: _songs),
+                        : () => playSong(context, ref, _songs.first, queue: _songs),
                     icon: const Icon(Icons.play_arrow_rounded),
                     label: const Text('播放全部'),
                   ),
@@ -208,9 +207,7 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
                 return SongTile(
                   song: song,
                   index: index + 1,
-                  onTap: () => ref
-                      .read(audioHandlerProvider)
-                      .playSong(song, queueSongs: _songs),
+                  onTap: () => playSong(context, ref, song, queue: _songs),
                   trailing: SongTileActions(song: song),
                 );
               },
@@ -240,7 +237,7 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('已收藏，正在后台同步')));
+        ).showSnackBar(const SnackBar(content: Text('已收藏')));
       }
     } catch (error) {
       if (mounted) {

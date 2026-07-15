@@ -5,9 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 
@@ -159,7 +160,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           itemCount: _songs.length,
           itemBuilder: (context, index) => SongTile(
             song: _songs[index],
-            onTap: () => _play(_songs[index]),
+            onTap: () => playSong(context, ref, _songs[index], queue: _songs),
             trailing: SongTileActions(song: _songs[index]),
           ),
         );
@@ -198,17 +199,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           },
         );
 
-  Future<void> _play(Song song) async {
-    try {
-      await ref.read(audioHandlerProvider).playSong(song, queueSongs: _songs);
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
-      }
-    }
-  }
 }
 
 class _Empty extends StatelessWidget {

@@ -1,7 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/database/app_database.dart';
-import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_store.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
@@ -47,7 +46,7 @@ void main() {
     );
   });
 
-  test('library records history and merges its upload operation', () async {
+  test('library records local history without outbox', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
     final store = LibraryStore(database);
@@ -58,10 +57,9 @@ void main() {
       hashes: AudioHashes(standard: 'hash'),
     );
 
-    await store.replaceBaseline(
+    await store.replaceLibrary(
       userId: 7,
-      playlists: const <LibraryPlaylist>[],
-      loadedTracks: const {},
+      playlists: const [],
       history: const [],
     );
     await store.recordPlayed(song);
@@ -70,10 +68,9 @@ void main() {
 
     expect(restored.song.mixSongId, 42);
     expect(restored.playCount, 2);
-    expect((await store.readyOperations()).single.operation, 'history');
   });
 
-  test('schema v3 upgrades by removing both legacy library sources', () async {
+  test('schema upgrades drop outbox and legacy library tables', () async {
     final sqliteDatabase = sqlite.sqlite3.openInMemory();
     sqliteDatabase.execute('''
       CREATE TABLE library_tracks (
@@ -95,6 +92,17 @@ void main() {
         favorite INTEGER NOT NULL DEFAULT 0 CHECK (favorite IN (0, 1)),
         last_played_at INTEGER,
         play_count INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE library_outbox (
+        dedupe_key TEXT NOT NULL PRIMARY KEY,
+        operation TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at INTEGER,
+        last_error TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       );
       CREATE TABLE cached_responses (
         cache_key TEXT NOT NULL PRIMARY KEY,
@@ -129,7 +137,8 @@ void main() {
             .map((row) => row.read<String>('name'))
             .toSet();
     expect(tableNames, contains('stored_songs'));
-    expect(tableNames, contains('library_outbox'));
+    expect(tableNames, contains('library_sync_states'));
+    expect(tableNames, isNot(contains('library_outbox')));
     expect(tableNames, isNot(contains('library_tracks')));
     expect(
       await database.readCachedResponse('v1/user/7/cloud/playlists/1/50'),

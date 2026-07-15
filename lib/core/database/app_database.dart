@@ -21,7 +21,6 @@ class CachedResponses extends Table {
     StoredSongs,
     StoredPlaylists,
     StoredPlaylistTracks,
-    LibraryOutbox,
     LibrarySyncStates,
     CachedResponses,
   ],
@@ -31,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -49,12 +48,23 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(storedSongs);
         await migrator.createTable(storedPlaylists);
         await migrator.createTable(storedPlaylistTracks);
-        await migrator.createTable(libraryOutbox);
         await migrator.createTable(librarySyncStates);
         await customStatement(
           "DELETE FROM cached_responses WHERE cache_key LIKE '%/cloud/%' "
           "OR cache_key LIKE '%/playlist/owned/%'",
         );
+      }
+      if (from < 5) {
+        // Drop outbox + rebuild library tables without soft-delete / remotePresent.
+        await customStatement('DROP TABLE IF EXISTS library_outbox');
+        await customStatement('DROP TABLE IF EXISTS stored_playlist_tracks');
+        await customStatement('DROP TABLE IF EXISTS stored_playlists');
+        await customStatement('DROP TABLE IF EXISTS stored_songs');
+        await customStatement('DROP TABLE IF EXISTS library_sync_states');
+        await migrator.createTable(storedSongs);
+        await migrator.createTable(storedPlaylists);
+        await migrator.createTable(storedPlaylistTracks);
+        await migrator.createTable(librarySyncStates);
       }
     },
   );

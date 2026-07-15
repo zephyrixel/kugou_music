@@ -9,10 +9,12 @@ import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
+import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/history_entry.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
-import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/features/auth/auth_controller.dart';
 
 final musicSdkProvider = Provider<MusicSdk>(
@@ -74,11 +76,15 @@ final favoriteSongsProvider = StreamProvider<List<Song>>(
   (ref) => ref.watch(libraryRepositoryProvider).watchFavorites(),
 );
 
-final historyEntriesProvider = StreamProvider<List<LibraryHistoryEntry>>(
+final favoriteSongIdsProvider = StreamProvider<Set<String>>(
+  (ref) => ref.watch(libraryRepositoryProvider).watchFavoriteIds(),
+);
+
+final historyEntriesProvider = StreamProvider<List<HistoryEntry>>(
   (ref) => ref.watch(libraryRepositoryProvider).watchHistory(),
 );
 
-final libraryPlaylistsProvider = StreamProvider<List<LibraryPlaylist>>(
+final libraryPlaylistsProvider = StreamProvider<List<Playlist>>(
   (ref) => ref.watch(libraryRepositoryProvider).watchPlaylists(),
 );
 

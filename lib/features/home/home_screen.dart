@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 
@@ -35,11 +35,11 @@ class HomeScreen extends ConsumerWidget {
                   _DailyHero(
                     count: recommendations.value?.length,
                     onPlay: recommendations.value?.isNotEmpty == true
-                        ? () => _play(
+                        ? () => playSong(
                             context,
                             ref,
                             recommendations.value!.first,
-                            recommendations.value!,
+                            queue: recommendations.value!,
                           )
                         : null,
                   ),
@@ -84,7 +84,7 @@ class HomeScreen extends ConsumerWidget {
                     itemBuilder: (context, index) => SongTile(
                       song: songs[index],
                       index: index + 1,
-                      onTap: () => _play(context, ref, songs[index], songs),
+                      onTap: () => playSong(context, ref, songs[index], queue: songs),
                       trailing: SongTileActions(song: songs[index]),
                     ),
                   ),
@@ -174,19 +174,3 @@ class _ErrorState extends StatelessWidget {
   );
 }
 
-Future<void> _play(
-  BuildContext context,
-  WidgetRef ref,
-  Song song,
-  List<Song> queue,
-) async {
-  try {
-    await ref.read(audioHandlerProvider).playSong(song, queueSongs: queue);
-  } catch (error) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    }
-  }
-}

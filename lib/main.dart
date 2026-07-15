@@ -6,9 +6,9 @@ import 'package:kgmusic/app/app.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/database/app_database.dart';
+import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/library/library_store.dart';
-import 'package:kgmusic/core/library/library_sync_service.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/src/rust/frb_generated.dart';
@@ -21,8 +21,8 @@ Future<void> main() async {
   final sdk = KugouMusicSdk(const FlutterSecureStorage());
   await sdk.initialize();
   final libraryStore = LibraryStore(database);
-  final librarySync = LibrarySyncService(sdk, libraryStore);
-  final library = LibraryRepository(libraryStore, librarySync);
+  final libraryRemote = LibraryRemote(sdk);
+  final library = LibraryRepository(libraryStore, libraryRemote);
   final audioCache = await AudioCacheManager.create();
   final audioHandler = await AudioService.init<MusicAudioHandler>(
     builder: () => MusicAudioHandler(sdk, library, audioCache),

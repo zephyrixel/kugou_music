@@ -38,7 +38,6 @@ class StoredPlaylists extends Table {
   BoolColumn get isDefaultCollect =>
       boolean().withDefault(const Constant(false))();
   BoolColumn get tracksLoaded => boolean().withDefault(const Constant(false))();
-  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
   TextColumn get tags => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
@@ -51,26 +50,9 @@ class StoredPlaylistTracks extends Table {
   TextColumn get songId => text()();
   IntColumn get fileId => integer().nullable()();
   IntColumn get position => integer().withDefault(const Constant(0))();
-  BoolColumn get remotePresent =>
-      boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {playlistLocalId, songId};
-}
-
-class LibraryOutbox extends Table {
-  TextColumn get dedupeKey => text()();
-  TextColumn get operation => text()();
-  TextColumn get payload => text()();
-  IntColumn get revision => integer().withDefault(const Constant(1))();
-  IntColumn get attempts => integer().withDefault(const Constant(0))();
-  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
-  TextColumn get lastError => text().nullable()();
-  DateTimeColumn get createdAt => dateTime()();
-  DateTimeColumn get updatedAt => dateTime()();
-
-  @override
-  Set<Column<Object>> get primaryKey => {dedupeKey};
 }
 
 class LibrarySyncStates extends Table {

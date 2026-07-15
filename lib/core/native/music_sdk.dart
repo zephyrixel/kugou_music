@@ -1,6 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/models/account.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
+import 'package:kgmusic/core/models/history_entry.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
 import 'package:kgmusic/src/rust/api/sdk.dart' as bridge;
@@ -27,11 +28,11 @@ abstract interface class MusicSdk {
   });
   Future<UserProfile> userProfile();
   Future<UserVip> userVip();
-  Future<CloudHistoryPage> cloudHistory({String? cursor});
-  Future<void> uploadHistory(List<CloudHistoryUpload> items);
-  Future<CloudPlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50});
+  Future<HistoryPage> cloudHistory({String? cursor});
+  Future<void> uploadHistory(List<HistoryUpload> items);
+  Future<PlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50});
   Future<SearchPage> playlistTracks(
-    CloudPlaylist playlist, {
+    Playlist playlist, {
     int page = 1,
     int pageSize = 50,
   });
@@ -47,7 +48,7 @@ abstract interface class MusicSdk {
   });
   Future<PlaylistMutation> createPlaylist(String name, {required bool private});
   Future<PlaylistMutation> collectPlaylist(PlaylistSearchHit playlist);
-  Future<void> deletePlaylist(CloudPlaylist playlist);
+  Future<void> deletePlaylist({required int listId, required bool collected});
   Future<void> editPlaylist(PlaylistEditInput input);
   Future<PlaylistTracksMutation> addSongToPlaylist(int listId, Song song);
   Future<void> removeSongFromPlaylist(int listId, int fileId);
@@ -244,12 +245,12 @@ class KugouMusicSdk implements MusicSdk {
   });
 
   @override
-  Future<CloudHistoryPage> cloudHistory({String? cursor}) => _guard(() async {
+  Future<HistoryPage> cloudHistory({String? cursor}) => _guard(() async {
     final value = await bridge.getCloudHistory(cursor: cursor);
-    return CloudHistoryPage(
+    return HistoryPage(
       items: value.items
           .map(
-            (item) => CloudHistoryEntry(
+            (item) => HistoryEntry(
               song: _songFromDto(item.song),
               playedAt: DateTime.fromMillisecondsSinceEpoch(
                 (item.playedAtSecs ?? 0) * 1000,
@@ -265,7 +266,7 @@ class KugouMusicSdk implements MusicSdk {
   });
 
   @override
-  Future<void> uploadHistory(List<CloudHistoryUpload> items) => _guard(
+  Future<void> uploadHistory(List<HistoryUpload> items) => _guard(
     () => bridge.uploadCloudHistory(
       items: items
           .map(
@@ -281,13 +282,13 @@ class KugouMusicSdk implements MusicSdk {
   );
 
   @override
-  Future<CloudPlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50}) =>
+  Future<PlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50}) =>
       _guard(() async {
         final value = await bridge.getCloudPlaylists(
           page: page,
           pageSize: pageSize,
         );
-        return CloudPlaylistPage(
+        return PlaylistPage(
           items: value.items.map(_playlist).toList(growable: false),
           page: value.page,
           pageSize: value.pageSize,
@@ -298,7 +299,7 @@ class KugouMusicSdk implements MusicSdk {
 
   @override
   Future<SearchPage> playlistTracks(
-    CloudPlaylist playlist, {
+    Playlist playlist, {
     int page = 1,
     int pageSize = 50,
   }) {
@@ -390,11 +391,11 @@ class KugouMusicSdk implements MusicSdk {
       }, persist: true);
 
   @override
-  Future<void> deletePlaylist(CloudPlaylist playlist) => _guard(
-    () => bridge.deleteCloudPlaylist(
-      listId: playlist.listId!,
-      collected: playlist.isCollected,
-    ),
+  Future<void> deletePlaylist({
+    required int listId,
+    required bool collected,
+  }) => _guard(
+    () => bridge.deleteCloudPlaylist(listId: listId, collected: collected),
     persist: true,
   );
 
@@ -510,13 +511,13 @@ bridge.SongDto _songToDto(Song value) => bridge.SongDto(
   ),
 );
 
-CloudPlaylist _playlist(bridge.CloudPlaylistDto value) => CloudPlaylist(
+Playlist _playlist(bridge.CloudPlaylistDto value) => Playlist(
   listId: value.listId,
   globalCollectionId: value.globalCollectionId,
   name: value.name,
   intro: value.intro,
   artworkUrl: value.artworkUrl,
-  count: value.count,
+  count: value.count ?? 0,
   listType: value.listType,
   creatorUserId: value.creatorUserId,
   creatorName: value.creatorName,

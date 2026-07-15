@@ -15,11 +15,11 @@ class SongFavoriteButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final songs = ref.watch(favoriteSongsProvider);
-    final liked = songs.value?.any((item) => item.id == song.id) ?? false;
+    final ids = ref.watch(favoriteSongIdsProvider);
+    final liked = ids.value?.contains(song.id) ?? false;
     return IconButton(
       tooltip: liked ? '取消喜欢' : '添加到我喜欢',
-      onPressed: songs.isLoading
+      onPressed: ids.isLoading
           ? null
           : () => toggleSongFavorite(context, ref, song),
       constraints: compact

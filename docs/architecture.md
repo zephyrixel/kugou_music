@@ -10,26 +10,27 @@ DTO，而是依赖手写的 `MusicSdk` 接口。这使 SDK 后续新增热门歌
 features/*
     │
     ├── app/providers.dart (依赖装配)
-    ├── core/library/LibraryRepository ── Drift 音乐库 + Outbox
-    │       └── LibrarySyncService ── core/native/MusicSdk
-    │                                  └── FRB ── Rust kugou_bridge
-    │                                                   └── kugou_sdk 0.2.2 / Lite
+    ├── core/library/LibraryRepository ── Drift 读模型 + 在线写回
+    │       ├── LibraryStore ── Drift CRUD / watch
+    │       └── LibraryRemote ── core/native/MusicSdk
+    │                              └── FRB ── Rust kugou_bridge
+    │                                               └── kugou_sdk 0.2.2 / Lite
     ├── core/cache/MusicRepository ── 推荐、搜索与资料响应缓存
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
     │
-    └── core/database/AppDatabase ── Drift (音乐库、同步状态、响应缓存)
+    └── core/database/AppDatabase ── Drift (音乐库、响应缓存；无 Outbox)
 ```
 
 ## 目录职责
 
 - `lib/app/`：主题入口、路由和 Riverpod 依赖装配。
-- `lib/core/models/`：跨功能使用的稳定领域模型。
+- `lib/core/models/`：跨功能稳定领域模型（`Song`、`Playlist`、`HistoryEntry` 等）。
 - `lib/core/native/`：SDK 门面、生成 DTO 映射、安全会话持久化。
-- `lib/core/library/`：本地音乐库事务、Outbox、云快照合并和后台同步。
+- `lib/core/library/`：本地读模型、云端 pull/写回、懒加载曲目。
 - `lib/core/player/`：播放地址解析、试听降级、队列和系统媒体控制。
 - `lib/core/cache/`：接口响应、封面与音频文件缓存；不保存临时播放 URL。
-- `lib/core/database/`：本地音乐库、待同步操作和可公开的接口响应；不保存会话。
+- `lib/core/database/`：本地音乐库与可公开的接口响应；不保存会话。
 - `lib/core/design_system/`、`widgets/`：深色荧光绿视觉系统与共享组件。
 - `lib/features/`：按 home/search/library/player 划分的产品功能。
 - `lib/features/auth/`、`account/`、`playlists/`：SMS 登录、账号生命周期与歌单管理。
@@ -54,11 +55,11 @@ features/*
   的并发请求会合并。音乐库不使用 JSON 响应缓存，而是查询结构化本地表。
 - 可重试的网络错误保留旧缓存，认证与业务错误继续上抛。账号缓存按 `user_id`
   隔离，并在退出时清除。
-- Drift schema v4 使用结构化音乐库表和持久化 Outbox；通用 JSON 响应缓存最多
+- Drift schema v5：结构化音乐库表（无 Outbox）；通用 JSON 响应缓存最多
   保留 500 项和 30 天。
 - 封面、歌单图片和头像使用统一图片缓存，最多 800 项、保留 30 天；Android
   媒体通知优先使用已缓存的本地封面。
-- “清理临时缓存”不会删除登录、音乐库或待同步操作，也不会中断当前播放。
+- “清理临时缓存”不会删除登录、音乐库，也不会中断当前播放。
 
 ## 会话与安全
 
@@ -75,22 +76,25 @@ SMS 登录成功后 Rust 会立即注册 `dfid`；注册失败不会撤销有效
 应用恢复前台时重试。Flutter 在启动、恢复前台及持续前台期间按 12 小时周期刷新
 token，`20017/20018` 会清除认证态并要求重新登录。
 
-## 本地优先音乐库
+## 本地音乐库（读模型 + 在线写回）
+
+App 必须登录且播链/搜索依赖网络，因此库层不做持久化 Outbox / 离线编辑队列。
 
 - 应用要求先登录；首次登录以云端歌单、`is_def=2`「我喜欢」和最近播放建立
-  本地基线。退出或账号失效会清空本机音乐库与待同步操作。
-- 红心、播放历史、歌单创建/编辑/删除、收藏歌单及歌曲增删都先在 Drift 事务中
-  生效，再写入按实体去重的 Outbox。
-- `LibrarySyncService` 串行推送操作，歌单创建先于成员写入；失败采用退避重试，
-  不回滚本地状态。云端刷新不会覆盖仍有待同步意图的本地实体。
-- 歌单展示有 gid 时使用官方新到旧顺序；删除若缺少 `fileId`，仅为定位删除参数
-  走 listid 物理序扫描。定位失败必须保留 Outbox，不能把未执行的删除视为成功。
-- 账号页刷新只同步歌单元数据，不预取任何歌单曲目；曲目在进入具体歌单或收藏
-  歌曲页时一次性懒加载，之后直接读取 Drift，除非用户在歌单页主动下拉刷新。
-- 云历史 wire 顺序为旧到新，`bp` 指向更晚记录；同步必须走到终止游标后再按
-  `playedAt` 降序保留最近 100 首。本地新增歌曲使用前插 position 立即显示在顶部。
-- 0.2.2 的 Lite `history_upload` 使用 `mixSongId`、秒级播放时间和累计次数批量上报；
-  缺少 `mixSongId` 的记录仅保留本地。
+  本地基线。退出或账号失效会清空本机音乐库。
+- **读：** Drift 提供收藏/歌单/历史秒开；曲目懒加载（`ensurePlaylistLoaded`）。
+- **写：** 红心、歌单曲目增删、编辑删除等先乐观更新 Drift，再 `await` 云端；
+  失败回滚本地并提示错误。新建自建歌单 **云优先**（先拿到 `listId` 再入库）。
+- 播放历史：本地立刻写 `lastPlayedAt`；有 `mixSongId` 时进程内直接
+  `uploadHistory`（失败不排队重试）。
+- 删除曲目若缺少 `fileId`，仅在删除路径内走 listid 物理序扫描定位；定位失败
+  报错，不静默当成功。
+- 账号页刷新只同步歌单元数据与历史，不预取未打开歌单的曲目。
+- 云历史 wire 顺序为旧到新，`bp` 指向更晚记录；同步走到终止游标后再按
+  `playedAt` 降序保留最近 100 首。本地新增曲目使用前插 position 显示在顶部。
+- 领域类型：`Playlist`（合并原 Cloud/Library 双份）、`HistoryEntry`（合并原
+  Cloud/Library 双份）。localId 规则：`remote:{listId}` / `collected:{gid}` /
+  `local:{ts}`。
 
 ## 后续迭代
 

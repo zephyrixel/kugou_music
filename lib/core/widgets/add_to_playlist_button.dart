@@ -12,13 +12,13 @@ class AddToPlaylistButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       tooltip: '添加到歌单',
-      onPressed: () => showAddToCloudPlaylist(context, ref, song),
+      onPressed: () => showAddToPlaylist(context, ref, song),
       icon: const Icon(Icons.playlist_add_rounded),
     );
   }
 }
 
-Future<void> showAddToCloudPlaylist(
+Future<void> showAddToPlaylist(
   BuildContext context,
   WidgetRef ref,
   Song song,
@@ -46,7 +46,7 @@ Future<void> showAddToCloudPlaylist(
                 ),
                 title: Text(playlist.name),
                 subtitle: Text('${playlist.count} 首'),
-                onTap: () => context.pop(playlist.localId),
+                onTap: () => context.pop(playlist.localId!),
               ),
             ),
           ],
@@ -58,7 +58,7 @@ Future<void> showAddToCloudPlaylist(
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已添加到歌单，正在后台同步')));
+      ).showSnackBar(const SnackBar(content: Text('已添加到歌单')));
     }
   } catch (error) {
     if (context.mounted) {
