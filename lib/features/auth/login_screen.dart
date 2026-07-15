@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 
@@ -105,11 +104,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: auth.busy
                   ? null
                   : () async {
-                      final ok = await auth.login(
-                        _mobile.text.trim(),
-                        _code.text.trim(),
-                      );
-                      if (ok && context.mounted) context.pop();
+                      await auth.login(_mobile.text.trim(), _code.text.trim());
                     },
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(56),

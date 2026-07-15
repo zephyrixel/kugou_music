@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/models/cloud_playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/music_sdk_models.dart';
 import 'package:kgmusic/src/rust/api/sdk.dart' as bridge;
 
 abstract interface class MusicSdk {
@@ -26,7 +27,8 @@ abstract interface class MusicSdk {
   });
   Future<UserProfile> userProfile();
   Future<UserVip> userVip();
-  Future<List<Song>> cloudHistory();
+  Future<CloudHistoryPage> cloudHistory({String? cursor});
+  Future<void> uploadHistory(List<CloudHistoryUpload> items);
   Future<CloudPlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50});
   Future<SearchPage> playlistTracks(
     CloudPlaylist playlist, {
@@ -38,11 +40,11 @@ abstract interface class MusicSdk {
     int page = 1,
     int pageSize = 50,
   });
-  Future<void> createPlaylist(String name, {required bool private});
-  Future<void> collectPlaylist(PlaylistSearchHit playlist);
+  Future<PlaylistMutation> createPlaylist(String name, {required bool private});
+  Future<PlaylistMutation> collectPlaylist(PlaylistSearchHit playlist);
   Future<void> deletePlaylist(CloudPlaylist playlist);
   Future<void> editPlaylist(PlaylistEditInput input);
-  Future<void> addSongToPlaylist(int listId, Song song);
+  Future<PlaylistTracksMutation> addSongToPlaylist(int listId, Song song);
   Future<void> removeSongFromPlaylist(int listId, int fileId);
 }
 
@@ -237,10 +239,41 @@ class KugouMusicSdk implements MusicSdk {
   });
 
   @override
-  Future<List<Song>> cloudHistory() => _guard(() async {
-    final value = await bridge.getCloudHistory();
-    return value.items.map(_songFromDto).toList(growable: false);
+  Future<CloudHistoryPage> cloudHistory({String? cursor}) => _guard(() async {
+    final value = await bridge.getCloudHistory(cursor: cursor);
+    return CloudHistoryPage(
+      items: value.items
+          .map(
+            (item) => CloudHistoryEntry(
+              song: _songFromDto(item.song),
+              playedAt: DateTime.fromMillisecondsSinceEpoch(
+                (item.playedAtSecs ?? 0) * 1000,
+              ),
+              playCount: item.playCount ?? 1,
+            ),
+          )
+          .toList(growable: false),
+      cursor: value.cursor,
+      hasMore: value.hasMore,
+      total: value.total,
+    );
   });
+
+  @override
+  Future<void> uploadHistory(List<CloudHistoryUpload> items) => _guard(
+    () => bridge.uploadCloudHistory(
+      items: items
+          .map(
+            (item) => bridge.HistoryUploadItemDto(
+              mixSongId: item.mixSongId,
+              playedAtSecs: item.playedAt.millisecondsSinceEpoch ~/ 1000,
+              playCount: item.playCount,
+            ),
+          )
+          .toList(growable: false),
+    ),
+    persist: true,
+  );
 
   @override
   Future<CloudPlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50}) =>
@@ -299,20 +332,37 @@ class KugouMusicSdk implements MusicSdk {
       });
 
   @override
-  Future<void> createPlaylist(String name, {required bool private}) => _guard(
-    () => bridge.createCloudPlaylist(name: name, private: private),
-    persist: true,
-  );
+  Future<PlaylistMutation> createPlaylist(
+    String name, {
+    required bool private,
+  }) => _guard(() async {
+    final value = await bridge.createCloudPlaylist(
+      name: name,
+      private: private,
+    );
+    final listId = value.listId;
+    if (listId == null) throw const MusicSdkException('云端未返回新歌单 ID');
+    return PlaylistMutation(
+      listId: listId,
+      globalCollectionId: value.globalCollectionId,
+    );
+  }, persist: true);
 
   @override
-  Future<void> collectPlaylist(PlaylistSearchHit playlist) => _guard(
-    () => bridge.collectCloudPlaylist(
-      globalCollectionId: playlist.globalCollectionId!,
-      ownerUserId: playlist.creatorUserId,
-      name: playlist.name,
-    ),
-    persist: true,
-  );
+  Future<PlaylistMutation> collectPlaylist(PlaylistSearchHit playlist) =>
+      _guard(() async {
+        final value = await bridge.collectCloudPlaylist(
+          globalCollectionId: playlist.globalCollectionId!,
+          ownerUserId: playlist.creatorUserId,
+          name: playlist.name,
+        );
+        final listId = value.listId;
+        if (listId == null) throw const MusicSdkException('云端未返回收藏歌单 ID');
+        return PlaylistMutation(
+          listId: listId,
+          globalCollectionId: value.globalCollectionId,
+        );
+      }, persist: true);
 
   @override
   Future<void> deletePlaylist(CloudPlaylist playlist) => _guard(
@@ -339,10 +389,14 @@ class KugouMusicSdk implements MusicSdk {
   );
 
   @override
-  Future<void> addSongToPlaylist(int listId, Song song) => _guard(
-    () => bridge.addSongToPlaylist(listId: listId, song: _songToDto(song)),
-    persist: true,
-  );
+  Future<PlaylistTracksMutation> addSongToPlaylist(int listId, Song song) =>
+      _guard(() async {
+        final value = await bridge.addSongToPlaylist(
+          listId: listId,
+          song: _songToDto(song),
+        );
+        return PlaylistTracksMutation(fileIds: value.fileIds);
+      }, persist: true);
 
   @override
   Future<void> removeSongFromPlaylist(int listId, int fileId) => _guard(

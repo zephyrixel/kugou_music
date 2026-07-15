@@ -7,7 +7,7 @@ import 'package:kgmusic/features/player/mini_player.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
 import 'package:kgmusic/features/search/search_screen.dart';
 import 'package:kgmusic/features/account/account_screen.dart';
-import 'package:kgmusic/features/auth/login_screen.dart';
+import 'package:kgmusic/features/auth/auth_gate.dart';
 import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
 
 class KgMusicApp extends StatelessWidget {
@@ -26,7 +26,6 @@ class KgMusicApp extends StatelessWidget {
         ],
       ),
       GoRoute(path: '/player', builder: (_, _) => const PlayerScreen()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: '/playlist',
         builder: (_, state) => PlaylistDetailScreen(source: state.extra!),
@@ -40,6 +39,8 @@ class KgMusicApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     theme: buildKgTheme(),
     routerConfig: _router,
+    builder: (context, child) =>
+        AuthGate(child: child ?? const SizedBox.shrink()),
   );
 }
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/database/app_database.dart';
+import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
@@ -12,6 +13,7 @@ enum AuthStatus {
   sendingCode,
   codeSent,
   signingIn,
+  syncingLibrary,
   authenticated,
   refreshing,
   expired,
@@ -19,7 +21,7 @@ enum AuthStatus {
 }
 
 class AuthController extends ChangeNotifier with WidgetsBindingObserver {
-  AuthController(this._sdk, this._storage, this._database);
+  AuthController(this._sdk, this._storage, this._database, this._library);
 
   static const refreshInterval = Duration(hours: 12);
   static const _lastRefreshKey = 'kugou_lite_last_refresh_at';
@@ -27,9 +29,11 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   final MusicSdk _sdk;
   final FlutterSecureStorage _storage;
   final AppDatabase _database;
+  final LibraryRepository _library;
   Timer? _refreshTimer;
   Timer? _countdownTimer;
   bool _disposed = false;
+  bool _libraryReady = false;
 
   AuthStatus status = AuthStatus.booting;
   AuthSnapshot snapshot = const AuthSnapshot(
@@ -39,10 +43,11 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   String? message;
   int resendSeconds = 0;
 
-  bool get authenticated => snapshot.authenticated;
+  bool get authenticated => snapshot.authenticated && _libraryReady;
   bool get busy => const {
     AuthStatus.sendingCode,
     AuthStatus.signingIn,
+    AuthStatus.syncingLibrary,
     AuthStatus.refreshing,
   }.contains(status);
 
@@ -54,11 +59,14 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     _refreshTimer = Timer.periodic(refreshInterval, (_) => refreshIfDue());
     try {
       snapshot = await _sdk.authState();
-      status = snapshot.authenticated
-          ? AuthStatus.authenticated
-          : AuthStatus.guest;
-      _notify();
-      if (snapshot.authenticated) await refreshIfDue();
+      if (snapshot.authenticated) {
+        await _initializeLibrary();
+        if (authenticated) await refreshIfDue();
+      } else {
+        await _library.deactivate();
+        status = AuthStatus.guest;
+        _notify();
+      }
     } catch (error) {
       status = AuthStatus.failure;
       message = error.toString();
@@ -88,13 +96,12 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final result = await _sdk.loginBySms(mobile, code);
       snapshot = result.auth;
-      status = AuthStatus.authenticated;
       message = result.fingerprintWarning == null ? null : '登录成功，设备指纹将在稍后重试注册';
       await _markRefreshed();
       _countdownTimer?.cancel();
       resendSeconds = 0;
-      _notify();
-      return true;
+      await _initializeLibrary();
+      return authenticated;
     } catch (error) {
       status = AuthStatus.failure;
       message = error.toString();
@@ -104,7 +111,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> refreshIfDue({bool force = false}) async {
-    if (!snapshot.authenticated || status == AuthStatus.refreshing) return;
+    if (!authenticated || status == AuthStatus.refreshing) return;
     final raw = await _storage.read(key: _lastRefreshKey);
     final last = raw == null ? null : DateTime.tryParse(raw);
     if (!force && !isRefreshDue(last, DateTime.now())) {
@@ -145,6 +152,8 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     await _sdk.logout();
     await _storage.delete(key: _lastRefreshKey);
     await _database.clearAccountCache();
+    await _library.deactivate();
+    _libraryReady = false;
     snapshot = const AuthSnapshot(
       authenticated: false,
       fingerprintRegistered: false,
@@ -158,12 +167,43 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     await _sdk.logout();
     await _storage.delete(key: _lastRefreshKey);
     await _database.clearAccountCache();
+    await _library.deactivate();
+    _libraryReady = false;
     snapshot = const AuthSnapshot(
       authenticated: false,
       fingerprintRegistered: false,
     );
     status = AuthStatus.expired;
     message = reason;
+    _notify();
+  }
+
+  Future<void> retryLibraryInitialization() async {
+    if (!snapshot.authenticated) return;
+    await _initializeLibrary();
+  }
+
+  Future<void> _initializeLibrary() async {
+    final userId = snapshot.userId;
+    if (userId == null) {
+      status = AuthStatus.failure;
+      message = '登录响应缺少用户 ID';
+      _libraryReady = false;
+      _notify();
+      return;
+    }
+    status = AuthStatus.syncingLibrary;
+    _libraryReady = false;
+    _notify();
+    try {
+      await _library.activate(userId);
+      _libraryReady = true;
+      status = AuthStatus.authenticated;
+      if (message?.startsWith('初始化音乐库失败') == true) message = null;
+    } catch (error) {
+      status = AuthStatus.failure;
+      message = '初始化音乐库失败：$error';
+    }
     _notify();
   }
 
@@ -184,7 +224,12 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(refreshIfDue());
+    if (state == AppLifecycleState.resumed) unawaited(_resume());
+  }
+
+  Future<void> _resume() async {
+    await refreshIfDue();
+    if (authenticated) await _library.syncNow();
   }
 
   void _notify() {

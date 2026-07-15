@@ -1,116 +1,34 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/models/account.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
-import 'package:kgmusic/core/widgets/song_tile.dart';
 
-class AccountScreen extends ConsumerStatefulWidget {
+class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
 
   @override
-  ConsumerState<AccountScreen> createState() => _AccountScreenState();
-}
-
-class _AccountScreenState extends ConsumerState<AccountScreen> {
-  final _scrollController = ScrollController();
-  bool _handlingLoadMore = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients ||
-        _scrollController.position.extentAfter > 480) {
-      return;
-    }
-    unawaited(_loadMorePlaylists());
-  }
-
-  Future<void> _loadMorePlaylists() async {
-    if (_handlingLoadMore) return;
-    _handlingLoadMore = true;
-    try {
-      await ref.read(cloudPlaylistsProvider.notifier).loadMore();
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('加载更多歌单失败：$error')));
-      }
-    } finally {
-      _handlingLoadMore = false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
-    if (!auth.authenticated) {
-      return _GuestAccount(
-        message: auth.message,
-        onClearCache: () => _clearCaches(context, ref),
-      );
-    }
     final profile = ref.watch(userProfileProvider);
     final vip = ref.watch(userVipProvider);
-    final playlists = ref.watch(cloudPlaylistsProvider);
-    final history = ref.watch(cloudHistoryProvider);
+    final playlists = ref.watch(libraryPlaylistsProvider);
+    final sync = ref.watch(librarySyncStatusProvider);
+
     return RefreshIndicator(
       onRefresh: () async {
         await auth.refreshIfDue(force: true);
+        await ref.read(libraryRepositoryProvider).syncNow();
         ref.invalidate(userProfileProvider);
         ref.invalidate(userVipProvider);
-        ref.invalidate(cloudPlaylistsProvider);
-        ref.invalidate(cloudHistoryProvider);
       },
       child: ListView(
-        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '我的',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-              ),
-              IconButton(
-                tooltip: '刷新登录信息',
-                onPressed: auth.busy
-                    ? null
-                    : () => auth.refreshIfDue(force: true),
-                icon: auth.status.name == 'refreshing'
-                    ? const CircularProgressIndicator(strokeWidth: 2)
-                    : const Icon(Icons.sync_rounded),
-              ),
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'logout') _confirmLogout(context, ref);
-                  if (value == 'clear_cache') _clearCaches(context, ref);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'clear_cache', child: Text('清理临时缓存')),
-                  PopupMenuItem(value: 'logout', child: Text('退出登录')),
-                ],
-              ),
-            ],
-          ),
+          _TitleBar(authBusy: auth.busy),
           const SizedBox(height: 22),
           _ProfileCard(
             profile: profile,
@@ -124,9 +42,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               style: const TextStyle(color: Colors.orangeAccent),
             ),
           ],
-          const SizedBox(height: 30),
+          const SizedBox(height: 18),
+          _SyncCard(status: sync.value ?? const LibrarySyncStatus.idle()),
+          const SizedBox(height: 28),
           _SectionHeader(
-            title: '云歌单',
+            title: '我的歌单',
             action: IconButton(
               tooltip: '创建歌单',
               onPressed: () => _createPlaylist(context, ref),
@@ -142,38 +62,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             ),
             error: (error, _) => _InlineError(
               error: error,
-              retry: () => ref.invalidate(cloudPlaylistsProvider),
+              retry: () => ref.invalidate(libraryPlaylistsProvider),
             ),
-            data: (page) => Column(
-              children: page.items
-                  .map((playlist) => _PlaylistRow(playlist: playlist))
-                  .toList(growable: false),
-            ),
-          ),
-          const SizedBox(height: 28),
-          const _SectionHeader(title: '云播放历史'),
-          history.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (error, _) => _InlineError(
-              error: error,
-              retry: () => ref.invalidate(cloudHistoryProvider),
-            ),
-            data: (songs) => songs.isEmpty
+            data: (items) => items.isEmpty
                 ? const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text('暂无云播放历史'),
+                    padding: EdgeInsets.all(24),
+                    child: Text('还没有歌单'),
                   )
                 : Column(
-                    children: songs
-                        .take(12)
-                        .map(
-                          (song) => SongTile(
-                            song: song,
-                            onTap: () => ref
-                                .read(audioHandlerProvider)
-                                .playSong(song, queueSongs: songs),
-                          ),
-                        )
+                    children: items
+                        .map((playlist) => _PlaylistRow(playlist: playlist))
                         .toList(growable: false),
                   ),
           ),
@@ -183,65 +81,35 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 }
 
-class _GuestAccount extends StatelessWidget {
-  const _GuestAccount({this.message, required this.onClearCache});
-  final String? message;
-  final VoidCallback onClearCache;
+class _TitleBar extends ConsumerWidget {
+  const _TitleBar({required this.authBusy});
+
+  final bool authBusy;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '我的',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-              ),
-              IconButton(
-                tooltip: '清理临时缓存',
-                onPressed: onClearCache,
-                icon: const Icon(Icons.cleaning_services_outlined),
-              ),
-            ],
-          ),
-          const Spacer(),
-          const Icon(
-            Icons.person_outline_rounded,
-            size: 72,
-            color: KgColors.accent,
-          ),
-          const SizedBox(height: 20),
-          Text('登录后连接你的云音乐', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          const Text(
-            '同步“我喜欢”、云歌单、播放历史和 Lite VIP 信息。',
-            style: TextStyle(color: KgColors.textMuted),
-          ),
-          if (message != null) ...[
-            const SizedBox(height: 12),
-            Text(message!, style: const TextStyle(color: Colors.orangeAccent)),
-          ],
-          const SizedBox(height: 28),
-          FilledButton.icon(
-            onPressed: () => context.push('/login'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(54),
-              backgroundColor: KgColors.accent,
-              foregroundColor: Colors.black,
-            ),
-            icon: const Icon(Icons.sms_outlined),
-            label: const Text('短信验证码登录'),
-          ),
-          const Spacer(),
+  Widget build(BuildContext context, WidgetRef ref) => Row(
+    children: [
+      Expanded(
+        child: Text('我的', style: Theme.of(context).textTheme.headlineLarge),
+      ),
+      IconButton(
+        tooltip: '立即同步',
+        onPressed: authBusy
+            ? null
+            : () => ref.read(libraryRepositoryProvider).syncNow(),
+        icon: const Icon(Icons.sync_rounded),
+      ),
+      PopupMenuButton<String>(
+        onSelected: (value) {
+          if (value == 'logout') _confirmLogout(context, ref);
+          if (value == 'clear_cache') _clearCaches(context, ref);
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'clear_cache', child: Text('清理临时缓存')),
+          PopupMenuItem(value: 'logout', child: Text('退出登录')),
         ],
       ),
-    ),
+    ],
   );
 }
 
@@ -251,6 +119,7 @@ class _ProfileCard extends StatelessWidget {
     required this.vip,
     required this.fingerprint,
   });
+
   final AsyncValue<UserProfile> profile;
   final AsyncValue<UserVip> vip;
   final bool fingerprint;
@@ -310,11 +179,6 @@ class _ProfileCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-                const SizedBox(height: 8),
-                Text(
-                  '关注 ${user.followingCount ?? 0}  粉丝 ${user.fanCount ?? 0}',
-                  style: const TextStyle(color: KgColors.textMuted),
-                ),
               ],
             ),
           ),
@@ -324,10 +188,52 @@ class _ProfileCard extends StatelessWidget {
   );
 }
 
+class _SyncCard extends ConsumerWidget {
+  const _SyncCard({required this.status});
+
+  final LibrarySyncStatus status;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = status.failed ? Colors.orangeAccent : KgColors.textMuted;
+    final text = switch (status.phase) {
+      LibrarySyncPhase.syncing => '正在同步音乐库…',
+      LibrarySyncPhase.failed =>
+        '有 ${status.pendingCount} 项待同步${status.message == null ? '' : ' · ${status.message}'}',
+      LibrarySyncPhase.idle when status.pendingCount > 0 =>
+        '${status.pendingCount} 项等待同步',
+      LibrarySyncPhase.idle => '音乐库已同步',
+    };
+    return ListTile(
+      tileColor: KgColors.elevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      leading: status.syncing
+          ? const SizedBox.square(
+              dimension: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              status.failed ? Icons.sync_problem_rounded : Icons.cloud_done,
+              color: color,
+            ),
+      title: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: status.failed
+          ? IconButton(
+              tooltip: '重试同步',
+              onPressed: () => ref.read(libraryRepositoryProvider).syncNow(),
+              icon: const Icon(Icons.refresh_rounded),
+            )
+          : null,
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, this.action});
+
   final String title;
   final Widget? action;
+
   @override
   Widget build(BuildContext context) => Row(
     children: [
@@ -341,18 +247,20 @@ class _SectionHeader extends StatelessWidget {
 
 class _PlaylistRow extends StatelessWidget {
   const _PlaylistRow({required this.playlist});
-  final CloudPlaylist playlist;
+
+  final LibraryPlaylist playlist;
+
   @override
   Widget build(BuildContext context) => ListTile(
     contentPadding: const EdgeInsets.symmetric(vertical: 3),
     onTap: () => context.push('/playlist', extra: playlist),
     leading: SongArtwork(
       url: playlist.artworkUrl,
-      cacheId: 'playlist:${playlist.listId ?? playlist.globalCollectionId}',
+      cacheId: 'playlist:${playlist.localId}',
     ),
     title: Text(playlist.name),
     subtitle: Text(
-      '${playlist.count ?? 0} 首${playlist.isMyFavorite
+      '${playlist.count} 首${playlist.isMyFavorite
           ? ' · 我喜欢'
           : playlist.isCollected
           ? ' · 已收藏'
@@ -365,8 +273,10 @@ class _PlaylistRow extends StatelessWidget {
 
 class _InlineError extends StatelessWidget {
   const _InlineError({required this.error, required this.retry});
+
   final Object error;
   final VoidCallback retry;
+
   @override
   Widget build(BuildContext context) => ListTile(
     title: Text(error.toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -384,7 +294,7 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
-        title: const Text('创建云歌单'),
+        title: const Text('创建歌单'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -414,16 +324,13 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
       ),
     ),
   );
-  if (accepted != true || name.text.trim().isEmpty) return;
+  final value = name.text.trim();
+  name.dispose();
+  if (accepted != true || value.isEmpty) return;
   try {
     await ref
-        .read(musicRepositoryProvider)
-        .createPlaylist(
-          ref.read(authControllerProvider).snapshot.userId!,
-          name.text.trim(),
-          private: private,
-        );
-    ref.invalidate(cloudPlaylistsProvider);
+        .read(libraryRepositoryProvider)
+        .createPlaylist(value, private: private);
   } catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(
@@ -438,7 +345,7 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('退出登录？'),
-      content: const Text('云端账号缓存会被清除，本地收藏和本地历史会保留。'),
+      content: const Text('本机音乐库和待同步操作会被清除；下次登录将从云端重新建立。'),
       actions: [
         TextButton(
           onPressed: () => context.pop(false),
@@ -459,7 +366,7 @@ Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('清理临时缓存？'),
-      content: const Text('会清理歌曲文件、图片和接口缓存，本地收藏、播放历史与登录状态会保留。'),
+      content: const Text('会清理歌曲文件、图片和接口缓存；音乐库、待同步操作与登录状态会保留。'),
       actions: [
         TextButton(
           onPressed: () => context.pop(false),

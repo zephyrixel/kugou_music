@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
-import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 
 class LibraryScreen extends ConsumerWidget {
@@ -17,7 +16,7 @@ class LibraryScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
             child: Text(
-              '本地音乐库',
+              '音乐库',
               style: Theme.of(context).textTheme.headlineLarge,
             ),
           ),
@@ -29,10 +28,7 @@ class LibraryScreen extends ConsumerWidget {
           ),
           Expanded(
             child: TabBarView(
-              children: [
-                _SongStream(provider: favoritesProvider, emptyText: '还没有收藏歌曲'),
-                _SongStream(provider: historyProvider, emptyText: '播放记录会出现在这里'),
-              ],
+              children: [const _FavoriteSongs(), const _HistorySongs()],
             ),
           ),
         ],
@@ -41,19 +37,17 @@ class LibraryScreen extends ConsumerWidget {
   );
 }
 
-class _SongStream extends ConsumerWidget {
-  const _SongStream({required this.provider, required this.emptyText});
-  final StreamProvider<List<Song>> provider;
-  final String emptyText;
+class _FavoriteSongs extends ConsumerWidget {
+  const _FavoriteSongs();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final value = ref.watch(provider);
+    final value = ref.watch(favoriteSongsProvider);
     return value.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => Center(child: Text(error.toString())),
       data: (songs) => songs.isEmpty
-          ? Center(child: Text(emptyText))
+          ? const Center(child: Text('还没有收藏歌曲'))
           : ListView.builder(
               itemCount: songs.length,
               itemBuilder: (context, index) => SongTile(
@@ -62,9 +56,10 @@ class _SongStream extends ConsumerWidget {
                     .read(audioHandlerProvider)
                     .playSong(songs[index], queueSongs: songs),
                 trailing: IconButton(
-                  tooltip: '切换收藏',
-                  onPressed: () =>
-                      ref.read(databaseProvider).toggleFavorite(songs[index]),
+                  tooltip: '取消喜欢',
+                  onPressed: () => ref
+                      .read(libraryRepositoryProvider)
+                      .toggleFavorite(songs[index]),
                   constraints: const BoxConstraints.tightFor(
                     width: 40,
                     height: 40,
@@ -75,6 +70,36 @@ class _SongStream extends ConsumerWidget {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _HistorySongs extends ConsumerWidget {
+  const _HistorySongs();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final value = ref.watch(historyEntriesProvider);
+    return value.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => Center(child: Text(error.toString())),
+      data: (entries) {
+        final songs = entries
+            .map((entry) => entry.song)
+            .toList(growable: false);
+        if (songs.isEmpty) {
+          return const Center(child: Text('播放记录会出现在这里'));
+        }
+        return ListView.builder(
+          itemCount: songs.length,
+          itemBuilder: (context, index) => SongTile(
+            song: songs[index],
+            onTap: () => ref
+                .read(audioHandlerProvider)
+                .playSong(songs[index], queueSongs: songs),
+          ),
+        );
+      },
     );
   }
 }

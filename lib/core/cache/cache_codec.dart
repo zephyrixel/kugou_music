@@ -71,28 +71,6 @@ abstract final class CacheCodecs {
     },
   );
 
-  static final cloudPlaylistPage = CacheCodec<CloudPlaylistPage>(
-    encodeValue: (value) => {
-      'items': value.items.map(_cloudPlaylistToJson).toList(growable: false),
-      'page': value.page,
-      'pageSize': value.pageSize,
-      'total': value.total,
-      'totalVersion': value.totalVersion,
-    },
-    decodeValue: (value) {
-      final map = _map(value);
-      return CloudPlaylistPage(
-        items: _list(map['items'])
-            .map((item) => _cloudPlaylistFromJson(_map(item)))
-            .toList(growable: false),
-        page: _int(map['page']) ?? 1,
-        pageSize: _int(map['pageSize']) ?? 50,
-        total: _int(map['total']),
-        totalVersion: _int(map['totalVersion']),
-      );
-    },
-  );
-
   static final userProfile = CacheCodec<UserProfile>(
     encodeValue: (value) => {
       'userId': value.userId,
@@ -194,39 +172,6 @@ Song _songFromJson(Map<String, Object?> value) {
     ),
   );
 }
-
-Map<String, Object?> _cloudPlaylistToJson(CloudPlaylist value) => {
-  'listId': value.listId,
-  'globalCollectionId': value.globalCollectionId,
-  'name': value.name,
-  'intro': value.intro,
-  'artworkUrl': value.artworkUrl,
-  'count': value.count,
-  'listType': value.listType,
-  'creatorUserId': value.creatorUserId,
-  'creatorName': value.creatorName,
-  'isPrivate': value.isPrivate,
-  'isMyFavorite': value.isMyFavorite,
-  'isDefaultCollect': value.isDefaultCollect,
-  'tags': value.tags,
-};
-
-CloudPlaylist _cloudPlaylistFromJson(Map<String, Object?> value) =>
-    CloudPlaylist(
-      listId: _int(value['listId']),
-      globalCollectionId: _string(value['globalCollectionId']),
-      name: _string(value['name']) ?? '未命名歌单',
-      intro: _string(value['intro']),
-      artworkUrl: _string(value['artworkUrl']),
-      count: _int(value['count']),
-      listType: _int(value['listType']),
-      creatorUserId: _int(value['creatorUserId']),
-      creatorName: _string(value['creatorName']),
-      isPrivate: value['isPrivate'] == true,
-      isMyFavorite: value['isMyFavorite'] == true,
-      isDefaultCollect: value['isDefaultCollect'] == true,
-      tags: _string(value['tags']),
-    );
 
 Map<String, Object?> _playlistSearchHitToJson(PlaylistSearchHit value) => {
   'specialId': value.specialId,

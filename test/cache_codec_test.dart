@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/cache/cache_codec.dart';
 import 'package:kgmusic/core/models/account.dart';
-import 'package:kgmusic/core/models/cloud_playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 
 void main() {
@@ -25,33 +24,6 @@ void main() {
     expect(decoded.fileId, 99);
     expect(decoded.hashes.high, 'high');
     expect(decoded.artworkUrl, song.artworkUrl);
-  });
-
-  test('cloud playlist cache codec preserves pagination metadata', () {
-    const page = CloudPlaylistPage(
-      items: [
-        CloudPlaylist(
-          listId: 7,
-          name: 'My List',
-          isPrivate: true,
-          isMyFavorite: false,
-          isDefaultCollect: false,
-        ),
-      ],
-      page: 2,
-      pageSize: 50,
-      total: 75,
-      totalVersion: 3,
-    );
-
-    final decoded = CacheCodecs.cloudPlaylistPage.decode(
-      CacheCodecs.cloudPlaylistPage.encode(page),
-    );
-
-    expect(decoded.page, 2);
-    expect(decoded.total, 75);
-    expect(decoded.items.single.listId, 7);
-    expect(decoded.items.single.isPrivate, isTrue);
   });
 
   test('account cache codecs preserve profile and VIP state', () {

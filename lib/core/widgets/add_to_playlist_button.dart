@@ -10,10 +10,8 @@ class AddToPlaylistButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authControllerProvider);
-    if (!auth.authenticated) return const SizedBox.shrink();
     return IconButton(
-      tooltip: '添加到云歌单',
+      tooltip: '添加到歌单',
       onPressed: () => showAddToCloudPlaylist(context, ref, song),
       icon: const Icon(Icons.playlist_add_rounded),
     );
@@ -26,19 +24,19 @@ Future<void> showAddToCloudPlaylist(
   Song song,
 ) async {
   try {
-    final page = await ref.read(cloudPlaylistsProvider.future);
-    final writable = page.items
+    final playlists = await ref.read(libraryPlaylistsProvider.future);
+    final writable = playlists
         .where((item) => item.isWritable && !item.isDefaultCollect)
         .toList();
     if (!context.mounted) return;
-    final selected = await showModalBottomSheet<int>(
+    final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
       builder: (context) => SafeArea(
         child: ListView(
           shrinkWrap: true,
           children: [
-            const ListTile(title: Text('添加到云歌单')),
+            const ListTile(title: Text('添加到歌单')),
             ...writable.map(
               (playlist) => ListTile(
                 leading: Icon(
@@ -47,8 +45,8 @@ Future<void> showAddToCloudPlaylist(
                       : Icons.queue_music_rounded,
                 ),
                 title: Text(playlist.name),
-                subtitle: Text('${playlist.count ?? 0} 首'),
-                onTap: () => context.pop(playlist.listId),
+                subtitle: Text('${playlist.count} 首'),
+                onTap: () => context.pop(playlist.localId),
               ),
             ),
           ],
@@ -56,17 +54,11 @@ Future<void> showAddToCloudPlaylist(
       ),
     );
     if (selected == null) return;
-    final userId = ref.read(authControllerProvider).snapshot.userId;
-    if (userId == null) return;
-    await ref
-        .read(musicRepositoryProvider)
-        .addSongToPlaylist(userId, selected, song);
-    ref.invalidate(myFavoriteSongsProvider);
-    ref.invalidate(cloudPlaylistsProvider);
+    await ref.read(libraryRepositoryProvider).addSong(selected, song);
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已添加到云歌单')));
+      ).showSnackBar(const SnackBar(content: Text('已添加到歌单，正在后台同步')));
     }
   } catch (error) {
     if (context.mounted) {

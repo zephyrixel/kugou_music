@@ -5,12 +5,12 @@ import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:kgmusic/core/cache/artwork_cache.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
-import 'package:kgmusic/core/database/app_database.dart';
+import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
 class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
-  MusicAudioHandler(this._sdk, this._database, this._audioCache) {
+  MusicAudioHandler(this._sdk, this._library, this._audioCache) {
     _player.playbackEventStream.listen(_broadcastState);
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
@@ -22,7 +22,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   final MusicSdk _sdk;
-  final AppDatabase _database;
+  final LibraryRepository _library;
   final AudioCacheManager _audioCache;
   final AudioPlayer _player = AudioPlayer();
   final StreamController<String?> _messages = StreamController.broadcast();
@@ -211,7 +211,7 @@ class MusicAudioHandler extends BaseAudioHandler with SeekHandler {
         preview: resolution is PreviewResolution,
       ),
     );
-    if (recordHistory) await _database.recordPlayed(resolvedSong);
+    if (recordHistory) await _library.recordPlayed(resolvedSong);
     if (!_isCurrentLoad(generation, resolvedSong)) return;
     if (autoPlay) {
       await _player.play();

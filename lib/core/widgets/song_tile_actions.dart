@@ -21,15 +21,7 @@ class SongTileActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authenticated = ref.watch(authControllerProvider).authenticated;
-    final hasSecondaryAction = authenticated || onRemove != null;
-    if (!hasSecondaryAction) {
-      return SongFavoriteButton(song: song, compact: true);
-    }
-
-    final favorites = authenticated
-        ? ref.watch(myFavoriteSongsProvider)
-        : ref.watch(favoritesProvider);
+    final favorites = ref.watch(favoriteSongsProvider);
     final likedSongs = favorites.value ?? const <Song>[];
     final liked = likedSongs.any((item) => item.id == song.id);
     return SizedBox.square(
@@ -42,13 +34,7 @@ class SongTileActions extends ConsumerWidget {
         onSelected: (action) async {
           switch (action) {
             case _SongAction.favorite:
-              await toggleSongFavorite(
-                context,
-                ref,
-                song,
-                liked: liked,
-                likedSongs: likedSongs,
-              );
+              await toggleSongFavorite(context, ref, song);
               break;
             case _SongAction.addToPlaylist:
               await showAddToCloudPlaylist(context, ref, song);
@@ -70,15 +56,14 @@ class SongTileActions extends ConsumerWidget {
               title: Text(liked ? '取消喜欢' : '添加到我喜欢'),
             ),
           ),
-          if (authenticated)
-            const PopupMenuItem(
-              value: _SongAction.addToPlaylist,
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.playlist_add_rounded),
-                title: Text('添加到云歌单'),
-              ),
+          const PopupMenuItem(
+            value: _SongAction.addToPlaylist,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.playlist_add_rounded),
+              title: Text('添加到歌单'),
             ),
+          ),
           if (onRemove != null)
             PopupMenuItem(
               value: _SongAction.remove,

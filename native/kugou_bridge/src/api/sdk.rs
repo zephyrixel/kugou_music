@@ -1,7 +1,8 @@
 use kugou_sdk::{
-    AudioQuality, CollectRequest, KugouClient, KugouError, Pagination, PlatformProfile,
-    PlaybackOutcome, PlaybackRequest, PlaylistEditRequest, PlaylistKind, PlaylistTrackInput,
-    SearchPlaylist, SearchRequest, Session, SongRef, UserPlaylist,
+    AudioQuality, CollectRequest, HistoryFetchRequest, HistorySongOp, HistoryUploadRequest,
+    KugouClient, KugouError, Pagination, PlatformProfile, PlaybackOutcome, PlaybackRequest,
+    PlaylistEditRequest, PlaylistKind, PlaylistTrackInput, SearchPlaylist, SearchRequest, Session,
+    SongRef, UserPlaylist,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -59,6 +60,28 @@ pub struct SongPageDto {
     pub page: u32,
     pub page_size: u32,
     pub total: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HistorySongDto {
+    pub song: SongDto,
+    pub played_at_secs: Option<u64>,
+    pub play_count: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HistoryPageDto {
+    pub items: Vec<HistorySongDto>,
+    pub cursor: Option<String>,
+    pub has_more: bool,
+    pub total: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HistoryUploadItemDto {
+    pub mix_song_id: u64,
+    pub played_at_secs: u64,
+    pub play_count: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -234,6 +257,11 @@ pub struct PlaylistMutationDto {
     pub list_id: Option<u64>,
     pub global_collection_id: Option<String>,
     pub name: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PlaylistTracksMutationDto {
+    pub file_ids: Vec<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -540,23 +568,65 @@ pub async fn get_user_vip() -> Result<UserVipDto, BridgeError> {
     })
 }
 
-pub async fn get_cloud_history() -> Result<SongPageDto, BridgeError> {
+pub async fn get_cloud_history(cursor: Option<String>) -> Result<HistoryPageDto, BridgeError> {
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
+    let request = cursor
+        .filter(|value| !value.trim().is_empty())
+        .map_or_else(HistoryFetchRequest::new, |value| {
+            HistoryFetchRequest::new().bp(value)
+        });
     let value = runtime
         .client
         .users()
-        .history(&mut session)
+        .history_page(&mut session, request)
         .await
         .map_err(BridgeError::from_sdk)?
         .data;
-    let items = songs_to_dtos_with_artwork(&runtime.client, &mut session, &value.items).await;
-    Ok(SongPageDto {
+    let history_items: Vec<_> = value
+        .items
+        .into_iter()
+        .filter(|item| item.op != Some(0))
+        .collect();
+    let songs: Vec<SongRef> = history_items.iter().map(|item| item.song.clone()).collect();
+    let song_dtos = songs_to_dtos_with_artwork(&runtime.client, &mut session, &songs).await;
+    let items = history_items
+        .into_iter()
+        .zip(song_dtos)
+        .map(|(item, song)| HistorySongDto {
+            song,
+            played_at_secs: item.ot,
+            play_count: item.pc,
+        })
+        .collect();
+    let has_more = value
+        .has_more
+        .unwrap_or_else(|| value.bp.as_deref().is_some_and(|bp| !bp.is_empty()));
+    Ok(HistoryPageDto {
         items,
-        page: 1,
-        page_size: value.items.len() as u32,
+        cursor: value.bp,
+        has_more,
         total: value.total,
     })
+}
+
+pub async fn upload_cloud_history(items: Vec<HistoryUploadItemDto>) -> Result<(), BridgeError> {
+    let songs = items
+        .into_iter()
+        .map(|item| HistorySongOp::add(item.mix_song_id, item.played_at_secs, item.play_count))
+        .collect();
+    let request = HistoryUploadRequest::new(songs)
+        .map_err(BridgeError::from_sdk)?
+        .device_type(1);
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    runtime
+        .client
+        .users()
+        .history_upload(&mut session, request)
+        .await
+        .map_err(BridgeError::from_sdk)?;
+    Ok(())
 }
 
 pub async fn get_cloud_playlists(
@@ -721,13 +791,18 @@ pub async fn edit_cloud_playlist(input: PlaylistEditInputDto) -> Result<(), Brid
     Ok(())
 }
 
-pub async fn add_song_to_playlist(list_id: u64, song: SongDto) -> Result<(), BridgeError> {
+pub async fn add_song_to_playlist(
+    list_id: u64,
+    song: SongDto,
+) -> Result<PlaylistTracksMutationDto, BridgeError> {
     let hash = song
         .hashes
         .standard
         .clone()
         .or(song.hashes.high.clone())
         .or(song.hashes.flac.clone())
+        .or(song.hashes.hi_res.clone())
+        .or(song.hashes.super_hash.clone())
         .ok_or_else(|| BridgeError::invalid_argument("song has no hash for playlist write"))?;
     let mut track = PlaylistTrackInput::new(song.title, hash);
     if let Some(value) = song.album_id {
@@ -741,13 +816,16 @@ pub async fn add_song_to_playlist(list_id: u64, song: SongDto) -> Result<(), Bri
     }
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
-    runtime
+    let value = runtime
         .client
         .playlists()
         .add_tracks(&mut session, list_id, [track])
         .await
-        .map_err(BridgeError::from_sdk)?;
-    Ok(())
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(PlaylistTracksMutationDto {
+        file_ids: value.file_ids,
+    })
 }
 
 pub async fn remove_song_from_playlist(list_id: u64, file_id: u64) -> Result<(), BridgeError> {

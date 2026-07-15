@@ -79,13 +79,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CloudPlaylistPageDto dco_decode_cloud_playlist_page_dto(dynamic raw);
 
   @protected
+  HistoryPageDto dco_decode_history_page_dto(dynamic raw);
+
+  @protected
+  HistorySongDto dco_decode_history_song_dto(dynamic raw);
+
+  @protected
+  HistoryUploadItemDto dco_decode_history_upload_item_dto(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_CastedPrimitive_u_64(dynamic raw);
+
+  @protected
   List<CloudPlaylistDto> dco_decode_list_cloud_playlist_dto(dynamic raw);
+
+  @protected
+  List<HistorySongDto> dco_decode_list_history_song_dto(dynamic raw);
+
+  @protected
+  List<HistoryUploadItemDto> dco_decode_list_history_upload_item_dto(
+    dynamic raw,
+  );
 
   @protected
   List<PlaylistSearchHitDto> dco_decode_list_playlist_search_hit_dto(
@@ -127,6 +147,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlaylistSearchPageDto dco_decode_playlist_search_page_dto(dynamic raw);
+
+  @protected
+  PlaylistTracksMutationDto dco_decode_playlist_tracks_mutation_dto(
+    dynamic raw,
+  );
 
   @protected
   PlaylistTracksRequestDto dco_decode_playlist_tracks_request_dto(dynamic raw);
@@ -237,13 +262,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  HistoryPageDto sse_decode_history_page_dto(SseDeserializer deserializer);
+
+  @protected
+  HistorySongDto sse_decode_history_song_dto(SseDeserializer deserializer);
+
+  @protected
+  HistoryUploadItemDto sse_decode_history_upload_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
+  List<int> sse_decode_list_CastedPrimitive_u_64(SseDeserializer deserializer);
+
+  @protected
   List<CloudPlaylistDto> sse_decode_list_cloud_playlist_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HistorySongDto> sse_decode_list_history_song_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HistoryUploadItemDto> sse_decode_list_history_upload_item_dto(
     SseDeserializer deserializer,
   );
 
@@ -295,6 +344,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlaylistSearchPageDto sse_decode_playlist_search_page_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  PlaylistTracksMutationDto sse_decode_playlist_tracks_mutation_dto(
     SseDeserializer deserializer,
   );
 
@@ -430,14 +484,50 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_history_page_dto(
+    HistoryPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_history_song_dto(
+    HistorySongDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_history_upload_item_dto(
+    HistoryUploadItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_CastedPrimitive_u_64(
+    List<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_cloud_playlist_dto(
     List<CloudPlaylistDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_history_song_dto(
+    List<HistorySongDto> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_history_upload_item_dto(
+    List<HistoryUploadItemDto> self,
     SseSerializer serializer,
   );
 
@@ -498,6 +588,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_playlist_search_page_dto(
     PlaylistSearchPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_playlist_tracks_mutation_dto(
+    PlaylistTracksMutationDto self,
     SseSerializer serializer,
   );
 

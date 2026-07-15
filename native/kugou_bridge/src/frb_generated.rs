@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -310144552;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1472061835;
 
 // Section: executor
 
@@ -365,11 +365,12 @@ fn wire__crate__api__sdk__get_cloud_history_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_cursor = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::sdk::BridgeError>(
                     (move || async move {
-                        let output_ok = crate::api::sdk::get_cloud_history().await?;
+                        let output_ok = crate::api::sdk::get_cloud_history(api_cursor).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1015,6 +1016,43 @@ fn wire__crate__api__sdk__send_sms_code_impl(
         },
     )
 }
+fn wire__crate__api__sdk__upload_cloud_history_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "upload_cloud_history",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_items =
+                <Vec<crate::api::sdk::HistoryUploadItemDto>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::sdk::BridgeError>(
+                    (move || async move {
+                        let output_ok = crate::api::sdk::upload_cloud_history(api_items).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -1168,6 +1206,50 @@ impl SseDecode for crate::api::sdk::CloudPlaylistPageDto {
     }
 }
 
+impl SseDecode for crate::api::sdk::HistoryPageDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_items = <Vec<crate::api::sdk::HistorySongDto>>::sse_decode(deserializer);
+        let mut var_cursor = <Option<String>>::sse_decode(deserializer);
+        let mut var_hasMore = <bool>::sse_decode(deserializer);
+        let mut var_total = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::sdk::HistoryPageDto {
+            items: var_items,
+            cursor: var_cursor,
+            has_more: var_hasMore,
+            total: var_total,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::HistorySongDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_song = <crate::api::sdk::SongDto>::sse_decode(deserializer);
+        let mut var_playedAtSecs = <Option<u64>>::sse_decode(deserializer);
+        let mut var_playCount = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::sdk::HistorySongDto {
+            song: var_song,
+            played_at_secs: var_playedAtSecs,
+            play_count: var_playCount,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::HistoryUploadItemDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_mixSongId = <u64>::sse_decode(deserializer);
+        let mut var_playedAtSecs = <u64>::sse_decode(deserializer);
+        let mut var_playCount = <u64>::sse_decode(deserializer);
+        return crate::api::sdk::HistoryUploadItemDto {
+            mix_song_id: var_mixSongId,
+            played_at_secs: var_playedAtSecs,
+            play_count: var_playCount,
+        };
+    }
+}
+
 impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1182,6 +1264,18 @@ impl SseDecode for i64 {
     }
 }
 
+impl SseDecode for Vec<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<u64>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sdk::CloudPlaylistDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1189,6 +1283,32 @@ impl SseDecode for Vec<crate::api::sdk::CloudPlaylistDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::sdk::CloudPlaylistDto>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sdk::HistorySongDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sdk::HistorySongDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sdk::HistoryUploadItemDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sdk::HistoryUploadItemDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -1418,6 +1538,16 @@ impl SseDecode for crate::api::sdk::PlaylistSearchPageDto {
             page: var_page,
             page_size: var_pageSize,
             total: var_total,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::PlaylistTracksMutationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_fileIds = <Vec<u64>>::sse_decode(deserializer);
+        return crate::api::sdk::PlaylistTracksMutationDto {
+            file_ids: var_fileIds,
         };
     }
 }
@@ -1690,6 +1820,7 @@ fn pde_ffi_dispatcher_primary_impl(
         25 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
         26 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
         27 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__sdk__upload_cloud_history_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1881,6 +2012,73 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::CloudPlaylistPageDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::HistoryPageDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.items.into_into_dart().into_dart(),
+            self.cursor.into_into_dart().into_dart(),
+            self.has_more.into_into_dart().into_dart(),
+            self.total.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::HistoryPageDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::HistoryPageDto>
+    for crate::api::sdk::HistoryPageDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::HistoryPageDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::HistorySongDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.song.into_into_dart().into_dart(),
+            self.played_at_secs.into_into_dart().into_dart(),
+            self.play_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::HistorySongDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::HistorySongDto>
+    for crate::api::sdk::HistorySongDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::HistorySongDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::HistoryUploadItemDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.mix_song_id.into_into_dart().into_dart(),
+            self.played_at_secs.into_into_dart().into_dart(),
+            self.play_count.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::HistoryUploadItemDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::HistoryUploadItemDto>
+    for crate::api::sdk::HistoryUploadItemDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::HistoryUploadItemDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::sdk::PlaybackResolutionDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -2040,6 +2238,23 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::PlaylistSearchPageDto>
     for crate::api::sdk::PlaylistSearchPageDto
 {
     fn into_into_dart(self) -> crate::api::sdk::PlaylistSearchPageDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::PlaylistTracksMutationDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [self.file_ids.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::PlaylistTracksMutationDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::PlaylistTracksMutationDto>
+    for crate::api::sdk::PlaylistTracksMutationDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::PlaylistTracksMutationDto {
         self
     }
 }
@@ -2398,6 +2613,34 @@ impl SseEncode for crate::api::sdk::CloudPlaylistPageDto {
     }
 }
 
+impl SseEncode for crate::api::sdk::HistoryPageDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<crate::api::sdk::HistorySongDto>>::sse_encode(self.items, serializer);
+        <Option<String>>::sse_encode(self.cursor, serializer);
+        <bool>::sse_encode(self.has_more, serializer);
+        <Option<u64>>::sse_encode(self.total, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::HistorySongDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::api::sdk::SongDto>::sse_encode(self.song, serializer);
+        <Option<u64>>::sse_encode(self.played_at_secs, serializer);
+        <Option<u64>>::sse_encode(self.play_count, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::HistoryUploadItemDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u64>::sse_encode(self.mix_song_id, serializer);
+        <u64>::sse_encode(self.played_at_secs, serializer);
+        <u64>::sse_encode(self.play_count, serializer);
+    }
+}
+
 impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2412,12 +2655,42 @@ impl SseEncode for i64 {
     }
 }
 
+impl SseEncode for Vec<u64> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <u64>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sdk::CloudPlaylistDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::sdk::CloudPlaylistDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::sdk::HistorySongDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sdk::HistorySongDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::sdk::HistoryUploadItemDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sdk::HistoryUploadItemDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -2599,6 +2872,13 @@ impl SseEncode for crate::api::sdk::PlaylistSearchPageDto {
         <u32>::sse_encode(self.page, serializer);
         <u32>::sse_encode(self.page_size, serializer);
         <Option<u64>>::sse_encode(self.total, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::PlaylistTracksMutationDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<u64>>::sse_encode(self.file_ids, serializer);
     }
 }
 

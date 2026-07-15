@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -310144552;
+  int get rustContentHash => 1472061835;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,7 +78,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<void> crateApiSdkAddSongToPlaylist({
+  Future<PlaylistTracksMutationDto> crateApiSdkAddSongToPlaylist({
     required int listId,
     required SongDto song,
   });
@@ -109,7 +109,7 @@ abstract class RustLibApi extends BaseApi {
 
   Future<AuthStateDto> crateApiSdkGetAuthState();
 
-  Future<SongPageDto> crateApiSdkGetCloudHistory();
+  Future<HistoryPageDto> crateApiSdkGetCloudHistory({String? cursor});
 
   Future<CloudPlaylistPageDto> crateApiSdkGetCloudPlaylists({
     required int page,
@@ -163,6 +163,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiSdkSendSmsCode({required String mobile});
+
+  Future<void> crateApiSdkUploadCloudHistory({
+    required List<HistoryUploadItemDto> items,
+  });
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -174,7 +178,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<void> crateApiSdkAddSongToPlaylist({
+  Future<PlaylistTracksMutationDto> crateApiSdkAddSongToPlaylist({
     required int listId,
     required SongDto song,
   }) {
@@ -192,7 +196,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
+          decodeSuccessData: sse_decode_playlist_tracks_mutation_dto,
           decodeErrorData: sse_decode_bridge_error,
         ),
         constMeta: kCrateApiSdkAddSongToPlaylistConstMeta,
@@ -430,11 +434,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_auth_state", argNames: []);
 
   @override
-  Future<SongPageDto> crateApiSdkGetCloudHistory() {
+  Future<HistoryPageDto> crateApiSdkGetCloudHistory({String? cursor}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_opt_String(cursor, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -443,18 +448,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_song_page_dto,
+          decodeSuccessData: sse_decode_history_page_dto,
           decodeErrorData: sse_decode_bridge_error,
         ),
         constMeta: kCrateApiSdkGetCloudHistoryConstMeta,
-        argValues: [],
+        argValues: [cursor],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiSdkGetCloudHistoryConstMeta =>
-      const TaskConstMeta(debugName: "get_cloud_history", argNames: []);
+      const TaskConstMeta(debugName: "get_cloud_history", argNames: ["cursor"]);
 
   @override
   Future<CloudPlaylistPageDto> crateApiSdkGetCloudPlaylists({
@@ -986,6 +991,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSdkSendSmsCodeConstMeta =>
       const TaskConstMeta(debugName: "send_sms_code", argNames: ["mobile"]);
 
+  @override
+  Future<void> crateApiSdkUploadCloudHistory({
+    required List<HistoryUploadItemDto> items,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_history_upload_item_dto(items, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkUploadCloudHistoryConstMeta,
+        argValues: [items],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkUploadCloudHistoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "upload_cloud_history",
+        argNames: ["items"],
+      );
+
   @protected
   int dco_decode_CastedPrimitive_i_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -1156,6 +1194,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryPageDto dco_decode_history_page_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return HistoryPageDto(
+      items: dco_decode_list_history_song_dto(arr[0]),
+      cursor: dco_decode_opt_String(arr[1]),
+      hasMore: dco_decode_bool(arr[2]),
+      total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  HistorySongDto dco_decode_history_song_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return HistorySongDto(
+      song: dco_decode_song_dto(arr[0]),
+      playedAtSecs: dco_decode_opt_CastedPrimitive_u_64(arr[1]),
+      playCount: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+    );
+  }
+
+  @protected
+  HistoryUploadItemDto dco_decode_history_upload_item_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return HistoryUploadItemDto(
+      mixSongId: dco_decode_CastedPrimitive_u_64(arr[0]),
+      playedAtSecs: dco_decode_CastedPrimitive_u_64(arr[1]),
+      playCount: dco_decode_CastedPrimitive_u_64(arr[2]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -1168,9 +1246,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> dco_decode_list_CastedPrimitive_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_CastedPrimitive_u_64).toList();
+  }
+
+  @protected
   List<CloudPlaylistDto> dco_decode_list_cloud_playlist_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_cloud_playlist_dto).toList();
+  }
+
+  @protected
+  List<HistorySongDto> dco_decode_list_history_song_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_history_song_dto).toList();
+  }
+
+  @protected
+  List<HistoryUploadItemDto> dco_decode_list_history_upload_item_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_history_upload_item_dto)
+        .toList();
   }
 
   @protected
@@ -1319,6 +1419,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       page: dco_decode_u_32(arr[1]),
       pageSize: dco_decode_u_32(arr[2]),
       total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  PlaylistTracksMutationDto dco_decode_playlist_tracks_mutation_dto(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return PlaylistTracksMutationDto(
+      fileIds: dco_decode_list_CastedPrimitive_u_64(arr[0]),
     );
   }
 
@@ -1698,6 +1811,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryPageDto sse_decode_history_page_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_items = sse_decode_list_history_song_dto(deserializer);
+    var var_cursor = sse_decode_opt_String(deserializer);
+    var var_hasMore = sse_decode_bool(deserializer);
+    var var_total = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return HistoryPageDto(
+      items: var_items,
+      cursor: var_cursor,
+      hasMore: var_hasMore,
+      total: var_total,
+    );
+  }
+
+  @protected
+  HistorySongDto sse_decode_history_song_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_song = sse_decode_song_dto(deserializer);
+    var var_playedAtSecs = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_playCount = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return HistorySongDto(
+      song: var_song,
+      playedAtSecs: var_playedAtSecs,
+      playCount: var_playCount,
+    );
+  }
+
+  @protected
+  HistoryUploadItemDto sse_decode_history_upload_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_mixSongId = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_playedAtSecs = sse_decode_CastedPrimitive_u_64(deserializer);
+    var var_playCount = sse_decode_CastedPrimitive_u_64(deserializer);
+    return HistoryUploadItemDto(
+      mixSongId: var_mixSongId,
+      playedAtSecs: var_playedAtSecs,
+      playCount: var_playCount,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -1710,6 +1866,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> sse_decode_list_CastedPrimitive_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <int>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_CastedPrimitive_u_64(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<CloudPlaylistDto> sse_decode_list_cloud_playlist_dto(
     SseDeserializer deserializer,
   ) {
@@ -1719,6 +1887,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <CloudPlaylistDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_cloud_playlist_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<HistorySongDto> sse_decode_list_history_song_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <HistorySongDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_history_song_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<HistoryUploadItemDto> sse_decode_list_history_upload_item_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <HistoryUploadItemDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_history_upload_item_dto(deserializer));
     }
     return ans_;
   }
@@ -1947,6 +2143,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pageSize: var_pageSize,
       total: var_total,
     );
+  }
+
+  @protected
+  PlaylistTracksMutationDto sse_decode_playlist_tracks_mutation_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_fileIds = sse_decode_list_CastedPrimitive_u_64(deserializer);
+    return PlaylistTracksMutationDto(fileIds: var_fileIds);
   }
 
   @protected
@@ -2334,6 +2539,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_history_page_dto(
+    HistoryPageDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_history_song_dto(self.items, serializer);
+    sse_encode_opt_String(self.cursor, serializer);
+    sse_encode_bool(self.hasMore, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
+  }
+
+  @protected
+  void sse_encode_history_song_dto(
+    HistorySongDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_song_dto(self.song, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.playedAtSecs, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.playCount, serializer);
+  }
+
+  @protected
+  void sse_encode_history_upload_item_dto(
+    HistoryUploadItemDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_CastedPrimitive_u_64(self.mixSongId, serializer);
+    sse_encode_CastedPrimitive_u_64(self.playedAtSecs, serializer);
+    sse_encode_CastedPrimitive_u_64(self.playCount, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -2346,6 +2585,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_CastedPrimitive_u_64(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_CastedPrimitive_u_64(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_cloud_playlist_dto(
     List<CloudPlaylistDto> self,
     SseSerializer serializer,
@@ -2354,6 +2605,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_cloud_playlist_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_history_song_dto(
+    List<HistorySongDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_history_song_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_history_upload_item_dto(
+    List<HistoryUploadItemDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_history_upload_item_dto(item, serializer);
     }
   }
 
@@ -2545,6 +2820,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.page, serializer);
     sse_encode_u_32(self.pageSize, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
+  }
+
+  @protected
+  void sse_encode_playlist_tracks_mutation_dto(
+    PlaylistTracksMutationDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_CastedPrimitive_u_64(self.fileIds, serializer);
   }
 
   @protected

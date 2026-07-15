@@ -10,7 +10,7 @@ part 'sdk.freezed.dart';
 
 // These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `nonempty_artwork`, `object_value_for_key`, `runtime`, `search_playlist_to_dto`, `select_hash`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `SongDetailEnrichment`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 Future<SdkCapabilitiesDto> initializeSdk() =>
@@ -57,8 +57,11 @@ Future<UserProfileDto> getUserProfile() =>
 
 Future<UserVipDto> getUserVip() => RustLib.instance.api.crateApiSdkGetUserVip();
 
-Future<SongPageDto> getCloudHistory() =>
-    RustLib.instance.api.crateApiSdkGetCloudHistory();
+Future<HistoryPageDto> getCloudHistory({String? cursor}) =>
+    RustLib.instance.api.crateApiSdkGetCloudHistory(cursor: cursor);
+
+Future<void> uploadCloudHistory({required List<HistoryUploadItemDto> items}) =>
+    RustLib.instance.api.crateApiSdkUploadCloudHistory(items: items);
 
 Future<CloudPlaylistPageDto> getCloudPlaylists({
   required int page,
@@ -101,11 +104,13 @@ Future<void> deleteCloudPlaylist({
 Future<void> editCloudPlaylist({required PlaylistEditInputDto input}) =>
     RustLib.instance.api.crateApiSdkEditCloudPlaylist(input: input);
 
-Future<void> addSongToPlaylist({required int listId, required SongDto song}) =>
-    RustLib.instance.api.crateApiSdkAddSongToPlaylist(
-      listId: listId,
-      song: song,
-    );
+Future<PlaylistTracksMutationDto> addSongToPlaylist({
+  required int listId,
+  required SongDto song,
+}) => RustLib.instance.api.crateApiSdkAddSongToPlaylist(
+  listId: listId,
+  song: song,
+);
 
 Future<void> removeSongFromPlaylist({
   required int listId,
@@ -333,6 +338,80 @@ class CloudPlaylistPageDto {
           totalVersion == other.totalVersion;
 }
 
+class HistoryPageDto {
+  final List<HistorySongDto> items;
+  final String? cursor;
+  final bool hasMore;
+  final int? total;
+
+  const HistoryPageDto({
+    required this.items,
+    this.cursor,
+    required this.hasMore,
+    this.total,
+  });
+
+  @override
+  int get hashCode =>
+      items.hashCode ^ cursor.hashCode ^ hasMore.hashCode ^ total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryPageDto &&
+          runtimeType == other.runtimeType &&
+          items == other.items &&
+          cursor == other.cursor &&
+          hasMore == other.hasMore &&
+          total == other.total;
+}
+
+class HistorySongDto {
+  final SongDto song;
+  final int? playedAtSecs;
+  final int? playCount;
+
+  const HistorySongDto({required this.song, this.playedAtSecs, this.playCount});
+
+  @override
+  int get hashCode =>
+      song.hashCode ^ playedAtSecs.hashCode ^ playCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistorySongDto &&
+          runtimeType == other.runtimeType &&
+          song == other.song &&
+          playedAtSecs == other.playedAtSecs &&
+          playCount == other.playCount;
+}
+
+class HistoryUploadItemDto {
+  final int mixSongId;
+  final int playedAtSecs;
+  final int playCount;
+
+  const HistoryUploadItemDto({
+    required this.mixSongId,
+    required this.playedAtSecs,
+    required this.playCount,
+  });
+
+  @override
+  int get hashCode =>
+      mixSongId.hashCode ^ playedAtSecs.hashCode ^ playCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryUploadItemDto &&
+          runtimeType == other.runtimeType &&
+          mixSongId == other.mixSongId &&
+          playedAtSecs == other.playedAtSecs &&
+          playCount == other.playCount;
+}
+
 @freezed
 sealed class PlaybackResolutionDto with _$PlaybackResolutionDto {
   const PlaybackResolutionDto._();
@@ -503,6 +582,22 @@ class PlaylistSearchPageDto {
           page == other.page &&
           pageSize == other.pageSize &&
           total == other.total;
+}
+
+class PlaylistTracksMutationDto {
+  final List<int> fileIds;
+
+  const PlaylistTracksMutationDto({required this.fileIds});
+
+  @override
+  int get hashCode => fileIds.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaylistTracksMutationDto &&
+          runtimeType == other.runtimeType &&
+          fileIds == other.fileIds;
 }
 
 class PlaylistTracksRequestDto {
