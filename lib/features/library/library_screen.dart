@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
@@ -17,19 +20,29 @@ class LibraryScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const KgPageHeader(title: '音乐库', subtitle: '收藏与最近听过的音乐'),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-            child: Text(
-              '音乐库',
-              style: Theme.of(context).textTheme.headlineLarge,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: KgColors.elevated,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const TabBar(
+                indicator: BoxDecoration(
+                  color: KgColors.elevatedHigh,
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: [
+                  Tab(text: '收藏'),
+                  Tab(text: '最近播放'),
+                ],
+              ),
             ),
           ),
-          const TabBar(
-            tabs: [
-              Tab(text: '收藏'),
-              Tab(text: '最近播放'),
-            ],
-          ),
+          const SizedBox(height: 8),
           Expanded(
             child: TabBarView(
               children: [const _FavoriteSongs(), const _HistorySongs()],
@@ -96,25 +109,15 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
               },
             )
           : songs.isEmpty
-          ? const KgEmptyView('还没有收藏歌曲')
-          : ListView.builder(
-              itemCount: songs.length,
-              itemBuilder: (context, index) => SongTile(
-                song: songs[index],
-                onTap: () => playSong(context, ref, songs[index], queue: songs),
-                trailing: IconButton(
-                  tooltip: '取消喜欢',
-                  onPressed: () => ref
-                      .read(libraryRepositoryProvider)
-                      .toggleFavorite(songs[index]),
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  iconSize: 20,
-                  icon: const Icon(Icons.favorite_rounded),
-                ),
+          ? const KgEmptyView('还没有收藏歌曲', icon: Icons.favorite_border_rounded)
+          : _SongCollectionList(
+              songs: songs,
+              label: '${songs.length} 首收藏',
+              trailingBuilder: (song) => IconButton(
+                tooltip: '取消喜欢',
+                onPressed: () =>
+                    ref.read(libraryRepositoryProvider).toggleFavorite(song),
+                icon: const Icon(Icons.favorite_rounded, size: 20),
               ),
             ),
     );
@@ -138,16 +141,57 @@ class _HistorySongs extends ConsumerWidget {
             .map((entry) => entry.song)
             .toList(growable: false);
         if (songs.isEmpty) {
-          return const KgEmptyView('播放记录会出现在这里');
+          return const KgEmptyView('播放记录会出现在这里', icon: Icons.history_rounded);
         }
-        return ListView.builder(
-          itemCount: songs.length,
-          itemBuilder: (context, index) => SongTile(
-            song: songs[index],
-            onTap: () => playSong(context, ref, songs[index], queue: songs),
-          ),
-        );
+        return _SongCollectionList(songs: songs, label: '最近 ${songs.length} 首');
       },
     );
   }
+}
+
+class _SongCollectionList extends ConsumerWidget {
+  const _SongCollectionList({
+    required this.songs,
+    required this.label,
+    this.trailingBuilder,
+  });
+
+  final List<Song> songs;
+  final String label;
+  final Widget Function(Song song)? trailingBuilder;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ListView.builder(
+    padding: const EdgeInsets.only(top: 8, bottom: 24),
+    itemCount: songs.length + 1,
+    itemBuilder: (context, index) {
+      if (index == 0) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: KgColors.textMuted),
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () =>
+                    playSong(context, ref, songs.first, queue: songs),
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                label: const Text('播放全部'),
+              ),
+            ],
+          ),
+        );
+      }
+      final song = songs[index - 1];
+      return SongTile(
+        song: song,
+        onTap: () => playSong(context, ref, song, queue: songs),
+        trailing: trailingBuilder?.call(song),
+      );
+    },
+  );
 }

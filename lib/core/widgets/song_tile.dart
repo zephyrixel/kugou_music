@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
@@ -18,8 +19,10 @@ class SongTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    minTileHeight: 68,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 3),
     horizontalTitleGap: 12,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     onTap: onTap,
     leading: index == null
         ? SongArtwork(url: song.artworkUrl, cacheId: 'song:${song.id}')
@@ -27,10 +30,18 @@ class SongTile extends StatelessWidget {
             width: 32,
             child: Text(
               index.toString().padLeft(2, '0'),
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: index! <= 3 ? KgColors.accent : KgColors.textMuted,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-    title: Text(song.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+    title: Text(
+      song.title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontWeight: FontWeight.w600),
+    ),
     subtitle: Text(
       '${song.artistLabel}${song.album == null ? '' : ' · ${song.album}'}',
       maxLines: 1,

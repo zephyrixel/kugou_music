@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
+import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
-import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/core/widgets/playlist_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 
@@ -121,6 +123,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       setState(() => _keyword = '');
       return;
     }
+    setState(() {});
     _debounce = Timer(
       const Duration(milliseconds: 350),
       () => unawaited(_runSearch(trimmed)),
@@ -147,12 +150,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('搜索', style: Theme.of(context).textTheme.headlineLarge),
-              const SizedBox(height: 16),
+              const KgPageHeader(
+                title: '搜索',
+                subtitle: '发现歌曲与公开歌单',
+                padding: EdgeInsets.fromLTRB(0, 24, 0, 16),
+              ),
               SegmentedButton<_SearchKind>(
                 segments: const [
                   ButtonSegment(
@@ -188,6 +194,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 decoration: InputDecoration(
                   hintText: _kind == _SearchKind.songs ? '歌曲、歌手或专辑' : '搜索公开歌单',
                   prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _controller.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: '清空搜索',
+                          onPressed: _clearSearch,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                 ),
               ),
               if (_keyword.isNotEmpty && _activePager.initialLoading)
@@ -202,7 +215,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _body() {
     if (_keyword.isEmpty) {
-      return const KgEmptyView('输入关键词，探索 Lite 曲库');
+      return const KgEmptyView(
+        '输入歌曲、歌手或歌单名称',
+        icon: Icons.travel_explore_rounded,
+      );
     }
     final pager = _activePager;
     if (pager.initialLoading && pager.items.isEmpty) {
@@ -215,7 +231,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       );
     }
     if (pager.items.isEmpty) {
-      return const KgEmptyView('没有找到结果');
+      return const KgEmptyView('没有找到匹配结果', icon: Icons.search_off_rounded);
     }
     return _kind == _SearchKind.songs ? _songResults() : _playlistResults();
   }
@@ -225,12 +241,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final footers = pagedListFooters(_songPager);
     return ListView.builder(
       controller: _scrollController,
-      itemCount: songs.length + footers.length,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.only(bottom: 24),
+      itemCount: songs.length + footers.length + 1,
       itemBuilder: (context, index) {
-        if (index >= songs.length) {
-          return footers[index - songs.length];
+        if (index == 0) {
+          return _ResultsSummary(count: _songPager.total ?? songs.length);
         }
-        final song = songs[index];
+        final itemIndex = index - 1;
+        if (itemIndex >= songs.length) {
+          return footers[itemIndex - songs.length];
+        }
+        final song = songs[itemIndex];
         return SongTile(
           song: song,
           onTap: () => playSong(context, ref, song, queue: songs),
@@ -245,39 +267,52 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final footers = pagedListFooters(_playlistPager);
     return ListView.builder(
       controller: _scrollController,
-      itemCount: playlists.length + footers.length,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      itemCount: playlists.length + footers.length + 1,
       itemBuilder: (context, index) {
-        if (index >= playlists.length) {
-          return footers[index - playlists.length];
+        if (index == 0) {
+          return _ResultsSummary(
+            count: _playlistPager.total ?? playlists.length,
+          );
         }
-        final playlist = playlists[index];
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 5,
-          ),
-          leading: SongArtwork(
-            url: playlist.artworkUrl,
-            cacheId:
-                'playlist:${playlist.globalCollectionId ?? playlist.specialId}',
-          ),
-          title: Text(
-            playlist.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${playlist.creatorName ?? '未知创建者'} · ${playlist.songCount ?? 0} 首',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: playlist.globalCollectionId == null
-              ? null
-              : () => context.push('/playlist', extra: playlist),
+        final itemIndex = index - 1;
+        if (itemIndex >= playlists.length) {
+          return footers[itemIndex - playlists.length];
+        }
+        final playlist = playlists[itemIndex];
+        return PlaylistTile(
+          title: playlist.name,
+          subtitle:
+              '${playlist.creatorName ?? '未知创建者'} · ${playlist.songCount ?? 0} 首',
+          artworkUrl: playlist.artworkUrl,
+          cacheId:
+              'playlist:${playlist.globalCollectionId ?? playlist.specialId}',
+          enabled: playlist.globalCollectionId != null,
+          onTap: () => context.push('/playlist', extra: playlist),
         );
       },
     );
   }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _controller.clear();
+    setState(() => _keyword = '');
+  }
 }
 
+class _ResultsSummary extends StatelessWidget {
+  const _ResultsSummary({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+    child: Text(
+      '找到 $count 个结果',
+      style: const TextStyle(color: KgColors.textMuted, fontSize: 13),
+    ),
+  );
+}

@@ -32,106 +32,148 @@ class PlayerScreen extends ConsumerWidget {
           final currentSong = index >= 0 && index < handler.songs.length
               ? handler.songs[index]
               : null;
-          final artworkSize = (MediaQuery.sizeOf(context).height * 0.36)
-              .clamp(200.0, 300.0)
-              .toDouble();
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(28, 16, 28, 34),
-            child: Column(
-              children: [
-                const Spacer(),
-                SongArtwork(
+          return _PlayerBody(handler: handler, item: item, song: currentSong);
+        },
+      ),
+    );
+  }
+}
+
+class _PlayerBody extends StatelessWidget {
+  const _PlayerBody({required this.handler, required this.item, this.song});
+
+  final MusicAudioHandler handler;
+  final MediaItem item;
+  final Song? song;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final maxArtworkSize = (constraints.maxWidth - 80)
+          .clamp(160.0, 320.0)
+          .toDouble();
+      final artworkSize = (constraints.maxHeight * 0.46)
+          .clamp(160.0, maxArtworkSize)
+          .toDouble();
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(28, 10, 28, 34),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 44),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(38),
+                  gradient: RadialGradient(
+                    colors: [
+                      KgColors.accent.withValues(alpha: 0.16),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: SongArtwork(
                   url: item.artUri?.toString(),
                   cacheId: 'song:${item.id}',
                   size: artworkSize,
                   radius: 30,
                 ),
-                const Spacer(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            item.artist ?? '未知歌手',
-                            style: const TextStyle(color: KgColors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (currentSong != null) ...[
-                      SongFavoriteButton(song: currentSong),
-                      AddToPlaylistButton(song: currentSong),
-                    ],
-                  ],
-                ),
-                if (currentSong != null) ...[
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: _QualitySelector(
-                      handler: handler,
-                      song: currentSong,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                PlaybackProgressBar(
-                  durationStream: handler.durationStream,
-                  positionStream: handler.positionStream,
-                  onSeek: handler.seek,
-                ),
-                const SizedBox(height: 18),
-                StreamBuilder<PlaybackState>(
-                  stream: handler.playbackState,
-                  builder: (context, stateSnapshot) {
-                    final playing = stateSnapshot.data?.playing ?? false;
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          iconSize: 38,
-                          onPressed: handler.skipToPrevious,
-                          icon: const Icon(Icons.skip_previous_rounded),
+                        Text(
+                          item.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineMedium,
                         ),
-                        IconButton.filled(
-                          iconSize: 44,
-                          padding: const EdgeInsets.all(18),
-                          style: IconButton.styleFrom(
-                            backgroundColor: KgColors.accent,
-                            foregroundColor: Colors.black,
-                          ),
-                          onPressed: playing ? handler.pause : handler.play,
-                          icon: Icon(
-                            playing
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                          ),
-                        ),
-                        IconButton(
-                          iconSize: 38,
-                          onPressed: handler.skipToNext,
-                          icon: const Icon(Icons.skip_next_rounded),
+                        const SizedBox(height: 6),
+                        Text(
+                          item.artist ?? '未知歌手',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: KgColors.textMuted),
                         ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
+                  if (song != null) ...[
+                    SongFavoriteButton(song: song!),
+                    AddToPlaylistButton(song: song!),
+                  ],
+                ],
+              ),
+              if (song != null) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _QualitySelector(handler: handler, song: song!),
                 ),
               ],
+              const SizedBox(height: 14),
+              PlaybackProgressBar(
+                durationStream: handler.durationStream,
+                positionStream: handler.positionStream,
+                onSeek: handler.seek,
+              ),
+              const SizedBox(height: 16),
+              _PlaybackControls(handler: handler),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _PlaybackControls extends StatelessWidget {
+  const _PlaybackControls({required this.handler});
+
+  final MusicAudioHandler handler;
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<PlaybackState>(
+    stream: handler.playbackState,
+    builder: (context, snapshot) {
+      final playing = snapshot.data?.playing ?? false;
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(
+            tooltip: '上一首',
+            iconSize: 36,
+            onPressed: handler.skipToPrevious,
+            icon: const Icon(Icons.skip_previous_rounded),
+          ),
+          IconButton.filled(
+            tooltip: playing ? '暂停' : '播放',
+            iconSize: 42,
+            padding: const EdgeInsets.all(18),
+            style: IconButton.styleFrom(
+              backgroundColor: KgColors.accent,
+              foregroundColor: Colors.black,
             ),
-          );
-        },
-      ),
-    );
-  }
+            onPressed: playing ? handler.pause : handler.play,
+            icon: Icon(
+              playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            ),
+          ),
+          IconButton(
+            tooltip: '下一首',
+            iconSize: 36,
+            onPressed: handler.skipToNext,
+            icon: const Icon(Icons.skip_next_rounded),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _QualitySelector extends StatelessWidget {

@@ -41,11 +41,7 @@ class KgErrorView extends StatelessWidget {
 
 /// Inline list-row error (account playlist list, etc.).
 class KgInlineError extends StatelessWidget {
-  const KgInlineError({
-    super.key,
-    required this.error,
-    required this.onRetry,
-  });
+  const KgInlineError({super.key, required this.error, required this.onRetry});
 
   final Object error;
   final VoidCallback onRetry;
@@ -62,13 +58,43 @@ class KgInlineError extends StatelessWidget {
 
 /// Empty-state text used by search / library lists.
 class KgEmptyView extends StatelessWidget {
-  const KgEmptyView(this.message, {super.key});
+  const KgEmptyView(
+    this.message, {
+    super.key,
+    this.icon = Icons.music_note_rounded,
+    this.action,
+  });
 
   final String message;
+  final IconData icon;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Text(message, style: const TextStyle(color: KgColors.textMuted)),
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: const BoxDecoration(
+              color: KgColors.elevated,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: KgColors.textMuted, size: 30),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: KgColors.textMuted),
+          ),
+          if (action != null) ...[const SizedBox(height: 18), action!],
+        ],
+      ),
+    ),
   );
 }
 
@@ -81,7 +107,5 @@ void showAppError(BuildContext context, Object error) {
 
 void showAppMessage(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message)));
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 }

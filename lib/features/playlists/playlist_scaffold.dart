@@ -69,23 +69,26 @@ class PlaylistSongsView extends ConsumerWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Row(
                 children: [
-                  FilledButton.icon(
-                    onPressed: songs.isEmpty
-                        ? null
-                        : () => playSong(
-                            context,
-                            ref,
-                            songs.first,
-                            queue: songs,
-                          ),
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('播放全部'),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: songs.isEmpty
+                          ? null
+                          : () => playSong(
+                              context,
+                              ref,
+                              songs.first,
+                              queue: songs,
+                            ),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
+                    ),
                   ),
+                  if (actions?.isNotEmpty == true || trailing != null)
+                    const SizedBox(width: 10),
                   ...?actions,
-                  if (trailing != null) const Spacer(),
                   ?trailing,
                 ],
               ),
