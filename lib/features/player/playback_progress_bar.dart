@@ -10,12 +10,14 @@ class PlaybackProgressBar extends StatefulWidget {
     required this.positionStream,
     required this.onSeek,
     this.bufferedPositionStream,
+    this.compact = false,
   });
 
   final Stream<Duration?> durationStream;
   final Stream<Duration> positionStream;
   final Future<void> Function(Duration position) onSeek;
   final Stream<Duration>? bufferedPositionStream;
+  final bool compact;
 
   @override
   State<PlaybackProgressBar> createState() => _PlaybackProgressBarState();
@@ -54,7 +56,7 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
               return Column(
                 children: [
                   SizedBox(
-                    height: 32,
+                    height: widget.compact ? 25 : 32,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
@@ -107,8 +109,18 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                     children: [
                       Text(
                         formatDuration(_dragging ? visiblePosition : position),
+                        style: TextStyle(
+                          fontSize: widget.compact ? 11 : 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                      Text(formatDuration(duration)),
+                      Text(
+                        formatDuration(duration),
+                        style: TextStyle(
+                          fontSize: widget.compact ? 11 : 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ],

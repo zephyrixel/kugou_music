@@ -6,14 +6,25 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class AddToPlaylistButton extends ConsumerWidget {
-  const AddToPlaylistButton({super.key, required this.song});
+  const AddToPlaylistButton({
+    super.key,
+    required this.song,
+    this.compact = false,
+  });
+
   final Song song;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       tooltip: '添加到歌单',
       onPressed: () => showAddToPlaylist(context, ref, song),
+      constraints: compact
+          ? const BoxConstraints.tightFor(width: 40, height: 40)
+          : null,
+      padding: compact ? const EdgeInsets.all(8) : null,
+      iconSize: compact ? 21 : null,
       icon: const Icon(Icons.playlist_add_rounded),
     );
   }
