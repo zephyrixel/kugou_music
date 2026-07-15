@@ -100,12 +100,46 @@ class KgEmptyView extends StatelessWidget {
 
 void showAppError(BuildContext context, Object error) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(
+  final colors = Theme.of(context).colorScheme;
+  _showAppSnackBar(
     context,
-  ).showSnackBar(SnackBar(content: Text(error.toString())));
+    message: error.toString(),
+    icon: Icons.error_outline_rounded,
+    backgroundColor: colors.errorContainer,
+    foregroundColor: colors.onErrorContainer,
+  );
 }
 
 void showAppMessage(BuildContext context, String message) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  _showAppSnackBar(
+    context,
+    message: message,
+    icon: Icons.info_outline_rounded,
+    backgroundColor: KgColors.elevatedHigh,
+    foregroundColor: Colors.white,
+  );
+}
+
+void _showAppSnackBar(
+  BuildContext context, {
+  required String message,
+  required IconData icon,
+  required Color backgroundColor,
+  required Color foregroundColor,
+}) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      backgroundColor: backgroundColor,
+      content: Row(
+        children: [
+          Icon(icon, color: foregroundColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(message, style: TextStyle(color: foregroundColor)),
+          ),
+        ],
+      ),
+    ),
+  );
 }

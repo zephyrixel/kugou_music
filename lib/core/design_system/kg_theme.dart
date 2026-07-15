@@ -111,6 +111,13 @@ ThemeData buildKgTheme() {
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: KgColors.elevatedHigh,
+      contentTextStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+        height: 1.35,
+      ),
+      actionTextColor: KgColors.accent,
+      closeIconColor: Colors.white,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
