@@ -106,6 +106,7 @@ abstract final class CacheCodecs {
   );
 
   static final userVip = CacheCodec<UserVip>(
+    version: 2,
     encodeValue: (value) => {
       'vipType': value.vipType,
       'musicPackageType': value.musicPackageType,
@@ -114,6 +115,20 @@ abstract final class CacheCodecs {
       'musicEndTime': value.musicEndTime,
       'yearlyEndTime': value.yearlyEndTime,
       'productType': value.productType,
+      'businessType': value.businessType,
+      'products': value.products
+          .map(
+            (product) => {
+              'productType': product.productType,
+              'businessType': product.businessType,
+              'active': product.active,
+              'paid': product.paid,
+              'yearly': product.yearly,
+              'vipEndTime': product.vipEndTime,
+              'paidExpireTime': product.paidExpireTime,
+            },
+          )
+          .toList(growable: false),
     },
     decodeValue: (value) {
       final map = _map(value);
@@ -125,6 +140,21 @@ abstract final class CacheCodecs {
         musicEndTime: _string(map['musicEndTime']),
         yearlyEndTime: _string(map['yearlyEndTime']),
         productType: _string(map['productType']),
+        businessType: _string(map['businessType']),
+        products: _list(map['products'])
+            .map((item) {
+              final product = _map(item);
+              return VipProduct(
+                productType: _string(product['productType']),
+                businessType: _string(product['businessType']),
+                active: _bool(product['active']),
+                paid: _bool(product['paid']),
+                yearly: _bool(product['yearly']),
+                vipEndTime: _string(product['vipEndTime']),
+                paidExpireTime: _string(product['paidExpireTime']),
+              );
+            })
+            .toList(growable: false),
       );
     },
   );
@@ -215,3 +245,5 @@ List<Object?> _list(Object? value) {
 String? _string(Object? value) => value is String ? value : null;
 
 int? _int(Object? value) => value is num ? value.toInt() : null;
+
+bool _bool(Object? value) => value is bool && value;

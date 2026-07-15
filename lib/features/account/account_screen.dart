@@ -10,6 +10,8 @@ import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/playlist_tile.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/features/membership/membership_card.dart';
+import 'package:kgmusic/features/membership/membership_presenter.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -41,6 +43,10 @@ class AccountScreen extends ConsumerWidget {
               vip: vip,
               fingerprint: auth.snapshot.fingerprintRegistered,
             ),
+            if (auth.snapshot.userId case final userId?) ...[
+              const SizedBox(height: 14),
+              MembershipCard(vip: vip, userId: userId),
+            ],
             if (auth.message != null) ...[
               const SizedBox(height: 12),
               Text(
@@ -191,11 +197,13 @@ class _ProfileCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      if (vip.value?.active == true)
-                        const Chip(
-                          label: Text('VIP'),
-                          visualDensity: VisualDensity.compact,
-                        ),
+                      if (vip.value case final membership?)
+                        if (buildMembershipSummary(membership).primary
+                            case final primary?)
+                          Chip(
+                            label: Text(primary.label),
+                            visualDensity: VisualDensity.compact,
+                          ),
                     ],
                   ),
                   const SizedBox(height: 5),

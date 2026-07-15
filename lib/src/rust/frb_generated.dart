@@ -66,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1472061835;
+  int get rustContentHash => -148703186;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -84,6 +84,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<AudioHashesDto> crateApiSdkAudioHashesDtoDefault();
+
+  Future<VipClaimResultDto> crateApiSdkClaimDayVip();
 
   Future<PlaylistMutationDto> crateApiSdkCollectCloudPlaylist({
     required String globalCollectionId,
@@ -117,6 +119,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<RecommendationDto> crateApiSdkGetEverydayRecommendations();
+
+  Future<VipMonthRecordDto> crateApiSdkGetMonthVipRecord();
 
   Future<SongPageDto> crateApiSdkGetPlaylistTracks({
     required PlaylistTracksRequestDto request,
@@ -163,6 +167,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiSdkSendSmsCode({required String mobile});
+
+  Future<VipUpgradeResultDto> crateApiSdkUpgradeDayVip();
 
   Future<void> crateApiSdkUploadCloudHistory({
     required List<HistoryUploadItemDto> items,
@@ -240,6 +246,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "audio_hashes_dto_default", argNames: []);
 
   @override
+  Future<VipClaimResultDto> crateApiSdkClaimDayVip() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_vip_claim_result_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkClaimDayVipConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkClaimDayVipConstMeta =>
+      const TaskConstMeta(debugName: "claim_day_vip", argNames: []);
+
+  @override
   Future<PlaylistMutationDto> crateApiSdkCollectCloudPlaylist({
     required String globalCollectionId,
     int? ownerUserId,
@@ -255,7 +288,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 4,
             port: port_,
           );
         },
@@ -290,7 +323,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 5,
             port: port_,
           );
         },
@@ -325,7 +358,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -358,7 +391,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 7,
             port: port_,
           );
         },
@@ -388,7 +421,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -415,7 +448,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -443,7 +476,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -475,7 +508,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -505,7 +538,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -527,6 +560,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<VipMonthRecordDto> crateApiSdkGetMonthVipRecord() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_vip_month_record_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkGetMonthVipRecordConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkGetMonthVipRecordConstMeta =>
+      const TaskConstMeta(debugName: "get_month_vip_record", argNames: []);
+
+  @override
   Future<SongPageDto> crateApiSdkGetPlaylistTracks({
     required PlaylistTracksRequestDto request,
   }) {
@@ -541,7 +601,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -568,7 +628,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_sdk_capabilities_dto,
@@ -593,7 +653,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -620,7 +680,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -648,7 +708,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -675,7 +735,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -702,7 +762,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 20,
             port: port_,
           );
         },
@@ -734,7 +794,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 21,
             port: port_,
           );
         },
@@ -763,7 +823,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 22,
             port: port_,
           );
         },
@@ -790,7 +850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 23,
             port: port_,
           );
         },
@@ -817,7 +877,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 24,
             port: port_,
           );
         },
@@ -849,7 +909,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 25,
             port: port_,
           );
         },
@@ -885,7 +945,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 26,
             port: port_,
           );
         },
@@ -915,7 +975,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 27,
             port: port_,
           );
         },
@@ -945,7 +1005,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 28,
             port: port_,
           );
         },
@@ -973,7 +1033,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 29,
             port: port_,
           );
         },
@@ -992,6 +1052,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "send_sms_code", argNames: ["mobile"]);
 
   @override
+  Future<VipUpgradeResultDto> crateApiSdkUpgradeDayVip() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 30,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_vip_upgrade_result_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkUpgradeDayVipConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkUpgradeDayVipConstMeta =>
+      const TaskConstMeta(debugName: "upgrade_day_vip", argNames: []);
+
+  @override
   Future<void> crateApiSdkUploadCloudHistory({
     required List<HistoryUploadItemDto> items,
   }) {
@@ -1003,7 +1090,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1252,6 +1339,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
   List<CloudPlaylistDto> dco_decode_list_cloud_playlist_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_cloud_playlist_dto).toList();
@@ -1293,6 +1386,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<SongDto> dco_decode_list_song_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_song_dto).toList();
+  }
+
+  @protected
+  List<VipProductDto> dco_decode_list_vip_product_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_vip_product_dto).toList();
   }
 
   @protected
@@ -1607,8 +1706,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   UserVipDto dco_decode_user_vip_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return UserVipDto(
       vipType: dco_decode_opt_CastedPrimitive_i_64(arr[0]),
       musicPackageType: dco_decode_opt_CastedPrimitive_i_64(arr[1]),
@@ -1617,6 +1716,63 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       musicEndTime: dco_decode_opt_String(arr[4]),
       yearlyEndTime: dco_decode_opt_String(arr[5]),
       productType: dco_decode_opt_String(arr[6]),
+      businessType: dco_decode_opt_String(arr[7]),
+      products: dco_decode_list_vip_product_dto(arr[8]),
+    );
+  }
+
+  @protected
+  VipClaimResultDto dco_decode_vip_claim_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return VipClaimResultDto(
+      grantedUnits: dco_decode_opt_CastedPrimitive_i_64(arr[0]),
+      endTime: dco_decode_opt_String(arr[1]),
+      serverTimeSecs: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+    );
+  }
+
+  @protected
+  VipMonthRecordDto dco_decode_vip_month_record_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return VipMonthRecordDto(
+      claimedDays: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
+      claimDates: dco_decode_list_String(arr[1]),
+    );
+  }
+
+  @protected
+  VipProductDto dco_decode_vip_product_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return VipProductDto(
+      productType: dco_decode_opt_String(arr[0]),
+      businessType: dco_decode_opt_String(arr[1]),
+      active: dco_decode_bool(arr[2]),
+      paid: dco_decode_bool(arr[3]),
+      yearly: dco_decode_bool(arr[4]),
+      vipEndTime: dco_decode_opt_String(arr[5]),
+      paidExpireTime: dco_decode_opt_String(arr[6]),
+    );
+  }
+
+  @protected
+  VipUpgradeResultDto dco_decode_vip_upgrade_result_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return VipUpgradeResultDto(
+      statusCode: dco_decode_opt_CastedPrimitive_i_64(arr[0]),
+      message: dco_decode_opt_String(arr[1]),
+      endTime: dco_decode_opt_String(arr[2]),
     );
   }
 
@@ -1878,6 +2034,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<CloudPlaylistDto> sse_decode_list_cloud_playlist_dto(
     SseDeserializer deserializer,
   ) {
@@ -1948,6 +2116,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <SongDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_song_dto(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<VipProductDto> sse_decode_list_vip_product_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <VipProductDto>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_vip_product_dto(deserializer));
     }
     return ans_;
   }
@@ -2366,6 +2548,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_musicEndTime = sse_decode_opt_String(deserializer);
     var var_yearlyEndTime = sse_decode_opt_String(deserializer);
     var var_productType = sse_decode_opt_String(deserializer);
+    var var_businessType = sse_decode_opt_String(deserializer);
+    var var_products = sse_decode_list_vip_product_dto(deserializer);
     return UserVipDto(
       vipType: var_vipType,
       musicPackageType: var_musicPackageType,
@@ -2374,6 +2558,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       musicEndTime: var_musicEndTime,
       yearlyEndTime: var_yearlyEndTime,
       productType: var_productType,
+      businessType: var_businessType,
+      products: var_products,
+    );
+  }
+
+  @protected
+  VipClaimResultDto sse_decode_vip_claim_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_grantedUnits = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_endTime = sse_decode_opt_String(deserializer);
+    var var_serverTimeSecs = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    return VipClaimResultDto(
+      grantedUnits: var_grantedUnits,
+      endTime: var_endTime,
+      serverTimeSecs: var_serverTimeSecs,
+    );
+  }
+
+  @protected
+  VipMonthRecordDto sse_decode_vip_month_record_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_claimedDays = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_claimDates = sse_decode_list_String(deserializer);
+    return VipMonthRecordDto(
+      claimedDays: var_claimedDays,
+      claimDates: var_claimDates,
+    );
+  }
+
+  @protected
+  VipProductDto sse_decode_vip_product_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_productType = sse_decode_opt_String(deserializer);
+    var var_businessType = sse_decode_opt_String(deserializer);
+    var var_active = sse_decode_bool(deserializer);
+    var var_paid = sse_decode_bool(deserializer);
+    var var_yearly = sse_decode_bool(deserializer);
+    var var_vipEndTime = sse_decode_opt_String(deserializer);
+    var var_paidExpireTime = sse_decode_opt_String(deserializer);
+    return VipProductDto(
+      productType: var_productType,
+      businessType: var_businessType,
+      active: var_active,
+      paid: var_paid,
+      yearly: var_yearly,
+      vipEndTime: var_vipEndTime,
+      paidExpireTime: var_paidExpireTime,
+    );
+  }
+
+  @protected
+  VipUpgradeResultDto sse_decode_vip_upgrade_result_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_statusCode = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_message = sse_decode_opt_String(deserializer);
+    var var_endTime = sse_decode_opt_String(deserializer);
+    return VipUpgradeResultDto(
+      statusCode: var_statusCode,
+      message: var_message,
+      endTime: var_endTime,
     );
   }
 
@@ -2597,6 +2847,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_cloud_playlist_dto(
     List<CloudPlaylistDto> self,
     SseSerializer serializer,
@@ -2660,6 +2919,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_song_dto(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_vip_product_dto(
+    List<VipProductDto> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_vip_product_dto(item, serializer);
     }
   }
 
@@ -2982,5 +3253,54 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.musicEndTime, serializer);
     sse_encode_opt_String(self.yearlyEndTime, serializer);
     sse_encode_opt_String(self.productType, serializer);
+    sse_encode_opt_String(self.businessType, serializer);
+    sse_encode_list_vip_product_dto(self.products, serializer);
+  }
+
+  @protected
+  void sse_encode_vip_claim_result_dto(
+    VipClaimResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_i_64(self.grantedUnits, serializer);
+    sse_encode_opt_String(self.endTime, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.serverTimeSecs, serializer);
+  }
+
+  @protected
+  void sse_encode_vip_month_record_dto(
+    VipMonthRecordDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_u_64(self.claimedDays, serializer);
+    sse_encode_list_String(self.claimDates, serializer);
+  }
+
+  @protected
+  void sse_encode_vip_product_dto(
+    VipProductDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.productType, serializer);
+    sse_encode_opt_String(self.businessType, serializer);
+    sse_encode_bool(self.active, serializer);
+    sse_encode_bool(self.paid, serializer);
+    sse_encode_bool(self.yearly, serializer);
+    sse_encode_opt_String(self.vipEndTime, serializer);
+    sse_encode_opt_String(self.paidExpireTime, serializer);
+  }
+
+  @protected
+  void sse_encode_vip_upgrade_result_dto(
+    VipUpgradeResultDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_CastedPrimitive_i_64(self.statusCode, serializer);
+    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.endTime, serializer);
   }
 }

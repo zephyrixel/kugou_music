@@ -69,24 +69,33 @@ void main() {
 
     await library.addSong(localId, localSong);
     expect(sdk.calls, ['create:新歌单', 'add:88:${localSong.id}']);
-    expect((await store.watchPlaylistTracks(localId).first).single.id, localSong.id);
+    expect(
+      (await store.watchPlaylistTracks(localId).first).single.id,
+      localSong.id,
+    );
   });
 
-  test('account refresh does not reload tracks of an opened playlist', () async {
-    sdk.playlists = const [_favoritePlaylist, _customPlaylist];
-    sdk.tracksByListId[4] = const [localSong];
-    await library.activate(99);
-    await library.ensurePlaylistLoaded('remote:4');
-    expect(sdk.trackCalls, ['gid:4:1']);
+  test(
+    'account refresh does not reload tracks of an opened playlist',
+    () async {
+      sdk.playlists = const [_favoritePlaylist, _customPlaylist];
+      sdk.tracksByListId[4] = const [localSong];
+      await library.activate(99);
+      await library.ensurePlaylistLoaded('remote:4');
+      expect(sdk.trackCalls, ['gid:4:1']);
 
-    sdk.playlists = const [_favoritePlaylist, _customPlaylistUpdated];
-    await library.syncNow();
-    expect(sdk.trackCalls, ['gid:4:1']);
-    final playlist = await store.playlist('remote:4');
-    expect(playlist?.name, '更新后的歌单');
-    expect(playlist?.tracksLoaded, isTrue);
-    expect((await store.watchPlaylistTracks('remote:4').first).single.id, localSong.id);
-  });
+      sdk.playlists = const [_favoritePlaylist, _customPlaylistUpdated];
+      await library.syncNow();
+      expect(sdk.trackCalls, ['gid:4:1']);
+      final playlist = await store.playlist('remote:4');
+      expect(playlist?.name, '更新后的歌单');
+      expect(playlist?.tracksLoaded, isTrue);
+      expect(
+        (await store.watchPlaylistTracks('remote:4').first).single.id,
+        localSong.id,
+      );
+    },
+  );
 
   test('playlist tracks load page-by-page into Drift', () async {
     sdk.playlists = const [_favoritePlaylist, _customPlaylist];
@@ -125,7 +134,10 @@ void main() {
     sdk.addShouldFail = true;
     await library.activate(99);
 
-    await expectLater(library.toggleFavorite(localSong), throwsA(isA<StateError>()));
+    await expectLater(
+      library.toggleFavorite(localSong),
+      throwsA(isA<StateError>()),
+    );
     expect(await store.watchFavoriteSongs().first, isEmpty);
   });
 
@@ -244,6 +256,7 @@ class _FakeMusicSdk implements MusicSdk {
   final List<String> trackCalls = [];
   final List<HistoryUpload> historyUploads = [];
   bool addShouldFail = false;
+
   /// When set, [playlistTracks] slices [tracksByListId] into pages of this size.
   int? tracksPageSize;
   Completer<void>? nextCloudPlaylistsGate;
@@ -261,8 +274,11 @@ class _FakeMusicSdk implements MusicSdk {
   );
 
   @override
-  Future<AuthSnapshot> authState() async =>
-      const AuthSnapshot(authenticated: true, userId: 99, fingerprintRegistered: true);
+  Future<AuthSnapshot> authState() async => const AuthSnapshot(
+    authenticated: true,
+    userId: 99,
+    fingerprintRegistered: true,
+  );
 
   @override
   Future<void> sendSmsCode(String mobile) async {}
@@ -284,8 +300,11 @@ class _FakeMusicSdk implements MusicSdk {
   Future<List<Song>> everydayRecommendations() async => const [];
 
   @override
-  Future<SearchPage> search(String keyword, {int page = 1, int pageSize = 30}) async =>
-      const SearchPage(songs: [], page: 1, pageSize: 30);
+  Future<SearchPage> search(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async => const SearchPage(songs: [], page: 1, pageSize: 30);
 
   @override
   Future<PlaylistSearchPage> searchPlaylists(
@@ -307,6 +326,15 @@ class _FakeMusicSdk implements MusicSdk {
 
   @override
   Future<UserVip> userVip() async => const UserVip();
+
+  @override
+  Future<VipClaimResult> claimDayVip() async => const VipClaimResult();
+
+  @override
+  Future<VipUpgradeResult> upgradeDayVip() async => const VipUpgradeResult();
+
+  @override
+  Future<VipMonthRecord> monthVipRecord() async => const VipMonthRecord();
 
   @override
   Future<HistoryPage> cloudHistory({String? cursor}) async {
@@ -362,14 +390,23 @@ class _FakeMusicSdk implements MusicSdk {
     return _pageTracks(listId, page: page, pageSize: pageSize);
   }
 
-  SearchPage _pageTracks(int? listId, {required int page, required int pageSize}) {
+  SearchPage _pageTracks(
+    int? listId, {
+    required int page,
+    required int pageSize,
+  }) {
     final all = listId == null
         ? const <Song>[]
         : (tracksByListId[listId] ?? const <Song>[]);
     final size = tracksPageSize ?? pageSize;
     final start = (page - 1) * size;
     if (start >= all.length) {
-      return SearchPage(songs: const [], page: page, pageSize: size, total: all.length);
+      return SearchPage(
+        songs: const [],
+        page: page,
+        pageSize: size,
+        total: all.length,
+      );
     }
     final end = (start + size).clamp(0, all.length);
     return SearchPage(
@@ -419,7 +456,10 @@ class _FakeMusicSdk implements MusicSdk {
   }
 
   @override
-  Future<PlaylistTracksMutation> addSongToPlaylist(int listId, Song song) async {
+  Future<PlaylistTracksMutation> addSongToPlaylist(
+    int listId,
+    Song song,
+  ) async {
     if (addShouldFail) throw StateError('add failed');
     calls.add('add:$listId:${song.id}');
     return const PlaylistTracksMutation(fileIds: [900]);

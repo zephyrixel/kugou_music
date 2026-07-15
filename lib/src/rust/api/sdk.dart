@@ -8,9 +8,9 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'sdk.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `nonempty_artwork`, `object_value_for_key`, `runtime`, `search_playlist_to_dto`, `select_hash`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `SongDetailEnrichment`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `artwork_from_extra`, `artwork_from_object`, `artwork_from_value`, `artwork_key_matches`, `audio_hashes_from_detail`, `audio_quality_to_dto`, `auth_state`, `bool_for_keys`, `cloud_playlist_to_dto`, `collect_detail_enrichment`, `from_sdk`, `internal`, `invalid_argument`, `nonempty_artwork`, `object_value_for_key`, `playlist_tracks_route`, `runtime`, `scalar_string_for_keys`, `search_playlist_to_dto`, `select_hash`, `song_to_dto_with_enrichment`, `songs_to_dtos_with_artwork`, `stable_song_id`, `string_for_keys`, `validated_search`, `value_u64_for_keys`, `vip_product_to_dto`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `PlaylistTracksRoute`, `SongDetailEnrichment`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 Future<SdkCapabilitiesDto> initializeSdk() =>
@@ -56,6 +56,15 @@ Future<UserProfileDto> getUserProfile() =>
     RustLib.instance.api.crateApiSdkGetUserProfile();
 
 Future<UserVipDto> getUserVip() => RustLib.instance.api.crateApiSdkGetUserVip();
+
+Future<VipClaimResultDto> claimDayVip() =>
+    RustLib.instance.api.crateApiSdkClaimDayVip();
+
+Future<VipUpgradeResultDto> upgradeDayVip() =>
+    RustLib.instance.api.crateApiSdkUpgradeDayVip();
+
+Future<VipMonthRecordDto> getMonthVipRecord() =>
+    RustLib.instance.api.crateApiSdkGetMonthVipRecord();
 
 Future<HistoryPageDto> getCloudHistory({String? cursor}) =>
     RustLib.instance.api.crateApiSdkGetCloudHistory(cursor: cursor);
@@ -603,6 +612,10 @@ class PlaylistTracksMutationDto {
 class PlaylistTracksRequestDto {
   final int? listId;
   final String? globalCollectionId;
+
+  /// Prefer gid path when `global_collection_id` is set (newest-first).
+  /// `owned` only selects `tracks_by_listid` when **no** gid is available
+  /// (oldest-first physical order). Callers should pass gid for UI lists.
   final bool owned;
   final int page;
   final int pageSize;
@@ -937,6 +950,8 @@ class UserVipDto {
   final String? musicEndTime;
   final String? yearlyEndTime;
   final String? productType;
+  final String? businessType;
+  final List<VipProductDto> products;
 
   const UserVipDto({
     this.vipType,
@@ -946,6 +961,8 @@ class UserVipDto {
     this.musicEndTime,
     this.yearlyEndTime,
     this.productType,
+    this.businessType,
+    required this.products,
   });
 
   @override
@@ -956,7 +973,9 @@ class UserVipDto {
       vipEndTime.hashCode ^
       musicEndTime.hashCode ^
       yearlyEndTime.hashCode ^
-      productType.hashCode;
+      productType.hashCode ^
+      businessType.hashCode ^
+      products.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -969,5 +988,113 @@ class UserVipDto {
           vipEndTime == other.vipEndTime &&
           musicEndTime == other.musicEndTime &&
           yearlyEndTime == other.yearlyEndTime &&
-          productType == other.productType;
+          productType == other.productType &&
+          businessType == other.businessType &&
+          products == other.products;
+}
+
+class VipClaimResultDto {
+  final int? grantedUnits;
+  final String? endTime;
+  final int? serverTimeSecs;
+
+  const VipClaimResultDto({
+    this.grantedUnits,
+    this.endTime,
+    this.serverTimeSecs,
+  });
+
+  @override
+  int get hashCode =>
+      grantedUnits.hashCode ^ endTime.hashCode ^ serverTimeSecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VipClaimResultDto &&
+          runtimeType == other.runtimeType &&
+          grantedUnits == other.grantedUnits &&
+          endTime == other.endTime &&
+          serverTimeSecs == other.serverTimeSecs;
+}
+
+class VipMonthRecordDto {
+  final int? claimedDays;
+  final List<String> claimDates;
+
+  const VipMonthRecordDto({this.claimedDays, required this.claimDates});
+
+  @override
+  int get hashCode => claimedDays.hashCode ^ claimDates.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VipMonthRecordDto &&
+          runtimeType == other.runtimeType &&
+          claimedDays == other.claimedDays &&
+          claimDates == other.claimDates;
+}
+
+class VipProductDto {
+  final String? productType;
+  final String? businessType;
+  final bool active;
+  final bool paid;
+  final bool yearly;
+  final String? vipEndTime;
+  final String? paidExpireTime;
+
+  const VipProductDto({
+    this.productType,
+    this.businessType,
+    required this.active,
+    required this.paid,
+    required this.yearly,
+    this.vipEndTime,
+    this.paidExpireTime,
+  });
+
+  @override
+  int get hashCode =>
+      productType.hashCode ^
+      businessType.hashCode ^
+      active.hashCode ^
+      paid.hashCode ^
+      yearly.hashCode ^
+      vipEndTime.hashCode ^
+      paidExpireTime.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VipProductDto &&
+          runtimeType == other.runtimeType &&
+          productType == other.productType &&
+          businessType == other.businessType &&
+          active == other.active &&
+          paid == other.paid &&
+          yearly == other.yearly &&
+          vipEndTime == other.vipEndTime &&
+          paidExpireTime == other.paidExpireTime;
+}
+
+class VipUpgradeResultDto {
+  final int? statusCode;
+  final String? message;
+  final String? endTime;
+
+  const VipUpgradeResultDto({this.statusCode, this.message, this.endTime});
+
+  @override
+  int get hashCode => statusCode.hashCode ^ message.hashCode ^ endTime.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VipUpgradeResultDto &&
+          runtimeType == other.runtimeType &&
+          statusCode == other.statusCode &&
+          message == other.message &&
+          endTime == other.endTime;
 }

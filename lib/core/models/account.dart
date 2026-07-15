@@ -57,6 +57,8 @@ class UserVip {
     this.musicEndTime,
     this.yearlyEndTime,
     this.productType,
+    this.businessType,
+    this.products = const [],
   });
 
   final int? vipType;
@@ -66,9 +68,57 @@ class UserVip {
   final String? musicEndTime;
   final String? yearlyEndTime;
   final String? productType;
+  final String? businessType;
+  final List<VipProduct> products;
 
   bool get active =>
-      (vipType ?? 0) != 0 ||
-      (musicPackageType ?? 0) != 0 ||
-      (yearlyType ?? 0) != 0;
+      products.any((product) => product.active) ||
+      ((vipType ?? 0) != 0 && vipType != 5) ||
+      ((musicPackageType ?? 0) > 0 && (musicPackageType ?? 0) < 5) ||
+      yearlyType == 1;
+}
+
+class VipProduct {
+  const VipProduct({
+    this.productType,
+    this.businessType,
+    required this.active,
+    required this.paid,
+    required this.yearly,
+    this.vipEndTime,
+    this.paidExpireTime,
+  });
+
+  final String? productType;
+  final String? businessType;
+  final bool active;
+  final bool paid;
+  final bool yearly;
+  final String? vipEndTime;
+  final String? paidExpireTime;
+
+  String? get effectiveEndTime => vipEndTime ?? paidExpireTime;
+}
+
+class VipClaimResult {
+  const VipClaimResult({this.grantedUnits, this.endTime, this.serverTimeSecs});
+
+  final int? grantedUnits;
+  final String? endTime;
+  final int? serverTimeSecs;
+}
+
+class VipUpgradeResult {
+  const VipUpgradeResult({this.statusCode, this.message, this.endTime});
+
+  final int? statusCode;
+  final String? message;
+  final String? endTime;
+}
+
+class VipMonthRecord {
+  const VipMonthRecord({this.claimedDays, this.claimDates = const []});
+
+  final int? claimedDays;
+  final List<String> claimDates;
 }

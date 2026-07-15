@@ -1,3 +1,4 @@
+use kugou_sdk::user::{YOUTH_DAY_VIP_SOURCE_MINE, YouthDayVipClaimRequest};
 use kugou_sdk::{
     AudioQuality, CollectRequest, HistoryFetchRequest, HistorySongOp, HistoryUploadRequest,
     KugouClient, KugouError, Pagination, PlatformProfile, PlaybackOutcome, PlaybackRequest,
@@ -205,6 +206,39 @@ pub struct UserVipDto {
     pub music_end_time: Option<String>,
     pub yearly_end_time: Option<String>,
     pub product_type: Option<String>,
+    pub business_type: Option<String>,
+    pub products: Vec<VipProductDto>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VipProductDto {
+    pub product_type: Option<String>,
+    pub business_type: Option<String>,
+    pub active: bool,
+    pub paid: bool,
+    pub yearly: bool,
+    pub vip_end_time: Option<String>,
+    pub paid_expire_time: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VipClaimResultDto {
+    pub granted_units: Option<i64>,
+    pub end_time: Option<String>,
+    pub server_time_secs: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VipUpgradeResultDto {
+    pub status_code: Option<i64>,
+    pub message: Option<String>,
+    pub end_time: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VipMonthRecordDto {
+    pub claimed_days: Option<u64>,
+    pub claim_dates: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -568,6 +602,66 @@ pub async fn get_user_vip() -> Result<UserVipDto, BridgeError> {
         music_end_time: value.m_end_time,
         yearly_end_time: value.y_end_time,
         product_type: value.product_type,
+        business_type: value.busi_type,
+        products: value.products.iter().map(vip_product_to_dto).collect(),
+    })
+}
+
+pub async fn claim_day_vip() -> Result<VipClaimResultDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .users()
+        .claim_day_vip(
+            &mut session,
+            YouthDayVipClaimRequest::new().source_id(YOUTH_DAY_VIP_SOURCE_MINE),
+        )
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(VipClaimResultDto {
+        granted_units: value.ad_vip_num,
+        end_time: value.ad_vip_end_time,
+        server_time_secs: value.server_time,
+    })
+}
+
+pub async fn upgrade_day_vip() -> Result<VipUpgradeResultDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .users()
+        .upgrade_day_vip(&mut session)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    Ok(VipUpgradeResultDto {
+        status_code: value.status_code,
+        message: value.message,
+        end_time: value.end_time,
+    })
+}
+
+pub async fn get_month_vip_record() -> Result<VipMonthRecordDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let value = runtime
+        .client
+        .users()
+        .month_vip_record(&mut session)
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    let claim_dates = value
+        .items
+        .iter()
+        .filter_map(|item| scalar_string_for_keys(item, &["day", "receive_day", "date"]))
+        .collect();
+    Ok(VipMonthRecordDto {
+        claimed_days: value.claimed_days,
+        claim_dates,
     })
 }
 
@@ -1182,6 +1276,57 @@ fn string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
     })
 }
 
+fn scalar_string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
+    let object = value.as_object()?;
+    keys.iter().find_map(|key| {
+        let value = object_value_for_key(object, key)?;
+        match value {
+            Value::String(value) => nonempty_artwork(value),
+            Value::Number(value) => Some(value.to_string()),
+            _ => None,
+        }
+    })
+}
+
+fn bool_for_keys(value: &Value, keys: &[&str]) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    keys.iter().any(|key| {
+        let Some(value) = object_value_for_key(object, key) else {
+            return false;
+        };
+        match value {
+            Value::Bool(value) => *value,
+            Value::Number(value) => value.as_i64().is_some_and(|value| value != 0),
+            Value::String(value) => matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes"
+            ),
+            _ => false,
+        }
+    })
+}
+
+fn vip_product_to_dto(value: &Value) -> VipProductDto {
+    VipProductDto {
+        product_type: scalar_string_for_keys(value, &["product_type", "productType"]),
+        business_type: scalar_string_for_keys(value, &["busi_type", "busiType"]),
+        active: bool_for_keys(value, &["is_vip", "isVip"]),
+        paid: bool_for_keys(value, &["is_paid_vip", "isPaidVip"]),
+        yearly: bool_for_keys(value, &["y_type", "yType"]),
+        vip_end_time: scalar_string_for_keys(value, &["vip_end_time", "vipEndTime", "vip_endtime"]),
+        paid_expire_time: scalar_string_for_keys(
+            value,
+            &[
+                "paid_vip_expire_time",
+                "paidVipExpireTime",
+                "paid_vip_end_time",
+            ],
+        ),
+    }
+}
+
 fn value_u64_for_keys(value: &Value, keys: &[&str]) -> Option<u64> {
     let object = value.as_object()?;
     keys.iter().find_map(|key| {
@@ -1456,5 +1601,40 @@ mod tests {
         assert_eq!(enrichment.hashes.high.as_deref(), Some("HQ"));
         assert_eq!(enrichment.hashes.flac.as_deref(), Some("FLAC"));
         assert_eq!(enrichment.hashes.hi_res.as_deref(), Some("HIRES"));
+    }
+
+    #[test]
+    fn vip_product_mapping_accepts_soft_scalar_aliases() {
+        let product = serde_json::json!({
+            "productType": "tvip",
+            "busi_type": "concept",
+            "is_vip": "1",
+            "isPaidVip": true,
+            "y_type": 1,
+            "vip_end_time": 1_700_000_000_i64,
+            "paidVipExpireTime": "2026-08-01"
+        });
+        let dto = vip_product_to_dto(&product);
+        assert_eq!(dto.product_type.as_deref(), Some("tvip"));
+        assert_eq!(dto.business_type.as_deref(), Some("concept"));
+        assert!(dto.active);
+        assert!(dto.paid);
+        assert!(dto.yearly);
+        assert_eq!(dto.vip_end_time.as_deref(), Some("1700000000"));
+        assert_eq!(dto.paid_expire_time.as_deref(), Some("2026-08-01"));
+    }
+
+    #[test]
+    fn month_record_dates_accept_known_aliases() {
+        let rows = [
+            serde_json::json!({"day": "2026-07-14"}),
+            serde_json::json!({"receive_day": 20260715}),
+            serde_json::json!({"date": "2026-07-16"}),
+        ];
+        let dates: Vec<_> = rows
+            .iter()
+            .filter_map(|value| scalar_string_for_keys(value, &["day", "receive_day", "date"]))
+            .collect();
+        assert_eq!(dates, ["2026-07-14", "20260715", "2026-07-16"]);
     }
 }

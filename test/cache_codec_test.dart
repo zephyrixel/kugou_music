@@ -33,7 +33,21 @@ void main() {
       avatarUrl: 'https://example.com/avatar.jpg',
       followingCount: 8,
     );
-    const vip = UserVip(vipType: 1, productType: 'music');
+    const vip = UserVip(
+      vipType: 1,
+      productType: 'svip',
+      businessType: 'concept',
+      products: [
+        VipProduct(
+          productType: 'svip',
+          businessType: 'concept',
+          active: true,
+          paid: true,
+          yearly: false,
+          vipEndTime: '2026-08-01',
+        ),
+      ],
+    );
 
     final decodedProfile = CacheCodecs.userProfile.decode(
       CacheCodecs.userProfile.encode(profile),
@@ -45,6 +59,9 @@ void main() {
     expect(decodedProfile.displayName, 'Listener');
     expect(decodedProfile.followingCount, 8);
     expect(decodedVip.active, isTrue);
-    expect(decodedVip.productType, 'music');
+    expect(decodedVip.productType, 'svip');
+    expect(decodedVip.businessType, 'concept');
+    expect(decodedVip.products.single.productType, 'svip');
+    expect(decodedVip.products.single.paid, isTrue);
   });
 }

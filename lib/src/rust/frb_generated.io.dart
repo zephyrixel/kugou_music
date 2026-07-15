@@ -97,6 +97,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<int> dco_decode_list_CastedPrimitive_u_64(dynamic raw);
 
   @protected
+  List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
   List<CloudPlaylistDto> dco_decode_list_cloud_playlist_dto(dynamic raw);
 
   @protected
@@ -117,6 +120,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SongDto> dco_decode_list_song_dto(dynamic raw);
+
+  @protected
+  List<VipProductDto> dco_decode_list_vip_product_dto(dynamic raw);
 
   @protected
   int? dco_decode_opt_CastedPrimitive_i_64(dynamic raw);
@@ -196,6 +202,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UserVipDto dco_decode_user_vip_dto(dynamic raw);
+
+  @protected
+  VipClaimResultDto dco_decode_vip_claim_result_dto(dynamic raw);
+
+  @protected
+  VipMonthRecordDto dco_decode_vip_month_record_dto(dynamic raw);
+
+  @protected
+  VipProductDto dco_decode_vip_product_dto(dynamic raw);
+
+  @protected
+  VipUpgradeResultDto dco_decode_vip_upgrade_result_dto(dynamic raw);
 
   @protected
   int sse_decode_CastedPrimitive_i_64(SseDeserializer deserializer);
@@ -282,6 +300,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<int> sse_decode_list_CastedPrimitive_u_64(SseDeserializer deserializer);
 
   @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
   List<CloudPlaylistDto> sse_decode_list_cloud_playlist_dto(
     SseDeserializer deserializer,
   );
@@ -306,6 +327,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SongDto> sse_decode_list_song_dto(SseDeserializer deserializer);
+
+  @protected
+  List<VipProductDto> sse_decode_list_vip_product_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int? sse_decode_opt_CastedPrimitive_i_64(SseDeserializer deserializer);
@@ -401,6 +427,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   UserVipDto sse_decode_user_vip_dto(SseDeserializer deserializer);
+
+  @protected
+  VipClaimResultDto sse_decode_vip_claim_result_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  VipMonthRecordDto sse_decode_vip_month_record_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  VipProductDto sse_decode_vip_product_dto(SseDeserializer deserializer);
+
+  @protected
+  VipUpgradeResultDto sse_decode_vip_upgrade_result_dto(
+    SseDeserializer deserializer,
+  );
 
   @protected
   void sse_encode_CastedPrimitive_i_64(int self, SseSerializer serializer);
@@ -514,6 +558,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
   void sse_encode_list_cloud_playlist_dto(
     List<CloudPlaylistDto> self,
     SseSerializer serializer,
@@ -545,6 +592,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_song_dto(List<SongDto> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_vip_product_dto(
+    List<VipProductDto> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_CastedPrimitive_i_64(int? self, SseSerializer serializer);
@@ -659,6 +712,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_user_vip_dto(UserVipDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_vip_claim_result_dto(
+    VipClaimResultDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_vip_month_record_dto(
+    VipMonthRecordDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_vip_product_dto(VipProductDto self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_vip_upgrade_result_dto(
+    VipUpgradeResultDto self,
+    SseSerializer serializer,
+  );
 }
 
 // Section: wire_class

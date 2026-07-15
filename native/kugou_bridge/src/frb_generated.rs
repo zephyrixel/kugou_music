@@ -27,7 +27,7 @@
 // Section: imports
 
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1472061835;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -148703186;
 
 // Section: executor
 
@@ -113,6 +113,41 @@ fn wire__crate__api__sdk__audio_hashes_dto_default_impl(
                         Result::<_, ()>::Ok(crate::api::sdk::AudioHashesDto::default())?;
                     Ok(output_ok)
                 })())
+            }
+        },
+    )
+}
+fn wire__crate__api__sdk__claim_day_vip_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "claim_day_vip",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::sdk::BridgeError>(
+                    (move || async move {
+                        let output_ok = crate::api::sdk::claim_day_vip().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
             }
         },
     )
@@ -444,6 +479,41 @@ fn wire__crate__api__sdk__get_everyday_recommendations_impl(
                 transform_result_sse::<_, crate::api::sdk::BridgeError>(
                     (move || async move {
                         let output_ok = crate::api::sdk::get_everyday_recommendations().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sdk__get_month_vip_record_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_month_vip_record",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::sdk::BridgeError>(
+                    (move || async move {
+                        let output_ok = crate::api::sdk::get_month_vip_record().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1016,6 +1086,41 @@ fn wire__crate__api__sdk__send_sms_code_impl(
         },
     )
 }
+fn wire__crate__api__sdk__upgrade_day_vip_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "upgrade_day_vip",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::sdk::BridgeError>(
+                    (move || async move {
+                        let output_ok = crate::api::sdk::upgrade_day_vip().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sdk__upload_cloud_history_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1276,6 +1381,18 @@ impl SseDecode for Vec<u64> {
     }
 }
 
+impl SseDecode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::sdk::CloudPlaylistDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1349,6 +1466,18 @@ impl SseDecode for Vec<crate::api::sdk::SongDto> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::api::sdk::SongDto>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::api::sdk::VipProductDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sdk::VipProductDto>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -1764,6 +1893,8 @@ impl SseDecode for crate::api::sdk::UserVipDto {
         let mut var_musicEndTime = <Option<String>>::sse_decode(deserializer);
         let mut var_yearlyEndTime = <Option<String>>::sse_decode(deserializer);
         let mut var_productType = <Option<String>>::sse_decode(deserializer);
+        let mut var_businessType = <Option<String>>::sse_decode(deserializer);
+        let mut var_products = <Vec<crate::api::sdk::VipProductDto>>::sse_decode(deserializer);
         return crate::api::sdk::UserVipDto {
             vip_type: var_vipType,
             music_package_type: var_musicPackageType,
@@ -1772,6 +1903,70 @@ impl SseDecode for crate::api::sdk::UserVipDto {
             music_end_time: var_musicEndTime,
             yearly_end_time: var_yearlyEndTime,
             product_type: var_productType,
+            business_type: var_businessType,
+            products: var_products,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::VipClaimResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_grantedUnits = <Option<i64>>::sse_decode(deserializer);
+        let mut var_endTime = <Option<String>>::sse_decode(deserializer);
+        let mut var_serverTimeSecs = <Option<u64>>::sse_decode(deserializer);
+        return crate::api::sdk::VipClaimResultDto {
+            granted_units: var_grantedUnits,
+            end_time: var_endTime,
+            server_time_secs: var_serverTimeSecs,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::VipMonthRecordDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_claimedDays = <Option<u64>>::sse_decode(deserializer);
+        let mut var_claimDates = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::sdk::VipMonthRecordDto {
+            claimed_days: var_claimedDays,
+            claim_dates: var_claimDates,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::VipProductDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_productType = <Option<String>>::sse_decode(deserializer);
+        let mut var_businessType = <Option<String>>::sse_decode(deserializer);
+        let mut var_active = <bool>::sse_decode(deserializer);
+        let mut var_paid = <bool>::sse_decode(deserializer);
+        let mut var_yearly = <bool>::sse_decode(deserializer);
+        let mut var_vipEndTime = <Option<String>>::sse_decode(deserializer);
+        let mut var_paidExpireTime = <Option<String>>::sse_decode(deserializer);
+        return crate::api::sdk::VipProductDto {
+            product_type: var_productType,
+            business_type: var_businessType,
+            active: var_active,
+            paid: var_paid,
+            yearly: var_yearly,
+            vip_end_time: var_vipEndTime,
+            paid_expire_time: var_paidExpireTime,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sdk::VipUpgradeResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_statusCode = <Option<i64>>::sse_decode(deserializer);
+        let mut var_message = <Option<String>>::sse_decode(deserializer);
+        let mut var_endTime = <Option<String>>::sse_decode(deserializer);
+        return crate::api::sdk::VipUpgradeResultDto {
+            status_code: var_statusCode,
+            message: var_message,
+            end_time: var_endTime,
         };
     }
 }
@@ -1789,38 +1984,41 @@ fn pde_ffi_dispatcher_primary_impl(
         2 => {
             wire__crate__api__sdk__audio_hashes_dto_default_impl(port, ptr, rust_vec_len, data_len)
         }
-        3 => wire__crate__api__sdk__collect_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__sdk__create_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__sdk__delete_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__sdk__edit_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__sdk__export_session_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__sdk__get_everyday_recommendations_impl(
+        3 => wire__crate__api__sdk__claim_day_vip_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__sdk__collect_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__sdk__create_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__sdk__delete_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__sdk__edit_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__sdk__export_session_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__sdk__get_everyday_recommendations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        12 => wire__crate__api__sdk__get_playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__sdk__import_session_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__sdk__logout_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__sdk__refresh_login_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__sdk__register_device_impl(port, ptr, rust_vec_len, data_len),
-        23 => {
+        13 => wire__crate__api__sdk__get_month_vip_record_impl(port, ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__sdk__get_playlist_tracks_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__sdk__import_session_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
+        22 => wire__crate__api__sdk__logout_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__sdk__refresh_login_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__sdk__register_device_impl(port, ptr, rust_vec_len, data_len),
+        25 => {
             wire__crate__api__sdk__remove_song_from_playlist_impl(port, ptr, rust_vec_len, data_len)
         }
-        24 => wire__crate__api__sdk__resolve_playback_impl(port, ptr, rust_vec_len, data_len),
-        25 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
-        26 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__sdk__upload_cloud_history_impl(port, ptr, rust_vec_len, data_len),
+        26 => wire__crate__api__sdk__resolve_playback_impl(port, ptr, rust_vec_len, data_len),
+        27 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__sdk__upgrade_day_vip_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__sdk__upload_cloud_history_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1833,7 +2031,7 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        13 => wire__crate__api__sdk__get_sdk_capabilities_impl(ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__sdk__get_sdk_capabilities_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2484,6 +2682,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::sdk::UserVipDto {
             self.music_end_time.into_into_dart().into_dart(),
             self.yearly_end_time.into_into_dart().into_dart(),
             self.product_type.into_into_dart().into_dart(),
+            self.business_type.into_into_dart().into_dart(),
+            self.products.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -2493,6 +2693,97 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::UserVipDto>
     for crate::api::sdk::UserVipDto
 {
     fn into_into_dart(self) -> crate::api::sdk::UserVipDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::VipClaimResultDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.granted_units.into_into_dart().into_dart(),
+            self.end_time.into_into_dart().into_dart(),
+            self.server_time_secs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::VipClaimResultDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::VipClaimResultDto>
+    for crate::api::sdk::VipClaimResultDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::VipClaimResultDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::VipMonthRecordDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.claimed_days.into_into_dart().into_dart(),
+            self.claim_dates.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::VipMonthRecordDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::VipMonthRecordDto>
+    for crate::api::sdk::VipMonthRecordDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::VipMonthRecordDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::VipProductDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.product_type.into_into_dart().into_dart(),
+            self.business_type.into_into_dart().into_dart(),
+            self.active.into_into_dart().into_dart(),
+            self.paid.into_into_dart().into_dart(),
+            self.yearly.into_into_dart().into_dart(),
+            self.vip_end_time.into_into_dart().into_dart(),
+            self.paid_expire_time.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::VipProductDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::VipProductDto>
+    for crate::api::sdk::VipProductDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::VipProductDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sdk::VipUpgradeResultDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.status_code.into_into_dart().into_dart(),
+            self.message.into_into_dart().into_dart(),
+            self.end_time.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sdk::VipUpgradeResultDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sdk::VipUpgradeResultDto>
+    for crate::api::sdk::VipUpgradeResultDto
+{
+    fn into_into_dart(self) -> crate::api::sdk::VipUpgradeResultDto {
         self
     }
 }
@@ -2665,6 +2956,16 @@ impl SseEncode for Vec<u64> {
     }
 }
 
+impl SseEncode for Vec<String> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::sdk::CloudPlaylistDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -2721,6 +3022,16 @@ impl SseEncode for Vec<crate::api::sdk::SongDto> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::api::sdk::SongDto>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::api::sdk::VipProductDto> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sdk::VipProductDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -3024,6 +3335,47 @@ impl SseEncode for crate::api::sdk::UserVipDto {
         <Option<String>>::sse_encode(self.music_end_time, serializer);
         <Option<String>>::sse_encode(self.yearly_end_time, serializer);
         <Option<String>>::sse_encode(self.product_type, serializer);
+        <Option<String>>::sse_encode(self.business_type, serializer);
+        <Vec<crate::api::sdk::VipProductDto>>::sse_encode(self.products, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::VipClaimResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<i64>>::sse_encode(self.granted_units, serializer);
+        <Option<String>>::sse_encode(self.end_time, serializer);
+        <Option<u64>>::sse_encode(self.server_time_secs, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::VipMonthRecordDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<u64>>::sse_encode(self.claimed_days, serializer);
+        <Vec<String>>::sse_encode(self.claim_dates, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::VipProductDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.product_type, serializer);
+        <Option<String>>::sse_encode(self.business_type, serializer);
+        <bool>::sse_encode(self.active, serializer);
+        <bool>::sse_encode(self.paid, serializer);
+        <bool>::sse_encode(self.yearly, serializer);
+        <Option<String>>::sse_encode(self.vip_end_time, serializer);
+        <Option<String>>::sse_encode(self.paid_expire_time, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sdk::VipUpgradeResultDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<i64>>::sse_encode(self.status_code, serializer);
+        <Option<String>>::sse_encode(self.message, serializer);
+        <Option<String>>::sse_encode(self.end_time, serializer);
     }
 }
 
@@ -3038,7 +3390,7 @@ mod io {
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate

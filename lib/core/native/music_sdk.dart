@@ -28,6 +28,9 @@ abstract interface class MusicSdk {
   });
   Future<UserProfile> userProfile();
   Future<UserVip> userVip();
+  Future<VipClaimResult> claimDayVip();
+  Future<VipUpgradeResult> upgradeDayVip();
+  Future<VipMonthRecord> monthVipRecord();
   Future<HistoryPage> cloudHistory({String? cursor});
   Future<void> uploadHistory(List<HistoryUpload> items);
   Future<PlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50});
@@ -241,6 +244,49 @@ class KugouMusicSdk implements MusicSdk {
       musicEndTime: value.musicEndTime,
       yearlyEndTime: value.yearlyEndTime,
       productType: value.productType,
+      businessType: value.businessType,
+      products: value.products
+          .map(
+            (product) => VipProduct(
+              productType: product.productType,
+              businessType: product.businessType,
+              active: product.active,
+              paid: product.paid,
+              yearly: product.yearly,
+              vipEndTime: product.vipEndTime,
+              paidExpireTime: product.paidExpireTime,
+            ),
+          )
+          .toList(growable: false),
+    );
+  });
+
+  @override
+  Future<VipClaimResult> claimDayVip() => _guard(() async {
+    final value = await bridge.claimDayVip();
+    return VipClaimResult(
+      grantedUnits: value.grantedUnits,
+      endTime: value.endTime,
+      serverTimeSecs: value.serverTimeSecs,
+    );
+  });
+
+  @override
+  Future<VipUpgradeResult> upgradeDayVip() => _guard(() async {
+    final value = await bridge.upgradeDayVip();
+    return VipUpgradeResult(
+      statusCode: value.statusCode,
+      message: value.message,
+      endTime: value.endTime,
+    );
+  });
+
+  @override
+  Future<VipMonthRecord> monthVipRecord() => _guard(() async {
+    final value = await bridge.getMonthVipRecord();
+    return VipMonthRecord(
+      claimedDays: value.claimedDays,
+      claimDates: value.claimDates,
     );
   });
 
@@ -391,13 +437,11 @@ class KugouMusicSdk implements MusicSdk {
       }, persist: true);
 
   @override
-  Future<void> deletePlaylist({
-    required int listId,
-    required bool collected,
-  }) => _guard(
-    () => bridge.deleteCloudPlaylist(listId: listId, collected: collected),
-    persist: true,
-  );
+  Future<void> deletePlaylist({required int listId, required bool collected}) =>
+      _guard(
+        () => bridge.deleteCloudPlaylist(listId: listId, collected: collected),
+        persist: true,
+      );
 
   @override
   Future<void> editPlaylist(PlaylistEditInput input) => _guard(
