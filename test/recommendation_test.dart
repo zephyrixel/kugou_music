@@ -37,6 +37,7 @@ void main() {
         const RecommendationBatch(
           title: '猜你喜欢',
           markList: 'mark-1',
+          mark: 'current-1',
           songs: [songA, songB],
         ),
         const RecommendationBatch(
@@ -70,7 +71,9 @@ void main() {
     expect(sdk.personalInputs.last.remainSongCount, 1);
     expect(sdk.personalInputs.last.playtimeSecs, 37);
     expect(sdk.personalInputs.last.markList, 'mark-1');
+    expect(sdk.personalInputs.last.currentMark, 'current-1');
     expect(sdk.repeatedReports.single.hashes, [songB.hashes.standard]);
+    expect(sdk.repeatedReports.single.remainSongCount, 2);
   });
 
   test('红心电台续拉会回传上一批 mixSongId', () async {
@@ -114,7 +117,39 @@ void main() {
       sdk.historyReports.single.single.action,
       RecommendationHistoryAction.collect,
     );
-    expect(sdk.favoriteClicks, [songA, songB]);
+    expect(sdk.favoriteClicks, [songA]);
+  });
+
+  test('推荐历史批量上报会沿用服务端同步点', () async {
+    final sdk = _FakeMusicSdk();
+    final reporter = RecommendationReporter(sdk, AppErrorBus());
+
+    reporter.reportPlayed(songA);
+    reporter.reportTrash(songB);
+    await reporter.flush();
+    reporter.reportPlayed(songC);
+    await reporter.flush();
+
+    expect(sdk.historyReports, hasLength(2));
+    expect(sdk.historyReports.first, hasLength(2));
+    expect(sdk.historyPreviousSyncPoints, [null, 1]);
+  });
+
+  test('切换账号会清空待上报事件和旧同步点', () async {
+    final sdk = _FakeMusicSdk();
+    final reporter = RecommendationReporter(sdk, AppErrorBus());
+
+    reporter.reportPlayed(songA);
+    await reporter.flush();
+    reporter.reportTrash(songB);
+    reporter.resetSession();
+    await reporter.flush();
+    reporter.reportPlayed(songC);
+    await reporter.flush();
+
+    expect(sdk.historyReports, hasLength(2));
+    expect(sdk.historyPreviousSyncPoints, [null, null]);
+    expect(sdk.historyReports.last.single.song, songC);
   });
 
   test('report 失败通过全局错误总线暴露', () async {
@@ -125,7 +160,7 @@ void main() {
 
     reporter.reportPlayed(songA);
 
-    expect(await nextError, contains('推荐播放记录上报失败'));
+    expect(await nextError, contains('推荐历史记录上报失败'));
     await reporter.flush();
   });
 
@@ -141,10 +176,10 @@ void main() {
       ),
     );
 
-    errors.add('推荐播放记录上报失败：network down');
+    errors.add('推荐历史记录上报失败：network down');
     await tester.pump();
 
-    expect(find.text('推荐播放记录上报失败：network down'), findsOneWidget);
+    expect(find.text('推荐历史记录上报失败：network down'), findsOneWidget);
   });
 }
 
@@ -180,6 +215,7 @@ class _FakeMusicSdk implements RecommendationSdk {
   final List<PersonalFmInput> personalInputs = [];
   final List<List<int>> heartMixIds = [];
   final List<List<RecommendationHistoryEvent>> historyReports = [];
+  final List<int?> historyPreviousSyncPoints = [];
   final List<_RepeatedReport> repeatedReports = [];
   final List<Song> favoriteClicks = [];
   Object? reportError;
@@ -199,11 +235,14 @@ class _FakeMusicSdk implements RecommendationSdk {
   }
 
   @override
-  Future<void> reportRecommendationHistory(
-    List<RecommendationHistoryEvent> items,
-  ) async {
+  Future<RecommendationReportAck> reportRecommendationHistory(
+    List<RecommendationHistoryEvent> items, {
+    int? previousSyncPoint,
+  }) async {
     if (reportError case final error?) throw error;
     historyReports.add(List.of(items));
+    historyPreviousSyncPoints.add(previousSyncPoint);
+    return RecommendationReportAck(syncPoint: historyReports.length);
   }
 
   @override

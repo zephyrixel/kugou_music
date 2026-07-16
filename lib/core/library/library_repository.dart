@@ -102,6 +102,7 @@ class LibraryRepository {
   LibrarySyncStatus get status => _status;
 
   Future<void> activate(int userId) async {
+    if (_userId != userId) _reporter?.resetSession();
     _trackLoader.cancelAll();
     final generation = ++_generation;
     _userId = userId;
@@ -117,6 +118,7 @@ class LibraryRepository {
   }
 
   Future<void> deactivate() async {
+    _reporter?.resetSession();
     _trackLoader.cancelAll();
     _generation += 1;
     _userId = null;
@@ -397,7 +399,6 @@ class LibraryRepository {
   Future<void> recordPlayed(Song song) async {
     if (_userId == null) return;
     final entry = await _store.recordPlayed(song);
-    _reporter?.reportPlayed(entry.song);
     final mixSongId = entry.song.mixSongId;
     if (mixSongId == null) return;
     unawaited(
@@ -411,6 +412,11 @@ class LibraryRepository {
           ])
           .catchError((_) {}),
     );
+  }
+
+  Future<void> reportRecommendationPlayed(Song song) async {
+    if (_userId == null) return;
+    _reporter?.reportPlayed(song);
   }
 
   bool _isCurrent(int generation, int userId) =>

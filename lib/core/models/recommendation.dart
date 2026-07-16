@@ -23,6 +23,7 @@ class PersonalFmInput {
     this.remainSongCount = 0,
     this.playtimeSecs,
     this.markList,
+    this.currentMark,
   });
 
   final PersonalFmAction action;
@@ -30,6 +31,7 @@ class PersonalFmInput {
   final int remainSongCount;
   final int? playtimeSecs;
   final String? markList;
+  final String? currentMark;
 }
 
 class RecommendationBatch {
@@ -38,12 +40,21 @@ class RecommendationBatch {
     required this.songs,
     this.subtitle,
     this.markList,
+    this.mark,
   });
 
   final String title;
   final String? subtitle;
   final String? markList;
+  final String? mark;
   final List<Song> songs;
+}
+
+class RecommendationReportAck {
+  const RecommendationReportAck({this.syncPoint, this.isClean});
+
+  final int? syncPoint;
+  final bool? isClean;
 }
 
 enum RecommendationHistoryAction { play, collect, trash }

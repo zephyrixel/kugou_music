@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'dto.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auth_state`, `get_playlist_tracks`, `internal`, `invalid_argument`, `runtime`, `validated_search`
+// These functions are ignored because they are not marked as `pub`: `auth_state`, `get_playlist_tracks`, `runtime`, `validated_search`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `PlaylistTracksRoute`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `eq`, `fmt`, `fmt`
 
@@ -50,9 +50,13 @@ Future<RecommendationBatchDto> getHeartRadio({
   required HeartRadioRequestDto request,
 }) => RustLib.instance.api.crateApiSdkGetHeartRadio(request: request);
 
-Future<void> reportRecommendationHistory({
+Future<RecommendationReportAckDto> reportRecommendationHistory({
   required List<RecommendationHistoryItemDto> items,
-}) => RustLib.instance.api.crateApiSdkReportRecommendationHistory(items: items);
+  int? previousSyncPoint,
+}) => RustLib.instance.api.crateApiSdkReportRecommendationHistory(
+  items: items,
+  previousSyncPoint: previousSyncPoint,
+);
 
 Future<void> reportRecommendationRepeated({
   required List<String> hashes,

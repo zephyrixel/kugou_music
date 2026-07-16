@@ -133,6 +133,21 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       _audioCache.setActive(prepared.audioHandle);
       _currentAudioHandle = prepared.audioHandle;
       _currentMediaDuration = actualDuration;
+      final songDuration =
+          actualDuration ??
+          (prepared.song.durationSecs == null
+              ? null
+              : Duration(seconds: prepared.song.durationSecs!));
+      final recommendationDuration =
+          prepared.previewEnd != null &&
+              (songDuration == null || prepared.previewEnd! < songDuration)
+          ? prepared.previewEnd
+          : songDuration;
+      _recommendationPlayTracker.activate(
+        prepared.song,
+        newPlayback: recordHistory,
+        duration: recommendationDuration,
+      );
       _restoredPosition = null;
       _previewEnd = prepared.previewEnd;
       _previewStopped = false;

@@ -86,6 +86,7 @@ pub struct PersonalFmRequestDto {
     pub remain_song_count: u32,
     pub playtime_secs: Option<u64>,
     pub mark_list: Option<String>,
+    pub current_mark: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -98,7 +99,14 @@ pub struct RecommendationBatchDto {
     pub title: String,
     pub subtitle: Option<String>,
     pub mark_list: Option<String>,
+    pub mark: Option<String>,
     pub songs: Vec<SongDto>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RecommendationReportAckDto {
+    pub sync_point: Option<i64>,
+    pub is_clean: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

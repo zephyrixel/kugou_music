@@ -54,6 +54,7 @@ Future<void> main() async {
       sdk,
       library.recordPlayed,
       audioCache,
+      reportRecommendationPlayed: library.reportRecommendationPlayed,
       queueStore: queueStore,
       queueSourceFactory: queueSourceFactory,
     ),

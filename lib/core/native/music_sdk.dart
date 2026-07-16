@@ -42,9 +42,10 @@ abstract interface class RecommendationSdk {
   Future<RecommendationBatch> heartRadio({
     List<int> currentMixSongIds = const [],
   });
-  Future<void> reportRecommendationHistory(
-    List<RecommendationHistoryEvent> items,
-  );
+  Future<RecommendationReportAck> reportRecommendationHistory(
+    List<RecommendationHistoryEvent> items, {
+    int? previousSyncPoint,
+  });
   Future<void> reportRecommendationRepeated(
     List<String> hashes, {
     required int remainSongCount,
@@ -170,6 +171,7 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
             remainSongCount: input.remainSongCount,
             playtimeSecs: input.playtimeSecs,
             markList: input.markList,
+            currentMark: input.currentMark,
           ),
         );
         return _recommendationBatch(value);
@@ -188,10 +190,11 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
   });
 
   @override
-  Future<void> reportRecommendationHistory(
-    List<RecommendationHistoryEvent> items,
-  ) => _guard(
-    () => bridge.reportRecommendationHistory(
+  Future<RecommendationReportAck> reportRecommendationHistory(
+    List<RecommendationHistoryEvent> items, {
+    int? previousSyncPoint,
+  }) => _guard(() async {
+    final value = await bridge.reportRecommendationHistory(
       items: items
           .map(
             (item) => bridge.RecommendationHistoryItemDto(
@@ -207,8 +210,13 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
             ),
           )
           .toList(growable: false),
-    ),
-  );
+      previousSyncPoint: previousSyncPoint,
+    );
+    return RecommendationReportAck(
+      syncPoint: value.syncPoint,
+      isClean: value.isClean,
+    );
+  });
 
   @override
   Future<void> reportRecommendationRepeated(
@@ -726,6 +734,7 @@ RecommendationBatch _recommendationBatch(bridge.RecommendationBatchDto value) =>
       title: value.title,
       subtitle: value.subtitle,
       markList: value.markList,
+      mark: value.mark,
       songs: value.songs.map(_songFromDto).toList(growable: false),
     );
 

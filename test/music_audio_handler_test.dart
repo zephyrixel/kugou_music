@@ -75,16 +75,45 @@ void main() {
     expect(history, [songA, songB]);
     await player.close();
   });
+
+  test(
+    'recommendation play waits for qualified playback and survives quality switch',
+    () async {
+      final sdk = _FakePlayerSdk();
+      final player = _FakeAudioPlayer();
+      final history = <Song>[];
+      final recommendation = <Song>[];
+      final handler = _handler(
+        sdk,
+        player,
+        history,
+        recommendation: recommendation,
+      );
+
+      await handler.playSong(songA);
+      player.emitPosition(const Duration(seconds: 20));
+      await handler.setPlaybackQuality(AudioQuality.high);
+      player.emitPosition(const Duration(seconds: 30));
+      player.emitPosition(const Duration(seconds: 45));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(history, [songA]);
+      expect(recommendation, [songA]);
+      await player.close();
+    },
+  );
 }
 
 MusicAudioHandler _handler(
   _FakePlayerSdk sdk,
   _FakeAudioPlayer player,
-  List<Song> history,
-) => MusicAudioHandler(
+  List<Song> history, {
+  List<Song>? recommendation,
+}) => MusicAudioHandler(
   sdk,
   (song) async => history.add(song),
   _FakeAudioCache(),
+  reportRecommendationPlayed: (song) async => recommendation?.add(song),
   player: player,
   configureSession: () async {},
   observeLifecycle: false,
@@ -226,6 +255,11 @@ class _FakeAudioPlayer implements AudioPlayerPort {
   Future<void> stop() async {
     _playing = false;
     _emit(ProcessingState.idle);
+  }
+
+  void emitPosition(Duration position) {
+    positionValue = position;
+    _positions.add(position);
   }
 
   void emitCompleted() => _emit(ProcessingState.completed);

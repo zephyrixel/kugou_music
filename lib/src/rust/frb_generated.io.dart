@@ -219,6 +219,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RecommendationReportAckDto dco_decode_recommendation_report_ack_dto(
+    dynamic raw,
+  );
+
+  @protected
   ResolvePlaybackRequestDto dco_decode_resolve_playback_request_dto(
     dynamic raw,
   );
@@ -497,6 +502,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RecommendationHistoryItemDto sse_decode_recommendation_history_item_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RecommendationReportAckDto sse_decode_recommendation_report_ack_dto(
     SseDeserializer deserializer,
   );
 
@@ -849,6 +859,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_recommendation_history_item_dto(
     RecommendationHistoryItemDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_recommendation_report_ack_dto(
+    RecommendationReportAckDto self,
     SseSerializer serializer,
   );
 

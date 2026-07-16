@@ -14,6 +14,7 @@ import 'package:kgmusic/core/player/playback_queue_controller.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/player/playback_queue_store.dart';
 import 'package:kgmusic/core/recommendation/recommendation_queue_source.dart';
+import 'package:kgmusic/core/recommendation/recommendation_play_tracker.dart';
 import 'package:kgmusic/core/player/system_media_projection.dart';
 
 part 'music_audio_queue.dart';
@@ -25,20 +26,31 @@ class MusicAudioHandler extends BaseAudioHandler
     this._sdk,
     this._recordPlayed,
     this._audioCache, {
+    Future<void> Function(Song)? reportRecommendationPlayed,
     this.queueStore,
     this.queueSourceFactory,
     AudioPlayerPort? player,
     Future<void> Function()? configureSession,
     bool observeLifecycle = true,
     bool restoreQueueOnStart = true,
-  }) : _player = player ?? JustAudioPlayerPort() {
+  }) : _player = player ?? JustAudioPlayerPort(),
+       _recommendationPlayTracker = RecommendationPlayTracker(
+         reportRecommendationPlayed ?? (_) async {},
+       ) {
     _player.playbackEventStream.listen(_broadcastState);
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
         unawaited(_advanceAfterCompletion());
       }
     });
-    _player.positionStream.listen(_enforcePreviewEnd);
+    _player.positionStream.listen((position) {
+      _enforcePreviewEnd(position);
+      _recommendationPlayTracker.update(
+        position: position,
+        playing: _player.playing,
+        duration: _currentMediaDuration,
+      );
+    });
     if (observeLifecycle) WidgetsBinding.instance.addObserver(this);
     unawaited((configureSession ?? _configureSession)());
     if (restoreQueueOnStart) unawaited(_restoreQueue());
@@ -50,6 +62,7 @@ class MusicAudioHandler extends BaseAudioHandler
   final PlaybackQueueStore? queueStore;
   final PlaybackQueueSourceFactory? queueSourceFactory;
   final AudioPlayerPort _player;
+  final RecommendationPlayTracker _recommendationPlayTracker;
   final StreamController<String?> _messages = StreamController.broadcast();
   final StreamController<PlaybackQualityState> _qualityStates =
       StreamController.broadcast(sync: true);
@@ -272,6 +285,7 @@ class MusicAudioHandler extends BaseAudioHandler
     _prefetchAttemptedSongId = null;
     await _persistQueue();
     _audioCache.setActive(null);
+    _recommendationPlayTracker.reset();
     _currentAudioHandle = null;
     await _player.stop();
     await super.stop();

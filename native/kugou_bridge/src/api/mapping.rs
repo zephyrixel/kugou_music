@@ -102,6 +102,15 @@ pub(super) fn recommendation_history_item_to_sdk(
     }
 }
 
+pub(super) fn recommendation_report_ack_to_dto(
+    result: &kugou_sdk::RecommendReportResult,
+) -> RecommendationReportAckDto {
+    RecommendationReportAckDto {
+        sync_point: result.sync_point,
+        is_clean: result.is_clean,
+    }
+}
+
 pub(super) fn lyric_document_to_dto(document: LyricDocument) -> LyricDocumentDto {
     LyricDocumentDto {
         format: match document.format {

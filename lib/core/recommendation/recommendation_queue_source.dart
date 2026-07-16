@@ -34,6 +34,7 @@ class RecommendationQueueSource
   final RecommendationReporter _reporter;
   Future<void> _operationTail = Future<void>.value();
   String? _markList;
+  String? _currentMark;
   List<int> _heartMixIds = const [];
   final List<Song> _pending = [];
 
@@ -43,13 +44,14 @@ class RecommendationQueueSource
       title: batch.title,
       subtitle: batch.subtitle,
       markList: batch.markList,
+      mark: batch.mark,
       songs: _filterNew(batch.songs, const []),
     );
   }
 
   @override
   Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request) async {
-    final pending = _takePending(request.songs);
+    final pending = _takePending(request);
     if (pending.isNotEmpty) {
       return PlaybackQueuePage(
         page: request.page,
@@ -69,7 +71,11 @@ class RecommendationQueueSource
           fallbackHeartSongs: request.songs,
         ),
       );
-      unique = _filterNew(batch.songs, request.songs);
+      unique = _filterNew(
+        batch.songs,
+        request.songs,
+        reportRemainCount: request.remainingCount,
+      );
     }
     return PlaybackQueuePage(
       page: request.page,
@@ -107,7 +113,9 @@ class RecommendationQueueSource
             ),
           )
           .then((batch) {
-            _pending.addAll(_filterNew(batch.songs, _pending));
+            _pending.addAll(
+              _filterNew(batch.songs, _pending, reportRepeated: false),
+            );
           })
           .catchError((Object error) {
             _reporter.reportError(label, error);
@@ -130,6 +138,7 @@ class RecommendationQueueSource
           remainSongCount: remainSongCount,
           playtimeSecs: playtimeSecs,
           markList: _markList,
+          currentMark: _currentMark,
         ),
       ),
       RecommendationKind.heartRadio => _sdk.heartRadio(
@@ -145,6 +154,9 @@ class RecommendationQueueSource
     if (value.markList?.trim().isNotEmpty == true) {
       _markList = value.markList;
     }
+    if (value.mark?.trim().isNotEmpty == true) {
+      _currentMark = value.mark;
+    }
     if (kind == RecommendationKind.heartRadio) {
       _heartMixIds = value.songs
           .map((song) => song.mixSongId)
@@ -154,14 +166,23 @@ class RecommendationQueueSource
     return value;
   }
 
-  List<Song> _takePending(List<Song> existing) {
+  List<Song> _takePending(PlaybackQueueLoadRequest request) {
     if (_pending.isEmpty) return const [];
-    final result = _filterNew(List<Song>.of(_pending), existing);
+    final result = _filterNew(
+      List<Song>.of(_pending),
+      request.songs,
+      reportRemainCount: request.remainingCount,
+    );
     _pending.clear();
     return result;
   }
 
-  List<Song> _filterNew(List<Song> incoming, List<Song> existing) {
+  List<Song> _filterNew(
+    List<Song> incoming,
+    List<Song> existing, {
+    int? reportRemainCount,
+    bool reportRepeated = true,
+  }) {
     final knownIds = existing.map((song) => song.id).toSet();
     final knownHashes = existing
         .map((song) => song.hashes.standard?.trim().toLowerCase())
@@ -188,7 +209,12 @@ class RecommendationQueueSource
         if (hash != null && hash.isNotEmpty) duplicateHashes.add(hash);
       }
     }
-    _reporter.reportRepeated(duplicateHashes, remainSongCount: unique.length);
+    if (reportRepeated) {
+      _reporter.reportRepeated(
+        duplicateHashes,
+        remainSongCount: (reportRemainCount ?? 0) + unique.length,
+      );
+    }
     return unique;
   }
 

@@ -206,6 +206,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     _prefetchAttemptedSongId = null;
     await _persistTail.catchError((_) {});
     _audioCache.setActive(null);
+    _recommendationPlayTracker.reset();
     _currentAudioHandle = null;
     _queueRequest = null;
     _queueState = null;

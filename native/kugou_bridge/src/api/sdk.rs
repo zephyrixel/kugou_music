@@ -217,6 +217,12 @@ pub async fn get_personal_fm(
     if let Some(mark_list) = request.mark_list.filter(|value| !value.trim().is_empty()) {
         fm_request = fm_request.mark_list(mark_list);
     }
+    if let Some(current_mark) = request
+        .current_mark
+        .filter(|value| !value.trim().is_empty())
+    {
+        fm_request = fm_request.cur_mark(current_mark);
+    }
 
     let mut session = runtime.session.lock().await;
     let response = runtime
@@ -231,6 +237,7 @@ pub async fn get_personal_fm(
         title: "猜你喜欢".to_owned(),
         subtitle: response.data.mark.clone(),
         mark_list: response.data.mark_list,
+        mark: response.data.mark,
         songs,
     })
 }
@@ -255,13 +262,15 @@ pub async fn get_heart_radio(
         title: "红心电台".to_owned(),
         subtitle: response.data.intro,
         mark_list: None,
+        mark: None,
         songs,
     })
 }
 
 pub async fn report_recommendation_history(
     items: Vec<RecommendationHistoryItemDto>,
-) -> Result<(), BridgeError> {
+    previous_sync_point: Option<i64>,
+) -> Result<RecommendationReportAckDto, BridgeError> {
     if items.is_empty() {
         return Err(BridgeError::invalid_argument(
             "recommendation history report requires items",
@@ -271,16 +280,19 @@ pub async fn report_recommendation_history(
         .iter()
         .map(recommendation_history_item_to_sdk)
         .collect();
-    let request = ReportHistoryRequest::new(rows).map_err(BridgeError::from_sdk)?;
+    let mut request = ReportHistoryRequest::new(rows).map_err(BridgeError::from_sdk)?;
+    if let Some(sync_point) = previous_sync_point {
+        request = request.prev_sync_point(sync_point);
+    }
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
-    runtime
+    let response = runtime
         .client
         .recommend()
         .report_history(&mut session, request)
         .await
         .map_err(BridgeError::from_sdk)?;
-    Ok(())
+    Ok(recommendation_report_ack_to_dto(&response.data))
 }
 
 pub async fn report_recommendation_repeated(

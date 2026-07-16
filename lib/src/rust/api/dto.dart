@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dto.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 class AudioHashesDto {
   final String? standard;
@@ -411,6 +411,7 @@ class PersonalFmRequestDto {
   final int remainSongCount;
   final int? playtimeSecs;
   final String? markList;
+  final String? currentMark;
 
   const PersonalFmRequestDto({
     required this.action,
@@ -418,6 +419,7 @@ class PersonalFmRequestDto {
     required this.remainSongCount,
     this.playtimeSecs,
     this.markList,
+    this.currentMark,
   });
 
   @override
@@ -426,7 +428,8 @@ class PersonalFmRequestDto {
       currentSong.hashCode ^
       remainSongCount.hashCode ^
       playtimeSecs.hashCode ^
-      markList.hashCode;
+      markList.hashCode ^
+      currentMark.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -437,7 +440,8 @@ class PersonalFmRequestDto {
           currentSong == other.currentSong &&
           remainSongCount == other.remainSongCount &&
           playtimeSecs == other.playtimeSecs &&
-          markList == other.markList;
+          markList == other.markList &&
+          currentMark == other.currentMark;
 }
 
 @freezed
@@ -624,18 +628,24 @@ class RecommendationBatchDto {
   final String title;
   final String? subtitle;
   final String? markList;
+  final String? mark;
   final List<SongDto> songs;
 
   const RecommendationBatchDto({
     required this.title,
     this.subtitle,
     this.markList,
+    this.mark,
     required this.songs,
   });
 
   @override
   int get hashCode =>
-      title.hashCode ^ subtitle.hashCode ^ markList.hashCode ^ songs.hashCode;
+      title.hashCode ^
+      subtitle.hashCode ^
+      markList.hashCode ^
+      mark.hashCode ^
+      songs.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -645,6 +655,7 @@ class RecommendationBatchDto {
           title == other.title &&
           subtitle == other.subtitle &&
           markList == other.markList &&
+          mark == other.mark &&
           songs == other.songs;
 }
 
@@ -669,6 +680,24 @@ class RecommendationHistoryItemDto {
           runtimeType == other.runtimeType &&
           action == other.action &&
           song == other.song;
+}
+
+class RecommendationReportAckDto {
+  final int? syncPoint;
+  final bool? isClean;
+
+  const RecommendationReportAckDto({this.syncPoint, this.isClean});
+
+  @override
+  int get hashCode => syncPoint.hashCode ^ isClean.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecommendationReportAckDto &&
+          runtimeType == other.runtimeType &&
+          syncPoint == other.syncPoint &&
+          isClean == other.isClean;
 }
 
 class ResolvePlaybackRequestDto {
