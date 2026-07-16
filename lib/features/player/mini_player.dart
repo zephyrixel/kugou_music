@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/player/player_queue_sheet.dart';
@@ -19,91 +20,117 @@ class MiniPlayer extends ConsumerWidget {
       builder: (context, itemSnapshot) {
         final item = itemSnapshot.data;
         if (item == null) return const SizedBox.shrink();
-        return Material(
-          color: KgColors.elevated,
-          child: InkWell(
-            onTap: () => context.push('/player'),
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                SizedBox(
-                  height: 70,
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 12),
-                      Hero(
-                        tag: 'player-artwork:${item.id}',
-                        child: SongArtwork(
-                          url: item.artUri?.toString(),
-                          cacheId: 'song:${item.id}',
-                          size: 48,
-                          radius: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              item.artist ?? '未知歌手',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: KgColors.textMuted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      StreamBuilder<PlaybackState>(
-                        stream: handler.playbackState,
-                        builder: (context, stateSnapshot) {
-                          final state = stateSnapshot.data;
-                          final playing = state?.playing ?? false;
-                          final loading =
-                              state?.processingState ==
-                                  AudioProcessingState.loading ||
-                              state?.processingState ==
-                                  AudioProcessingState.buffering;
-                          return IconButton(
-                            tooltip: loading ? '正在加载' : (playing ? '暂停' : '播放'),
-                            onPressed: loading
-                                ? null
-                                : (playing ? handler.pause : handler.play),
-                            icon: loading
-                                ? const SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    playing
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                  ),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        tooltip: '播放队列',
-                        onPressed: () => showPlayerQueueSheet(context, handler),
-                        icon: const Icon(Icons.queue_music_rounded),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                  ),
+        return AnimatedSwitcher(
+          duration: KgMotion.resolve(context, KgMotion.medium),
+          switchInCurve: KgMotion.standard,
+          child: Container(
+            key: ValueKey(item.id),
+            margin: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+            decoration: BoxDecoration(
+              color: KgColors.elevatedHigh,
+              borderRadius: BorderRadius.circular(KgRadii.large),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
                 ),
-                _MiniProgress(handler: handler),
               ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => context.push('/player'),
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    SizedBox(
+                      height: 70,
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 10),
+                          Hero(
+                            tag: 'player-artwork:${item.id}',
+                            child: SongArtwork(
+                              url: item.artUri?.toString(),
+                              cacheId: 'song:${item.id}',
+                              size: 48,
+                              radius: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  item.artist ?? '未知歌手',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: KgColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          StreamBuilder<PlaybackState>(
+                            stream: handler.playbackState,
+                            builder: (context, stateSnapshot) {
+                              final state = stateSnapshot.data;
+                              final playing = state?.playing ?? false;
+                              final loading =
+                                  state?.processingState ==
+                                      AudioProcessingState.loading ||
+                                  state?.processingState ==
+                                      AudioProcessingState.buffering;
+                              return IconButton(
+                                tooltip: loading
+                                    ? '正在加载'
+                                    : (playing ? '暂停' : '播放'),
+                                onPressed: loading
+                                    ? null
+                                    : (playing ? handler.pause : handler.play),
+                                icon: loading
+                                    ? const SizedBox.square(
+                                        dimension: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        playing
+                                            ? Icons.pause_rounded
+                                            : Icons.play_arrow_rounded,
+                                      ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            tooltip: '播放队列',
+                            onPressed: () =>
+                                showPlayerQueueSheet(context, handler),
+                            icon: const Icon(Icons.queue_music_rounded),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                      ),
+                    ),
+                    _MiniProgress(handler: handler),
+                  ],
+                ),
+              ),
             ),
           ),
         );

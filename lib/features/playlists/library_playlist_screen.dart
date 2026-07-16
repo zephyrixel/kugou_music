@@ -90,9 +90,14 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     final count = playlist.count > songs.length ? playlist.count : songs.length;
 
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        actions: [
+      body: PlaylistSongsView(
+        title: playlist.name,
+        subtitle: playlist.creatorName,
+        description: playlist.intro,
+        artwork: playlist.artworkUrl,
+        cacheId: 'playlist:${playlist.localId}',
+        count: count,
+        appBarActions: [
           if (!playlist.isSystem)
             PopupMenuButton<String>(
               onSelected: (value) {
@@ -111,12 +116,6 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
               ],
             ),
         ],
-      ),
-      body: PlaylistSongsView(
-        title: playlist.name,
-        artwork: playlist.artworkUrl,
-        cacheId: 'playlist:${playlist.localId}',
-        count: count,
         songs: songs,
         // Only full-screen spinner when nothing to show yet.
         loading: _pager.initialLoading && songs.isEmpty,

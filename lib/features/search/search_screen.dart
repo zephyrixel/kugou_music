@@ -6,11 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
+import 'package:kgmusic/core/widgets/account_avatar_button.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
@@ -158,72 +160,105 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const KgPageHeader(
-                title: '搜索',
-                subtitle: '发现歌曲与公开歌单',
-                padding: EdgeInsets.fromLTRB(0, 24, 0, 16),
-              ),
-              SegmentedButton<_SearchKind>(
-                segments: const [
-                  ButtonSegment(
-                    value: _SearchKind.songs,
-                    icon: Icon(Icons.music_note_rounded),
-                    label: Text('歌曲'),
-                  ),
-                  ButtonSegment(
-                    value: _SearchKind.playlists,
-                    icon: Icon(Icons.queue_music_rounded),
-                    label: Text('歌单'),
-                  ),
-                ],
-                selected: {_kind},
-                onSelectionChanged: (value) {
-                  final next = value.first;
-                  if (next == _kind) return;
-                  setState(() => _kind = next);
-                  if (_scrollController.hasClients) {
-                    _scrollController.jumpTo(0);
-                  }
-                  if (_keyword.isNotEmpty) {
-                    unawaited(_activePager.reset());
-                  }
-                },
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _controller,
-                onChanged: _onChanged,
-                textInputAction: TextInputAction.search,
-                onSubmitted: _runSearch,
-                decoration: InputDecoration(
-                  hintText: _kind == _SearchKind.songs ? '歌曲、歌手或专辑' : '搜索公开歌单',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _controller.text.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: '清空搜索',
-                          onPressed: _clearSearch,
-                          icon: const Icon(Icons.close_rounded),
-                        ),
+    bottom: false,
+    child: KgContentWidth(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              KgSpacing.lg,
+              KgSpacing.xl,
+              KgSpacing.lg,
+              KgSpacing.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const KgPageHeader(
+                  title: '搜索',
+                  subtitle: '发现歌曲与公开歌单',
+                  padding: EdgeInsets.zero,
+                  actions: [AccountAvatarButton()],
                 ),
-              ),
-              if (_keyword.isNotEmpty && _activePager.initialLoading)
-                const LinearProgressIndicator(minHeight: 2),
-            ],
+                const SizedBox(height: KgSpacing.lg),
+                SegmentedButton<_SearchKind>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _SearchKind.songs,
+                      icon: Icon(Icons.music_note_rounded),
+                      label: Text('歌曲'),
+                    ),
+                    ButtonSegment(
+                      value: _SearchKind.playlists,
+                      icon: Icon(Icons.queue_music_rounded),
+                      label: Text('歌单'),
+                    ),
+                  ],
+                  selected: {_kind},
+                  onSelectionChanged: (value) {
+                    final next = value.first;
+                    if (next == _kind) return;
+                    setState(() => _kind = next);
+                    if (_scrollController.hasClients) {
+                      _scrollController.jumpTo(0);
+                    }
+                    if (_keyword.isNotEmpty) {
+                      unawaited(_activePager.reset());
+                    }
+                  },
+                ),
+                const SizedBox(height: KgSpacing.sm),
+                TextField(
+                  controller: _controller,
+                  onChanged: _onChanged,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: _runSearch,
+                  decoration: InputDecoration(
+                    hintText: _kind == _SearchKind.songs
+                        ? '歌曲、歌手或专辑'
+                        : '搜索公开歌单',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _controller.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: '清空搜索',
+                            onPressed: _clearSearch,
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                  ),
+                ),
+                if (_keyword.isNotEmpty && _activePager.initialLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: KgSpacing.xs),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
+              ],
+            ),
           ),
-        ),
-        Expanded(child: _body()),
-      ],
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: KgMotion.resolve(context, KgMotion.medium),
+              switchInCurve: KgMotion.standard,
+              switchOutCurve: Curves.easeInCubic,
+              child: KeyedSubtree(key: ValueKey(_bodyKey), child: _body()),
+            ),
+          ),
+        ],
+      ),
     ),
   );
+
+  String get _bodyKey {
+    if (_keyword.isEmpty) return 'empty';
+    if (_activePager.initialLoading && _activePager.items.isEmpty) {
+      return 'loading-$_kind';
+    }
+    if (_activePager.initialError != null && _activePager.items.isEmpty) {
+      return 'error-$_kind';
+    }
+    return 'results-$_kind';
+  }
 
   Widget _body() {
     if (_keyword.isEmpty) {
@@ -267,6 +302,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         final song = songs[itemIndex];
         return SongTile(
           song: song,
+          variant: SongTileVariant.artwork,
           onTap: () => playSong(
             context,
             ref,

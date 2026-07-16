@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
-import 'package:kgmusic/core/widgets/playlist_tile.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/membership/membership_card.dart';
 import 'package:kgmusic/features/membership/membership_presenter.dart';
@@ -22,137 +21,70 @@ class AccountScreen extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     final profile = ref.watch(userProfileProvider);
     final vip = ref.watch(userVipProvider);
-    final playlists = ref.watch(libraryPlaylistsProvider);
     final sync = ref.watch(librarySyncStatusProvider);
 
-    return SafeArea(
-      bottom: false,
-      child: RefreshIndicator(
-        onRefresh: () async {
-          await auth.refreshIfDue(force: true);
-          await ref.read(libraryRepositoryProvider).syncNow();
-          final userId = auth.snapshot.userId;
-          if (userId != null) {
-            final repository = ref.read(musicRepositoryProvider);
-            await Future.wait([
-              repository
-                  .userProfile(userId, mode: CacheLoadMode.forceRefresh)
-                  .last,
-              repository.userVip(userId, mode: CacheLoadMode.forceRefresh).last,
-            ]);
-          }
-          ref.invalidate(userProfileProvider);
-          ref.invalidate(userVipProvider);
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-          children: [
-            _TitleBar(authBusy: auth.busy),
-            const SizedBox(height: 22),
-            _ProfileCard(
-              profile: profile,
-              vip: vip,
-              fingerprint: auth.snapshot.fingerprintRegistered,
+    return Scaffold(
+      appBar: AppBar(title: const Text('个人中心')),
+      body: KgContentWidth(
+        maxWidth: KgBreakpoints.readingMaxWidth,
+        child: RefreshIndicator(
+          onRefresh: () => _refresh(ref),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              KgSpacing.lg,
+              KgSpacing.sm,
+              KgSpacing.lg,
+              KgSpacing.xxl,
             ),
-            if (auth.snapshot.userId case final userId?) ...[
-              const SizedBox(height: 14),
-              MembershipCard(vip: vip, userId: userId),
-            ],
-            if (auth.message != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                auth.message!,
-                style: const TextStyle(color: Colors.orangeAccent),
+            children: [
+              _ProfileCard(
+                profile: profile,
+                vip: vip,
+                fingerprint: auth.snapshot.fingerprintRegistered,
               ),
-            ],
-            const SizedBox(height: 18),
-            _SyncCard(status: sync.value ?? const LibrarySyncStatus.idle()),
-            const SizedBox(height: 28),
-            KgSectionHeader(
-              title: '我的歌单',
-              subtitle: '仅在打开歌单时加载歌曲',
-              action: IconButton(
-                tooltip: '创建歌单',
-                onPressed: () => _createPlaylist(context, ref),
-                icon: const Icon(Icons.add_circle_outline_rounded),
-              ),
-            ),
-            playlists.when(
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(30),
-                  child: CircularProgressIndicator(),
+              if (auth.snapshot.userId case final userId?) ...[
+                const SizedBox(height: KgSpacing.md),
+                MembershipCard(vip: vip, userId: userId),
+              ],
+              if (auth.message != null) ...[
+                const SizedBox(height: KgSpacing.sm),
+                Text(
+                  auth.message!,
+                  style: const TextStyle(color: KgColors.warning),
                 ),
+              ],
+              const SizedBox(height: KgSpacing.md),
+              _SyncCard(status: sync.value ?? const LibrarySyncStatus.idle()),
+              const SizedBox(height: KgSpacing.section),
+              const KgSectionHeader(
+                title: '应用与账号',
+                subtitle: '缓存只包含可重新下载的临时内容',
               ),
-              error: (error, _) => KgInlineError(
-                error: error,
-                onRetry: () => ref.invalidate(libraryPlaylistsProvider),
-              ),
-              data: (items) => items.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text('还没有歌单'),
-                    )
-                  : Column(
-                      children: items
-                          .map(
-                            (playlist) => PlaylistTile(
-                              title: playlist.name,
-                              subtitle: '${playlist.count} 首歌曲',
-                              artworkUrl: playlist.artworkUrl,
-                              cacheId: 'playlist:${playlist.localId}',
-                              badge: playlist.isMyFavorite
-                                  ? '我喜欢'
-                                  : playlist.isCollected
-                                  ? '已收藏'
-                                  : playlist.isPrivate
-                                  ? '私密'
-                                  : null,
-                              onTap: () =>
-                                  context.push('/playlist', extra: playlist),
-                            ),
-                          )
-                          .toList(growable: false),
-                    ),
-            ),
-          ],
+              const SizedBox(height: KgSpacing.sm),
+              _SettingsCard(authBusy: auth.busy),
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _TitleBar extends ConsumerWidget {
-  const _TitleBar({required this.authBusy});
-
-  final bool authBusy;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => KgPageHeader(
-    title: '我的',
-    subtitle: '账号、同步与云端歌单',
-    padding: EdgeInsets.zero,
-    actions: [
-      IconButton(
-        tooltip: '立即同步',
-        onPressed: authBusy
-            ? null
-            : () => ref.read(libraryRepositoryProvider).syncNow(),
-        icon: const Icon(Icons.sync_rounded),
-      ),
-      PopupMenuButton<String>(
-        tooltip: '更多设置',
-        onSelected: (value) {
-          if (value == 'logout') _confirmLogout(context, ref);
-          if (value == 'clear_cache') _clearCaches(context, ref);
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'clear_cache', child: Text('清理临时缓存')),
-          PopupMenuItem(value: 'logout', child: Text('退出登录')),
-        ],
-      ),
-    ],
-  );
+  Future<void> _refresh(WidgetRef ref) async {
+    final auth = ref.read(authControllerProvider);
+    await auth.refreshIfDue(force: true);
+    await ref.read(libraryRepositoryProvider).syncNow();
+    final userId = auth.snapshot.userId;
+    if (userId != null) {
+      final repository = ref.read(musicRepositoryProvider);
+      await Future.wait([
+        repository.userProfile(userId, mode: CacheLoadMode.forceRefresh).last,
+        repository.userVip(userId, mode: CacheLoadMode.forceRefresh).last,
+      ]);
+    }
+    ref.invalidate(userProfileProvider);
+    ref.invalidate(userVipProvider);
+  }
 }
 
 class _ProfileCard extends StatelessWidget {
@@ -240,6 +172,37 @@ class _ProfileCard extends StatelessWidget {
   );
 }
 
+class _SettingsCard extends ConsumerWidget {
+  const _SettingsCard({required this.authBusy});
+
+  final bool authBusy;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => KgSurface(
+    padding: EdgeInsets.zero,
+    child: Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.cleaning_services_outlined),
+          title: const Text('清理临时缓存'),
+          subtitle: const Text('歌曲、封面和接口响应缓存'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => _clearCaches(context, ref),
+        ),
+        const Divider(indent: 56),
+        ListTile(
+          enabled: !authBusy,
+          leading: const Icon(Icons.logout_rounded),
+          title: const Text('退出登录'),
+          subtitle: const Text('清除本机音乐库和登录状态'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => _confirmLogout(context, ref),
+        ),
+      ],
+    ),
+  );
+}
+
 class _SyncCard extends ConsumerWidget {
   const _SyncCard({required this.status});
 
@@ -247,7 +210,7 @@ class _SyncCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final color = status.failed ? Colors.orangeAccent : KgColors.textMuted;
+    final color = status.failed ? KgColors.warning : KgColors.textMuted;
     final text = switch (status.phase) {
       LibrarySyncPhase.syncing => '正在同步音乐库…',
       LibrarySyncPhase.failed =>
@@ -278,22 +241,6 @@ class _SyncCard extends ConsumerWidget {
             : null,
       ),
     );
-  }
-}
-
-Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
-  final result = await promptPlaylistName(
-    context,
-    title: '创建歌单',
-    confirmLabel: '创建',
-  );
-  if (result == null) return;
-  try {
-    await ref
-        .read(libraryRepositoryProvider)
-        .createPlaylist(result.name, private: result.private);
-  } catch (error) {
-    if (context.mounted) showAppError(context, error);
   }
 }
 

@@ -44,7 +44,7 @@ class AuthGate extends ConsumerWidget {
                   const Icon(
                     Icons.cloud_off_rounded,
                     size: 60,
-                    color: Colors.orangeAccent,
+                    color: KgColors.warning,
                   ),
                   const SizedBox(height: 18),
                   Text(auth.message ?? '音乐库初始化失败', textAlign: TextAlign.center),

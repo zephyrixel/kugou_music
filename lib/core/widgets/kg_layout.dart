@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 
 class KgPageHeader extends StatelessWidget {
   const KgPageHeader({
@@ -99,5 +100,55 @@ class KgSurface extends StatelessWidget {
       border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
     ),
     child: Padding(padding: padding, child: child),
+  );
+}
+
+class KgContentWidth extends StatelessWidget {
+  const KgContentWidth({super.key, required this.child, this.maxWidth});
+
+  final Widget child;
+  final double? maxWidth;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: maxWidth ?? KgBreakpoints.contentMaxWidth,
+      ),
+      child: child,
+    ),
+  );
+}
+
+class KgSectionCard extends StatelessWidget {
+  const KgSectionCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.padding = const EdgeInsets.all(KgSpacing.lg),
+    this.color = KgColors.elevated,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(KgRadii.large),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
+          borderRadius: BorderRadius.circular(KgRadii.large),
+        ),
+        child: Padding(padding: padding, child: child),
+      ),
+    ),
   );
 }

@@ -6,15 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/features/home/home_screen.dart';
-import 'package:kgmusic/features/library/library_screen.dart';
-import 'package:kgmusic/features/player/mini_player.dart';
-import 'package:kgmusic/features/player/player_screen.dart';
-import 'package:kgmusic/features/search/search_screen.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/features/account/account_screen.dart';
 import 'package:kgmusic/features/auth/auth_gate.dart';
+import 'package:kgmusic/features/home/home_screen.dart';
+import 'package:kgmusic/features/library/library_screen.dart';
+import 'package:kgmusic/features/library/library_collection_screen.dart';
+import 'package:kgmusic/features/player/mini_player.dart';
+import 'package:kgmusic/features/player/player_screen.dart';
 import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
-import 'package:kgmusic/core/widgets/app_error_bus.dart';
+import 'package:kgmusic/features/search/search_screen.dart';
 
 class KgMusicApp extends ConsumerStatefulWidget {
   const KgMusicApp({super.key});
@@ -26,20 +28,80 @@ class KgMusicApp extends ConsumerStatefulWidget {
 class _KgMusicAppState extends ConsumerState<KgMusicApp> {
   late final GoRouter _router = GoRouter(
     routes: [
-      ShellRoute(
-        builder: (context, state, child) =>
-            _AppShell(location: state.uri.path, child: child),
-        routes: [
-          GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
-          GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
-          GoRoute(path: '/library', builder: (_, _) => const LibraryScreen()),
-          GoRoute(path: '/account', builder: (_, _) => const AccountScreen()),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            _AppShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/', builder: (_, _) => const HomeScreen())],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/library',
+                builder: (_, _) => const LibraryScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'favorites',
+                    builder: (_, _) => const LibraryCollectionScreen(
+                      kind: LibraryCollectionKind.favorites,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'history',
+                    builder: (_, _) => const LibraryCollectionScreen(
+                      kind: LibraryCollectionKind.history,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
-      GoRoute(path: '/player', builder: (_, _) => const PlayerScreen()),
+      GoRoute(
+        path: '/account',
+        pageBuilder: (_, state) =>
+            _fadeThroughPage(state: state, child: const AccountScreen()),
+      ),
+      GoRoute(
+        path: '/player',
+        pageBuilder: (_, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          transitionDuration: KgMotion.slow,
+          reverseTransitionDuration: KgMotion.medium,
+          child: const PlayerScreen(),
+          transitionsBuilder: (context, animation, secondary, child) {
+            if (MediaQuery.disableAnimationsOf(context)) return child;
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: KgMotion.emphasized,
+              reverseCurve: Curves.easeInCubic,
+            );
+            return FadeTransition(
+              opacity: curved,
+              child: SlideTransition(
+                position: Tween(
+                  begin: const Offset(0, 0.035),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            );
+          },
+        ),
+      ),
       GoRoute(
         path: '/playlist',
-        builder: (_, state) => PlaylistDetailScreen(source: state.extra!),
+        pageBuilder: (_, state) => _fadeThroughPage(
+          state: state,
+          child: PlaylistDetailScreen(source: state.extra!),
+        ),
       ),
     ],
   );
@@ -88,63 +150,140 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
   );
 }
 
+CustomTransitionPage<void> _fadeThroughPage({
+  required GoRouterState state,
+  required Widget child,
+}) => CustomTransitionPage<void>(
+  key: state.pageKey,
+  transitionDuration: KgMotion.medium,
+  reverseTransitionDuration: KgMotion.fast,
+  child: child,
+  transitionsBuilder: (context, animation, secondary, child) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    final curved = CurvedAnimation(parent: animation, curve: KgMotion.standard);
+    return FadeTransition(
+      opacity: curved,
+      child: ScaleTransition(
+        scale: Tween(begin: 0.985, end: 1.0).animate(curved),
+        child: child,
+      ),
+    );
+  },
+);
+
 class _AppShell extends StatelessWidget {
-  const _AppShell({required this.location, required this.child});
-  final String location;
-  final Widget child;
+  const _AppShell({required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  static const destinations = [
+    NavigationDestination(
+      icon: Icon(Icons.explore_outlined),
+      selectedIcon: Icon(Icons.explore_rounded),
+      label: '发现',
+    ),
+    NavigationDestination(icon: Icon(Icons.search_rounded), label: '搜索'),
+    NavigationDestination(
+      icon: Icon(Icons.library_music_outlined),
+      selectedIcon: Icon(Icons.library_music_rounded),
+      label: '音乐库',
+    ),
+  ];
 
   @override
-  Widget build(BuildContext context) {
-    final index = switch (location) {
-      '/search' => 1,
-      '/library' => 2,
-      '/account' => 3,
-      _ => 0,
-    };
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth >= KgBreakpoints.navigationRail) {
+        return _WideShell(navigationShell: navigationShell);
+      }
+      return Scaffold(
+        body: navigationShell,
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSize(
+              duration: KgMotion.resolve(context, KgMotion.medium),
+              curve: KgMotion.standard,
+              alignment: Alignment.bottomCenter,
+              child: const MiniPlayer(),
+            ),
+            NavigationBar(
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: _goBranch,
+              destinations: destinations,
+            ),
+          ],
+        ),
+      );
+    },
+  );
+
+  void _goBranch(int index) => navigationShell.goBranch(
+    index,
+    initialLocation: index == navigationShell.currentIndex,
+  );
+}
+
+class _WideShell extends StatelessWidget {
+  const _WideShell({required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Row(
         children: [
-          const MiniPlayer(),
-          NavigationBar(
-            selectedIndex: index,
-            onDestinationSelected: (next) {
-              switch (next) {
-                case 0:
-                  context.go('/');
-                case 1:
-                  context.go('/search');
-                case 2:
-                  context.go('/library');
-                case 3:
-                  context.go('/account');
-              }
-            },
+          NavigationRail(
+            selectedIndex: navigationShell.currentIndex,
+            onDestinationSelected: (index) => navigationShell.goBranch(
+              index,
+              initialLocation: index == navigationShell.currentIndex,
+            ),
+            labelType: NavigationRailLabelType.all,
+            backgroundColor: KgColors.surface,
+            groupAlignment: -0.7,
+            leading: const Padding(
+              padding: EdgeInsets.only(top: 12, bottom: 24),
+              child: Icon(
+                Icons.graphic_eq_rounded,
+                color: KgColors.accent,
+                size: 30,
+              ),
+            ),
             destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: '推荐',
+              NavigationRailDestination(
+                icon: Icon(Icons.explore_outlined),
+                selectedIcon: Icon(Icons.explore_rounded),
+                label: Text('发现'),
               ),
-              NavigationDestination(
+              NavigationRailDestination(
                 icon: Icon(Icons.search_rounded),
-                label: '搜索',
+                label: Text('搜索'),
               ),
-              NavigationDestination(
+              NavigationRailDestination(
                 icon: Icon(Icons.library_music_outlined),
                 selectedIcon: Icon(Icons.library_music_rounded),
-                label: '音乐库',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: '我的',
+                label: Text('音乐库'),
               ),
             ],
           ),
+          const VerticalDivider(width: 1),
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(child: navigationShell),
+                AnimatedSize(
+                  duration: KgMotion.resolve(context, KgMotion.medium),
+                  curve: KgMotion.standard,
+                  alignment: Alignment.bottomCenter,
+                  child: const MiniPlayer(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
-    );
-  }
+    ),
+  );
 }

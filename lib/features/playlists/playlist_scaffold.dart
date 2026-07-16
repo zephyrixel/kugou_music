@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
@@ -21,7 +23,10 @@ class PlaylistSongsView extends ConsumerWidget {
     required this.error,
     required this.onRefresh,
     required this.onRetry,
+    this.subtitle,
+    this.description,
     this.scrollController,
+    this.appBarActions = const [],
     this.actions,
     this.trailing,
     this.footerSlivers = const [],
@@ -33,12 +38,15 @@ class PlaylistSongsView extends ConsumerWidget {
   final String? artwork;
   final String cacheId;
   final int count;
+  final String? subtitle;
+  final String? description;
   final List<Song> songs;
   final bool loading;
   final Object? error;
   final Future<void> Function() onRefresh;
   final Future<void> Function() onRetry;
   final ScrollController? scrollController;
+  final List<Widget> appBarActions;
 
   /// Extra controls after the play-all button (e.g. collect).
   final List<Widget>? actions;
@@ -63,43 +71,46 @@ class PlaylistSongsView extends ConsumerWidget {
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          SliverToBoxAdapter(
-            child: PlaylistHeader(
-              title: title,
-              artwork: artwork,
-              cacheId: cacheId,
-              count: count,
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 310,
+            backgroundColor: KgColors.background,
+            surfaceTintColor: Colors.transparent,
+            actions: appBarActions,
+            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background: PlaylistHeader(
+                title: title,
+                subtitle: subtitle,
+                description: description,
+                artwork: artwork,
+                cacheId: cacheId,
+                count: count,
+              ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: songs.isEmpty
-                          ? null
-                          : () => playSong(
-                              context,
-                              ref,
-                              songs.first,
-                              queueRequest:
-                                  queueRequest?.call(songs) ??
-                                  PlaybackQueueRequest.snapshot(
-                                    title: title,
-                                    songs: songs,
-                                  ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedControlDelegate(
+              child: _PlaylistControls(
+                songs: songs,
+                title: title,
+                actions: actions,
+                trailing: trailing,
+                onPlay: songs.isEmpty
+                    ? null
+                    : () => playSong(
+                        context,
+                        ref,
+                        songs.first,
+                        queueRequest:
+                            queueRequest?.call(songs) ??
+                            PlaybackQueueRequest.snapshot(
+                              title: title,
+                              songs: songs,
                             ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
-                    ),
-                  ),
-                  if (actions?.isNotEmpty == true || trailing != null)
-                    const SizedBox(width: 10),
-                  ...?actions,
-                  ?trailing,
-                ],
+                      ),
               ),
             ),
           ),
@@ -126,6 +137,7 @@ class PlaylistSongsView extends ConsumerWidget {
                 return SongTile(
                   song: song,
                   index: index + 1,
+                  variant: SongTileVariant.indexed,
                   onTap: () => playSong(
                     context,
                     ref,
@@ -149,4 +161,69 @@ class PlaylistSongsView extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _PlaylistControls extends StatelessWidget {
+  const _PlaylistControls({
+    required this.songs,
+    required this.title,
+    required this.onPlay,
+    required this.actions,
+    required this.trailing,
+  });
+
+  final List<Song> songs;
+  final String title;
+  final VoidCallback? onPlay;
+  final List<Widget>? actions;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: KgColors.background.withValues(alpha: 0.97),
+    padding: const EdgeInsets.fromLTRB(
+      KgSpacing.lg,
+      KgSpacing.xs,
+      KgSpacing.lg,
+      KgSpacing.sm,
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: onPlay,
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
+          ),
+        ),
+        if (actions?.isNotEmpty == true || trailing != null)
+          const SizedBox(width: KgSpacing.sm),
+        ...?actions,
+        ?trailing,
+      ],
+    ),
+  );
+}
+
+class _PinnedControlDelegate extends SliverPersistentHeaderDelegate {
+  const _PinnedControlDelegate({required this.child});
+
+  final Widget child;
+
+  @override
+  double get minExtent => 68;
+
+  @override
+  double get maxExtent => 68;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
+
+  @override
+  bool shouldRebuild(covariant _PinnedControlDelegate oldDelegate) =>
+      oldDelegate.child != child;
 }

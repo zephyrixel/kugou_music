@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
@@ -83,7 +84,7 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
               page: _page,
               onSelected: (page) => _controller.animateToPage(
                 page,
-                duration: const Duration(milliseconds: 260),
+                duration: KgMotion.resolve(context, KgMotion.medium),
                 curve: Curves.easeOutCubic,
               ),
             ),
@@ -208,7 +209,7 @@ class _PageIndicator extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: KgMotion.resolve(context, KgMotion.fast),
         height: 28,
         width: 64,
         child: Row(

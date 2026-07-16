@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/recommendation.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
@@ -72,72 +73,93 @@ class _RecommendationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final personal = kind == RecommendationKind.personalFm;
     return Material(
-      color: personal ? KgColors.elevated : const Color(0xFF291D25),
-      borderRadius: BorderRadius.circular(22),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(KgRadii.large),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: personal
-                      ? KgColors.accentSoft
-                      : const Color(0x33FF5370),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  personal
-                      ? Icons.auto_awesome_rounded
-                      : Icons.favorite_rounded,
-                  color: personal ? KgColors.accent : const Color(0xFFFF5370),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                kind.title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                kind.subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: KgColors.textMuted,
-                  fontSize: 11,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    loading ? '正在准备' : '立即播放',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
+        borderRadius: BorderRadius.circular(KgRadii.large),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: personal
+                  ? const [Color(0xFF29234A), Color(0xFF181B28)]
+                  : const [Color(0xFF173D4D), Color(0xFF171D28)],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            borderRadius: BorderRadius.circular(KgRadii.large),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(KgSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const Spacer(),
-                  if (loading)
-                    const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  else
-                    const Icon(Icons.play_circle_fill_rounded, size: 26),
-                ],
-              ),
-            ],
+                  child: Icon(
+                    personal
+                        ? Icons.auto_awesome_rounded
+                        : Icons.favorite_rounded,
+                    color: personal
+                        ? KgColors.accent
+                        : KgColors.accentSecondary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  kind.title,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  kind.subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: KgColors.textMuted,
+                    fontSize: 11,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      loading ? '正在准备' : '立即播放',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    AnimatedSwitcher(
+                      duration: KgMotion.resolve(context, KgMotion.fast),
+                      child: loading
+                          ? const SizedBox.square(
+                              key: ValueKey('loading'),
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.play_circle_fill_rounded,
+                              key: ValueKey('play'),
+                              size: 27,
+                            ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

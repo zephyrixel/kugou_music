@@ -37,7 +37,7 @@ class SongArtwork extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF263128), Color(0xFF101511)],
+          colors: [Color(0xFF303653), Color(0xFF12141D)],
         ),
       ),
       child: const Icon(Icons.graphic_eq_rounded, color: KgColors.accent),

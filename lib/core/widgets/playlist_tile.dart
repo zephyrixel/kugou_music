@@ -28,11 +28,14 @@ class PlaylistTile extends StatelessWidget {
     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     onTap: enabled ? onTap : null,
-    leading: SongArtwork(
-      url: artworkUrl,
-      cacheId: cacheId,
-      size: 56,
-      radius: 16,
+    leading: Hero(
+      tag: 'playlist-artwork:$cacheId',
+      child: SongArtwork(
+        url: artworkUrl,
+        cacheId: cacheId,
+        size: 56,
+        radius: 16,
+      ),
     ),
     title: Text(
       title,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
 class PlaylistHeader extends StatelessWidget {
@@ -9,60 +11,107 @@ class PlaylistHeader extends StatelessWidget {
     required this.artwork,
     required this.cacheId,
     required this.count,
+    this.subtitle,
+    this.description,
   });
 
   final String title;
+  final String? subtitle;
+  final String? description;
   final String? artwork;
   final String cacheId;
   final int count;
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(26),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [KgColors.elevatedHigh, KgColors.surface],
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      ArtworkBackdrop(
+        url: artwork,
+        cacheId: cacheId,
+        blur: 38,
+        opacity: 0.68,
+        scrim: 0.58,
       ),
-    ),
-    child: Row(
-      children: [
-        SongArtwork(url: artwork, cacheId: cacheId, size: 108, radius: 22),
-        const SizedBox(width: 18),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      const DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x18090A0F), Color(0xF0090A0F)],
+            stops: [0.2, 1],
+          ),
+        ),
+      ),
+      Align(
+        alignment: Alignment.bottomLeft,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            KgSpacing.lg,
+            72,
+            KgSpacing.lg,
+            KgSpacing.xl,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                title,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+              Hero(
+                tag: 'playlist-artwork:$cacheId',
+                child: SongArtwork(
+                  url: artwork,
+                  cacheId: cacheId,
+                  size: 122,
+                  radius: KgRadii.large,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.music_note_rounded,
-                    size: 16,
-                    color: KgColors.accent,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '$count 首歌曲',
-                    style: const TextStyle(color: KgColors.textMuted),
-                  ),
-                ],
+              const SizedBox(width: KgSpacing.lg),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    if (subtitle?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      '$count 首歌曲',
+                      style: const TextStyle(
+                        color: KgColors.textMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (description?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: KgColors.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }

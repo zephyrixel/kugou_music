@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/lyric.dart';
 import 'package:kgmusic/core/models/song.dart';
 
@@ -125,8 +126,8 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
     final position = _scrollController.position;
     _scrollController.animateTo(
       target.clamp(0.0, position.maxScrollExtent).toDouble(),
-      duration: const Duration(milliseconds: 360),
-      curve: Curves.easeOutCubic,
+      duration: KgMotion.resolve(context, KgMotion.slow),
+      curve: KgMotion.standard,
     );
   }
 

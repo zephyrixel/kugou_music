@@ -1,14 +1,13 @@
-import 'dart:ui' as ui;
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
-import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
 import 'package:kgmusic/features/player/player_control_deck.dart';
 import 'package:kgmusic/features/player/player_visual_pager.dart';
 
@@ -58,7 +57,17 @@ class PlayerScreen extends ConsumerWidget {
           final currentSong = index >= 0 && index < handler.songs.length
               ? handler.songs[index]
               : null;
-          return _PlayerBody(handler: handler, item: item, song: currentSong);
+          return AnimatedSwitcher(
+            duration: KgMotion.resolve(context, KgMotion.slow),
+            switchInCurve: KgMotion.standard,
+            switchOutCurve: Curves.easeInCubic,
+            child: _PlayerBody(
+              key: ValueKey(item.id),
+              handler: handler,
+              item: item,
+              song: currentSong,
+            ),
+          );
         },
       ),
     );
@@ -66,7 +75,12 @@ class PlayerScreen extends ConsumerWidget {
 }
 
 class _PlayerBody extends StatelessWidget {
-  const _PlayerBody({required this.handler, required this.item, this.song});
+  const _PlayerBody({
+    super.key,
+    required this.handler,
+    required this.item,
+    this.song,
+  });
 
   final MusicAudioHandler handler;
   final MediaItem item;
@@ -76,15 +90,21 @@ class _PlayerBody extends StatelessWidget {
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: [
-      _AmbientArtwork(item: item),
+      ArtworkBackdrop(
+        url: item.artUri?.toString(),
+        cacheId: 'song:${item.id}',
+        blur: 42,
+        opacity: 0.54,
+        scrim: 0.62,
+      ),
       DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              KgColors.background.withValues(alpha: 0.58),
-              KgColors.background.withValues(alpha: 0.94),
+              KgColors.background.withValues(alpha: 0.22),
+              KgColors.background.withValues(alpha: 0.88),
             ],
           ),
         ),
@@ -255,54 +275,6 @@ class _ControlSurface extends StatelessWidget {
       ],
     ),
     child: child,
-  );
-}
-
-class _AmbientArtwork extends StatelessWidget {
-  const _AmbientArtwork({required this.item});
-
-  final MediaItem item;
-
-  @override
-  Widget build(BuildContext context) => ClipRect(
-    child: Opacity(
-      opacity: 0.3,
-      child: ImageFiltered(
-        imageFilter: ui.ImageFilter.blur(sigmaX: 38, sigmaY: 38),
-        child: ColorFiltered(
-          colorFilter: const ColorFilter.matrix(<double>[
-            0.55,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.75,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.55,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            0,
-          ]),
-          child: Center(
-            child: SongArtwork(
-              url: item.artUri?.toString(),
-              cacheId: 'song:${item.id}',
-              size: MediaQuery.sizeOf(context).longestSide,
-              radius: 0,
-            ),
-          ),
-        ),
-      ),
-    ),
   );
 }
 

@@ -83,9 +83,10 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(backgroundColor: Colors.transparent),
     body: PlaylistSongsView(
       title: widget.playlist.name,
+      subtitle: widget.playlist.creatorName,
+      description: widget.playlist.intro,
       artwork: widget.playlist.artworkUrl,
       cacheId: 'playlist:${widget.playlist.globalCollectionId}',
       count: _pager.total ?? widget.playlist.songCount ?? _pager.items.length,

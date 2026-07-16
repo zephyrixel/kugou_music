@@ -175,7 +175,7 @@ class _QueueHeader extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               '加载失败：${state.error}',
-              style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+              style: const TextStyle(color: KgColors.warning, fontSize: 12),
             ),
           ),
       ],

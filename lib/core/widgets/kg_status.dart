@@ -1,5 +1,86 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
+
+class KgLoadingView extends StatelessWidget {
+  const KgLoadingView({super.key, this.label, this.compact = false});
+
+  final String? label;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: EdgeInsets.all(compact ? KgSpacing.md : KgSpacing.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox.square(
+            dimension: compact ? 22 : 30,
+            child: CircularProgressIndicator(strokeWidth: compact ? 2 : 2.5),
+          ),
+          if (label != null) ...[
+            const SizedBox(height: KgSpacing.sm),
+            Text(label!, style: const TextStyle(color: KgColors.textMuted)),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+class KgSkeleton extends StatefulWidget {
+  const KgSkeleton({
+    super.key,
+    required this.height,
+    this.width = double.infinity,
+    this.radius = KgRadii.medium,
+  });
+
+  final double height;
+  final double width;
+  final double radius;
+
+  @override
+  State<KgSkeleton> createState() => _KgSkeletonState();
+}
+
+class _KgSkeletonState extends State<KgSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return _box(0.72);
+    }
+    return FadeTransition(
+      opacity: Tween(
+        begin: 0.48,
+        end: 0.86,
+      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+      child: _box(1),
+    );
+  }
+
+  Widget _box(double opacity) => Container(
+    width: widget.width,
+    height: widget.height,
+    decoration: BoxDecoration(
+      color: KgColors.elevatedHigh.withValues(alpha: opacity),
+      borderRadius: BorderRadius.circular(widget.radius),
+    ),
+  );
+}
 
 /// Shared full-area error + retry (home / library / search / playlists).
 class KgErrorView extends StatelessWidget {

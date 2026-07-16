@@ -324,7 +324,7 @@ class _RecordStatus extends StatelessWidget {
         '领取记录暂不可用：${controller.recordError}',
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: Colors.orangeAccent),
+        style: const TextStyle(color: KgColors.warning),
       );
     }
     final count = controller.record?.claimedDays;
