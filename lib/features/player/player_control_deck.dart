@@ -52,12 +52,14 @@ class PlayerControlDeck extends StatelessWidget {
             ),
           ],
           SizedBox(height: gap),
-          PlaybackProgressBar(
-            durationStream: handler.durationStream,
-            positionStream: handler.positionStream,
-            bufferedPositionStream: handler.bufferedPositionStream,
-            onSeek: handler.seek,
-            compact: compact,
+          RepaintBoundary(
+            child: PlaybackProgressBar(
+              durationStream: handler.durationStream,
+              positionStream: handler.positionStream,
+              bufferedPositionStream: handler.bufferedPositionStream,
+              onSeek: handler.seek,
+              compact: compact,
+            ),
           ),
           SizedBox(height: compact ? 4 : 8),
           _PlaybackControls(handler: handler, compact: compact),

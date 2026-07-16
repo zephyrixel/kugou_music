@@ -13,6 +13,8 @@ class SongArtwork extends StatelessWidget {
     this.cacheId,
     this.size = 52,
     this.radius = 14,
+    this.decodePixelSize,
+    this.filterQuality = FilterQuality.low,
   });
 
   final String? url;
@@ -20,15 +22,19 @@ class SongArtwork extends StatelessWidget {
   final double size;
   final double radius;
 
+  /// Overrides the decoded texture size without changing layout dimensions.
+  final int? decodePixelSize;
+  final FilterQuality filterQuality;
+
   @override
   Widget build(BuildContext context) {
-    final imageUrl = normalizeArtworkUrl(
-      url,
-      size: (size * MediaQuery.devicePixelRatioOf(context)).round().clamp(
-        240,
-        1080,
-      ),
-    );
+    final pixelSize =
+        decodePixelSize?.clamp(64, 1080) ??
+        (size * MediaQuery.devicePixelRatioOf(context)).round().clamp(
+          240,
+          1080,
+        );
+    final imageUrl = normalizeArtworkUrl(url, size: pixelSize);
     final placeholder = Container(
       width: size,
       height: size,
@@ -52,14 +58,12 @@ class SongArtwork extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          filterQuality: filterQuality,
           errorBuilder: (_, _, _) => placeholder,
         ),
       );
     }
     if (imageUrl == null) return placeholder;
-    final pixelSize = (size * MediaQuery.devicePixelRatioOf(context))
-        .round()
-        .clamp(240, 1080);
     final cacheKey = ArtworkCacheService.instance.cacheKey(
       url: imageUrl,
       cacheId: cacheId,
@@ -79,6 +83,7 @@ class SongArtwork extends StatelessWidget {
         memCacheHeight: pixelSize,
         maxWidthDiskCache: pixelSize,
         maxHeightDiskCache: pixelSize,
+        filterQuality: filterQuality,
         placeholder: (_, _) => placeholder,
         errorWidget: (_, _, _) => placeholder,
       ),

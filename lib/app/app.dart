@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/animated_branch_container.dart';
 import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/app/navigation_focus_policy.dart';
+import 'package:kgmusic/app/notification_navigation_controller.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
@@ -100,6 +101,7 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     ],
   );
   StreamSubscription<bool>? _notificationClickSubscription;
+  late final NotificationNavigationController _notificationNavigationController;
 
   @override
   void initState() {
@@ -107,29 +109,23 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(AndroidDisplayMode.preferHighestRefreshRate());
     });
+    _notificationNavigationController = NotificationNavigationController(
+      router: _router,
+      hasMediaItem: () =>
+          ref.read(audioHandlerProvider).mediaItem.value != null,
+      isMounted: () => mounted,
+    );
     _notificationClickSubscription = AudioService.notificationClicked
         .where((clicked) => clicked)
-        .listen((_) => _openNotificationTarget());
-  }
-
-  void _openNotificationTarget() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final handler = ref.read(audioHandlerProvider);
-      final target = handler.mediaItem.value == null ? '/' : '/player';
-      if (_router.routeInformationProvider.value.uri.path != target) {
-        if (target == '/player') {
-          _router.push(target);
-        } else {
-          _router.go(target);
-        }
-      }
-    });
+        .listen((_) {
+          _notificationNavigationController.openNotificationTarget();
+        });
   }
 
   @override
   void dispose() {
     unawaited(_notificationClickSubscription?.cancel());
+    _notificationNavigationController.dispose();
     _router.dispose();
     super.dispose();
   }

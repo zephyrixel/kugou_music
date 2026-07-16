@@ -101,8 +101,9 @@ class AppDatabase extends _$AppDatabase {
     required int? accountUserId,
     required int codecVersion,
     required String payload,
+    DateTime? updatedAt,
   }) async {
-    final now = DateTime.now();
+    final now = updatedAt ?? DateTime.now();
     await into(cachedResponses).insertOnConflictUpdate(
       CachedResponsesCompanion.insert(
         cacheKey: cacheKey,

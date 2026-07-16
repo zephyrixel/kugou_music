@@ -29,7 +29,6 @@ class PlaylistHeader extends StatelessWidget {
       ArtworkBackdrop(
         url: artwork,
         cacheId: cacheId,
-        blur: 38,
         opacity: 0.68,
         scrim: 0.58,
       ),

@@ -102,24 +102,26 @@ class _KgMarqueeTextState extends State<KgMarqueeText>
       return Semantics(
         label: widget.text,
         excludeSemantics: true,
-        child: ClipRect(
-          child: AnimatedBuilder(
-            animation: _controller,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(widget.text, maxLines: 1, softWrap: false, style: style),
-                SizedBox(width: widget.gap),
-                Text(widget.text, maxLines: 1, softWrap: false, style: style),
-              ],
-            ),
-            builder: (context, child) => OverflowBox(
-              alignment: Alignment.centerLeft,
-              minWidth: 0,
-              maxWidth: double.infinity,
-              child: Transform.translate(
-                offset: Offset(-_controller.value * _distance, 0),
-                child: child,
+        child: RepaintBoundary(
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: _controller,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.text, maxLines: 1, softWrap: false, style: style),
+                  SizedBox(width: widget.gap),
+                  Text(widget.text, maxLines: 1, softWrap: false, style: style),
+                ],
+              ),
+              builder: (context, child) => OverflowBox(
+                alignment: Alignment.centerLeft,
+                minWidth: 0,
+                maxWidth: double.infinity,
+                child: Transform.translate(
+                  offset: Offset(-_controller.value * _distance, 0),
+                  child: child,
+                ),
               ),
             ),
           ),

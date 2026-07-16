@@ -51,9 +51,9 @@ class MiniPlayer extends ConsumerWidget {
                       child: ArtworkBackdrop(
                         url: item.artUri?.toString(),
                         cacheId: 'song:${item.id}',
-                        blur: 24,
                         opacity: 0.3,
                         sourceSize: 48,
+                        decodePixelSize: 96,
                         overlayGradient: LinearGradient(
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,

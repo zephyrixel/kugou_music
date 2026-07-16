@@ -100,9 +100,9 @@ class _PlayerBody extends StatelessWidget {
       ArtworkBackdrop(
         url: item.artUri?.toString(),
         cacheId: 'song:${item.id}',
-        blur: 42,
         opacity: 0.54,
         scrim: 0.62,
+        decodePixelSize: 320,
       ),
       DecoratedBox(
         decoration: BoxDecoration(
@@ -287,7 +287,7 @@ class _ControlSurface extends StatelessWidget {
       child: KgGlassSurface(
         borderRadius: radius,
         color: KgColors.surface.withValues(alpha: portrait ? 0.62 : 0.56),
-        blurSigma: 22,
+        blurSigma: 0,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             compact ? 18 : 22,
@@ -295,7 +295,7 @@ class _ControlSurface extends StatelessWidget {
             compact ? 18 : 22,
             compact ? 8 : 14,
           ),
-          child: child,
+          child: RepaintBoundary(child: child),
         ),
       ),
     );
@@ -316,7 +316,7 @@ class _PlayerMessageBanner extends StatelessWidget {
       return KgGlassSurface(
         borderRadius: BorderRadius.circular(14),
         color: KgColors.elevatedHigh.withValues(alpha: 0.82),
-        blurSigma: 16,
+        blurSigma: 0,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Text(message, style: const TextStyle(fontSize: 13)),

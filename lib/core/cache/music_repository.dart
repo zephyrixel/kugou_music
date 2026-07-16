@@ -167,6 +167,7 @@ class MusicRepository {
           accountUserId: accountUserId,
           codecVersion: codec.version,
           payload: codec.encode(fresh),
+          updatedAt: _now(),
         );
       } catch (_) {
         // The network result remains useful even when local persistence fails.

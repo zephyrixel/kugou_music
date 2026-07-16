@@ -59,24 +59,26 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
         children: [
           SizedBox(
             height: pageHeight,
-            child: PageView(
-              controller: _controller,
-              onPageChanged: (page) => setState(() => _page = page),
-              children: [
-                _ArtworkPage(
-                  item: widget.item,
-                  size: artworkSize,
-                  compact: widget.compact,
-                ),
-                if (widget.song == null)
-                  const _UnavailableLyrics()
-                else
-                  LyricsPanel(
-                    song: widget.song!,
-                    positionStream: widget.handler.positionStream,
-                    onSeek: widget.handler.seek,
+            child: RepaintBoundary(
+              child: PageView(
+                controller: _controller,
+                onPageChanged: (page) => setState(() => _page = page),
+                children: [
+                  _ArtworkPage(
+                    item: widget.item,
+                    size: artworkSize,
+                    compact: widget.compact,
                   ),
-              ],
+                  if (widget.song == null)
+                    const _UnavailableLyrics()
+                  else
+                    LyricsPanel(
+                      song: widget.song!,
+                      positionStream: widget.handler.positionStream,
+                      onSeek: widget.handler.seek,
+                    ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 6),
@@ -109,34 +111,39 @@ class _ArtworkPage extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Container(
-      padding: EdgeInsets.all(compact ? 7 : 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(compact ? 28 : 36),
-        gradient: RadialGradient(
-          colors: [KgColors.accent.withValues(alpha: 0.18), Colors.transparent],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: compact ? 16 : 20,
-            offset: Offset(0, compact ? 7 : 10),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: Center(
+      child: Container(
+        padding: EdgeInsets.all(compact ? 7 : 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(compact ? 28 : 36),
+          gradient: RadialGradient(
+            colors: [
+              KgColors.accent.withValues(alpha: 0.18),
+              Colors.transparent,
+            ],
           ),
-        ],
-      ),
-      child: AnimatedSwitcher(
-        duration: KgMotion.resolve(context, KgMotion.slow),
-        switchInCurve: KgMotion.standard,
-        switchOutCurve: Curves.easeInCubic,
-        child: Hero(
-          key: ValueKey(item.id),
-          tag: 'player-artwork:${item.id}',
-          child: SongArtwork(
-            url: item.artUri?.toString(),
-            cacheId: 'song:${item.id}',
-            size: size,
-            radius: compact ? 22 : 28,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: compact ? 16 : 20,
+              offset: Offset(0, compact ? 7 : 10),
+            ),
+          ],
+        ),
+        child: AnimatedSwitcher(
+          duration: KgMotion.resolve(context, KgMotion.slow),
+          switchInCurve: KgMotion.standard,
+          switchOutCurve: Curves.easeInCubic,
+          child: Hero(
+            key: ValueKey(item.id),
+            tag: 'player-artwork:${item.id}',
+            child: SongArtwork(
+              url: item.artUri?.toString(),
+              cacheId: 'song:${item.id}',
+              size: size,
+              radius: compact ? 22 : 28,
+            ),
           ),
         ),
       ),
@@ -171,7 +178,7 @@ class _PageSelector extends StatelessWidget {
     child: KgGlassSurface(
       borderRadius: BorderRadius.circular(18),
       color: KgColors.surface.withValues(alpha: 0.48),
-      blurSigma: 12,
+      blurSigma: 0,
       child: Padding(
         padding: const EdgeInsets.all(3),
         child: Row(

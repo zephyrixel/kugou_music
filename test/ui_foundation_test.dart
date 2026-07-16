@@ -8,7 +8,9 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
 import 'package:kgmusic/core/widgets/kg_marquee_text.dart';
+import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/features/home/discover_sections.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
@@ -133,6 +135,23 @@ void main() {
     );
 
     expect(find.text('短标题'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('氛围背景使用低分辨率纹理而不是全屏运行时模糊', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        const SizedBox.expand(
+          child: ArtworkBackdrop(url: null, cacheId: 'performance-test'),
+        ),
+      ),
+    );
+
+    expect(find.byType(ImageFiltered), findsNothing);
+    expect(
+      tester.widget<SongArtwork>(find.byType(SongArtwork)).decodePixelSize,
+      320,
+    );
     expect(tester.takeException(), isNull);
   });
 
