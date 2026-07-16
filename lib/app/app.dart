@@ -4,10 +4,13 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kgmusic/app/animated_branch_container.dart';
+import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
+import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/features/account/account_screen.dart';
 import 'package:kgmusic/features/auth/auth_gate.dart';
 import 'package:kgmusic/features/home/home_screen.dart';
@@ -28,9 +31,14 @@ class KgMusicApp extends ConsumerStatefulWidget {
 class _KgMusicAppState extends ConsumerState<KgMusicApp> {
   late final GoRouter _router = GoRouter(
     routes: [
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
         builder: (context, state, navigationShell) =>
             _AppShell(navigationShell: navigationShell),
+        navigatorContainerBuilder: (context, navigationShell, children) =>
+            AnimatedBranchContainer(
+              currentIndex: navigationShell.currentIndex,
+              children: children,
+            ),
         branches: [
           StatefulShellBranch(
             routes: [GoRoute(path: '/', builder: (_, _) => const HomeScreen())],
@@ -71,29 +79,9 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
       ),
       GoRoute(
         path: '/player',
-        pageBuilder: (_, state) => CustomTransitionPage<void>(
+        pageBuilder: (_, state) => PlayerTransitionPage<void>(
           key: state.pageKey,
-          transitionDuration: KgMotion.slow,
-          reverseTransitionDuration: KgMotion.medium,
           child: const PlayerScreen(),
-          transitionsBuilder: (context, animation, secondary, child) {
-            if (MediaQuery.disableAnimationsOf(context)) return child;
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: KgMotion.emphasized,
-              reverseCurve: Curves.easeInCubic,
-            );
-            return FadeTransition(
-              opacity: curved,
-              child: SlideTransition(
-                position: Tween(
-                  begin: const Offset(0, 0.035),
-                  end: Offset.zero,
-                ).animate(curved),
-                child: child,
-              ),
-            );
-          },
         ),
       ),
       GoRoute(
@@ -197,22 +185,12 @@ class _AppShell extends StatelessWidget {
         return _WideShell(navigationShell: navigationShell);
       }
       return Scaffold(
+        extendBody: true,
         body: navigationShell,
-        bottomNavigationBar: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedSize(
-              duration: KgMotion.resolve(context, KgMotion.medium),
-              curve: KgMotion.standard,
-              alignment: Alignment.bottomCenter,
-              child: const MiniPlayer(),
-            ),
-            NavigationBar(
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: _goBranch,
-              destinations: destinations,
-            ),
-          ],
+        bottomNavigationBar: _CompactBottomDock(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: _goBranch,
+          destinations: destinations,
         ),
       );
     },
@@ -221,6 +199,47 @@ class _AppShell extends StatelessWidget {
   void _goBranch(int index) => navigationShell.goBranch(
     index,
     initialLocation: index == navigationShell.currentIndex,
+  );
+}
+
+class _CompactBottomDock extends StatelessWidget {
+  const _CompactBottomDock({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    required this.destinations,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  final List<NavigationDestination> destinations;
+
+  @override
+  Widget build(BuildContext context) => KgGlassSurface(
+    borderRadius: BorderRadius.zero,
+    color: KgColors.surface.withValues(alpha: 0.72),
+    borderColor: Colors.transparent,
+    blurSigma: 20,
+    child: SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedSize(
+            duration: KgMotion.resolve(context, KgMotion.medium),
+            curve: KgMotion.standard,
+            alignment: Alignment.bottomCenter,
+            child: const MiniPlayer(),
+          ),
+          NavigationBar(
+            height: 68,
+            backgroundColor: Colors.transparent,
+            selectedIndex: selectedIndex,
+            onDestinationSelected: onDestinationSelected,
+            destinations: destinations,
+          ),
+        ],
+      ),
+    ),
   );
 }
 
@@ -273,11 +292,21 @@ class _WideShell extends StatelessWidget {
             child: Column(
               children: [
                 Expanded(child: navigationShell),
-                AnimatedSize(
-                  duration: KgMotion.resolve(context, KgMotion.medium),
-                  curve: KgMotion.standard,
-                  alignment: Alignment.bottomCenter,
-                  child: const MiniPlayer(),
+                KgGlassSurface(
+                  borderRadius: BorderRadius.zero,
+                  color: KgColors.surface.withValues(alpha: 0.72),
+                  borderColor: Colors.transparent,
+                  child: AnimatedSize(
+                    duration: KgMotion.resolve(context, KgMotion.medium),
+                    curve: KgMotion.standard,
+                    alignment: Alignment.bottomCenter,
+                    child: Align(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: const MiniPlayer(),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

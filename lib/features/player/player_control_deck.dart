@@ -6,6 +6,7 @@ import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/add_to_playlist_button.dart';
+import 'package:kgmusic/core/widgets/kg_marquee_text.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/song_favorite_button.dart';
 import 'package:kgmusic/features/player/playback_progress_bar.dart';
@@ -109,31 +110,34 @@ class _TrackHeading extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.title,
-              maxLines: compact ? 1 : 2,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  (compact
-                          ? Theme.of(context).textTheme.titleLarge
-                          : Theme.of(context).textTheme.headlineSmall)
-                      ?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.35,
-                      ),
+            SizedBox(
+              height: compact ? 28 : 34,
+              child: KgMarqueeText(
+                item.title,
+                style:
+                    (compact
+                            ? Theme.of(context).textTheme.titleLarge
+                            : Theme.of(context).textTheme.headlineSmall)
+                        ?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.35,
+                        ),
+              ),
             ),
             SizedBox(height: compact ? 2 : 4),
-            Text(
-              [
-                item.artist ?? '未知歌手',
-                if (!compact && item.album?.trim().isNotEmpty == true)
-                  item.album!,
-              ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: KgColors.textMuted,
-                fontSize: compact ? 12 : 14,
+            SizedBox(
+              height: compact ? 18 : 21,
+              child: KgMarqueeText(
+                [
+                  item.artist ?? '未知歌手',
+                  if (!compact && item.album?.trim().isNotEmpty == true)
+                    item.album!,
+                ].join(' · '),
+                velocity: 24,
+                style: TextStyle(
+                  color: KgColors.textMuted,
+                  fontSize: compact ? 12 : 14,
+                ),
               ),
             ),
           ],
@@ -157,6 +161,7 @@ class _PlaybackControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) => StreamBuilder<PlaybackState>(
     stream: handler.playbackState,
+    initialData: handler.playbackState.value,
     builder: (context, snapshot) {
       final state = snapshot.data;
       final playing = state?.playing ?? false;

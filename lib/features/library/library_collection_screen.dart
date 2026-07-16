@@ -23,9 +23,12 @@ class LibraryCollectionScreen extends ConsumerWidget {
     appBar: AppBar(
       title: Text(kind == LibraryCollectionKind.favorites ? '我喜欢' : '最近播放'),
     ),
-    body: kind == LibraryCollectionKind.favorites
-        ? const _FavoriteSongs()
-        : const _HistorySongs(),
+    body: SafeArea(
+      top: false,
+      child: kind == LibraryCollectionKind.favorites
+          ? const _FavoriteSongs()
+          : const _HistorySongs(),
+    ),
   );
 }
 

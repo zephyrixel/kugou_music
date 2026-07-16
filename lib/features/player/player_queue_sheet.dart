@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
@@ -46,37 +47,47 @@ class _PlayerQueueSheet extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final song = state.songs[index];
                     final current = index == state.currentIndex;
-                    return ListTile(
+                    return Padding(
                       key: ValueKey('${song.id}:$index'),
-                      selected: current,
-                      selectedTileColor: KgColors.accentSoft,
-                      leading: SongArtwork(
-                        url: song.artworkUrl,
-                        cacheId: 'song:${song.id}',
-                        size: 44,
-                        radius: 10,
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Material(
+                        color: current
+                            ? KgColors.accentSoft.withValues(alpha: 0.72)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(KgRadii.medium),
+                        clipBehavior: Clip.antiAlias,
+                        child: ListTile(
+                          selected: current,
+                          leading: SongArtwork(
+                            url: song.artworkUrl,
+                            cacheId: 'song:${song.id}',
+                            size: 44,
+                            radius: 10,
+                          ),
+                          title: Text(
+                            song.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            current ? '正在播放' : song.artistLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => handler.skipToQueueItem(index),
+                          trailing: current
+                              ? const Icon(
+                                  Icons.graphic_eq_rounded,
+                                  color: KgColors.accent,
+                                )
+                              : IconButton(
+                                  tooltip: '移除',
+                                  onPressed: () =>
+                                      handler.removeQueueItemAt(index),
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                        ),
                       ),
-                      title: Text(
-                        song.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        current ? '正在播放' : song.artistLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: () => handler.skipToQueueItem(index),
-                      trailing: current
-                          ? const Icon(
-                              Icons.graphic_eq_rounded,
-                              color: KgColors.accent,
-                            )
-                          : IconButton(
-                              tooltip: '移除',
-                              onPressed: () => handler.removeQueueItemAt(index),
-                              icon: const Icon(Icons.close_rounded),
-                            ),
                     );
                   },
                 ),

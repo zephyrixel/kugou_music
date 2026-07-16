@@ -1,13 +1,14 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
+import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/features/player/player_control_deck.dart';
 import 'package:kgmusic/features/player/player_visual_pager.dart';
 
@@ -17,70 +18,76 @@ class PlayerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final handler = ref.watch(audioHandlerProvider);
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 4,
-        title: StreamBuilder<PlaybackQueueState>(
-          stream: handler.queueStateStream,
-          initialData: handler.queueState,
-          builder: (context, snapshot) => MediaQuery.withClampedTextScaling(
-            maxScaleFactor: 1.3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '正在播放',
-                  style: TextStyle(fontSize: 11, color: KgColors.textMuted),
-                ),
-                Text(
-                  snapshot.data?.origin.displayTitle ?? '播放队列',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+    const overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemStatusBarContrastEnforced: false,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarContrastEnforced: false,
+      systemNavigationBarDividerColor: Colors.transparent,
+    );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyle,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          forceMaterialTransparency: true,
+          systemOverlayStyle: overlayStyle,
+          titleSpacing: 4,
+          title: StreamBuilder<PlaybackQueueState>(
+            stream: handler.queueStateStream,
+            initialData: handler.queueState,
+            builder: (context, snapshot) => MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '正在播放',
+                    style: TextStyle(fontSize: 11, color: KgColors.textMuted),
                   ),
-                ),
-              ],
+                  Text(
+                    snapshot.data?.origin.displayTitle ?? '播放队列',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      body: StreamBuilder<MediaItem?>(
-        stream: handler.mediaItem,
-        builder: (context, snapshot) {
-          final item = snapshot.data;
-          if (item == null) {
-            return const Center(child: Text('还没有开始播放'));
-          }
-          final index = handler.currentIndex;
-          final currentSong = index >= 0 && index < handler.songs.length
-              ? handler.songs[index]
-              : null;
-          return AnimatedSwitcher(
-            duration: KgMotion.resolve(context, KgMotion.slow),
-            switchInCurve: KgMotion.standard,
-            switchOutCurve: Curves.easeInCubic,
-            child: _PlayerBody(
-              key: ValueKey(item.id),
-              handler: handler,
-              item: item,
-              song: currentSong,
-            ),
-          );
-        },
+        body: StreamBuilder<MediaItem?>(
+          stream: handler.mediaItem,
+          initialData: handler.mediaItem.value,
+          builder: (context, snapshot) {
+            final item = snapshot.data;
+            if (item == null) {
+              return const ColoredBox(
+                color: KgColors.background,
+                child: Center(child: Text('还没有开始播放')),
+              );
+            }
+            final index = handler.currentIndex;
+            final currentSong = index >= 0 && index < handler.songs.length
+                ? handler.songs[index]
+                : null;
+            return _PlayerBody(handler: handler, item: item, song: currentSong);
+          },
+        ),
       ),
     );
   }
 }
 
 class _PlayerBody extends StatelessWidget {
-  const _PlayerBody({
-    super.key,
-    required this.handler,
-    required this.item,
-    this.song,
-  });
+  const _PlayerBody({required this.handler, required this.item, this.song});
 
   final MusicAudioHandler handler;
   final MediaItem item;
@@ -103,39 +110,47 @@ class _PlayerBody extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              KgColors.background.withValues(alpha: 0.22),
-              KgColors.background.withValues(alpha: 0.88),
+              KgColors.background.withValues(alpha: 0.5),
+              KgColors.background.withValues(alpha: 0.12),
+              KgColors.background.withValues(alpha: 0.4),
+              KgColors.background.withValues(alpha: 0.86),
             ],
+            stops: const [0, 0.2, 0.62, 1],
           ),
         ),
       ),
-      SafeArea(
-        top: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final landscape =
-                constraints.maxWidth > constraints.maxHeight &&
-                constraints.maxWidth >= 600;
-            return landscape
-                ? _LandscapePlayer(
-                    handler: handler,
-                    item: item,
-                    song: song,
-                    constraints: constraints,
-                  )
-                : _PortraitPlayer(
-                    handler: handler,
-                    item: item,
-                    song: song,
-                    constraints: constraints,
-                  );
-          },
+      Padding(
+        padding: EdgeInsets.only(
+          top: MediaQuery.paddingOf(context).top + kToolbarHeight,
+        ),
+        child: SafeArea(
+          top: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final landscape =
+                  constraints.maxWidth > constraints.maxHeight &&
+                  constraints.maxWidth >= 600;
+              return landscape
+                  ? _LandscapePlayer(
+                      handler: handler,
+                      item: item,
+                      song: song,
+                      constraints: constraints,
+                    )
+                  : _PortraitPlayer(
+                      handler: handler,
+                      item: item,
+                      song: song,
+                      constraints: constraints,
+                    );
+            },
+          ),
         ),
       ),
       Positioned(
         left: 16,
         right: 16,
-        bottom: 12,
+        bottom: MediaQuery.paddingOf(context).bottom + 12,
         child: _PlayerMessageBanner(handler: handler),
       ),
     ],
@@ -171,6 +186,7 @@ class _PortraitPlayer extends StatelessWidget {
             ),
           ),
         ),
+        SizedBox(height: compact ? 6 : 12),
         _ControlSurface(
           portrait: true,
           compact: compact,
@@ -252,30 +268,38 @@ class _ControlSurface extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: EdgeInsets.fromLTRB(
-      compact ? 18 : 22,
-      compact ? 10 : 16,
-      compact ? 18 : 22,
-      compact ? 8 : 14,
-    ),
-    decoration: BoxDecoration(
-      color: KgColors.surface.withValues(alpha: portrait ? 0.88 : 0.76),
-      borderRadius: portrait
-          ? const BorderRadius.vertical(top: Radius.circular(28))
-          : BorderRadius.circular(28),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.28),
-          blurRadius: 28,
-          offset: const Offset(0, 12),
+  Widget build(BuildContext context) {
+    final radius = portrait
+        ? const BorderRadius.vertical(top: Radius.circular(28))
+        : BorderRadius.circular(28);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: KgColors.background.withValues(alpha: 0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: KgGlassSurface(
+        borderRadius: radius,
+        color: KgColors.surface.withValues(alpha: portrait ? 0.62 : 0.56),
+        blurSigma: 22,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 18 : 22,
+            compact ? 10 : 16,
+            compact ? 18 : 22,
+            compact ? 8 : 14,
+          ),
+          child: child,
         ),
-      ],
-    ),
-    child: child,
-  );
+      ),
+    );
+  }
 }
 
 class _PlayerMessageBanner extends StatelessWidget {
@@ -289,9 +313,10 @@ class _PlayerMessageBanner extends StatelessWidget {
     builder: (context, snapshot) {
       final message = snapshot.data;
       if (message == null || message.isEmpty) return const SizedBox.shrink();
-      return Material(
-        color: KgColors.elevatedHigh,
+      return KgGlassSurface(
         borderRadius: BorderRadius.circular(14),
+        color: KgColors.elevatedHigh.withValues(alpha: 0.82),
+        blurSigma: 16,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Text(message, style: const TextStyle(fontSize: 13)),

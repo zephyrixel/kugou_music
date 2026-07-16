@@ -6,6 +6,7 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
+import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/player/lyrics/lyrics_panel.dart';
 
@@ -46,11 +47,12 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
         constraints.maxHeight - selectorHeight - 6,
       );
       final artworkPadding = widget.compact ? 7.0 : 10.0;
+      final shadowInset = widget.compact ? 16.0 : 22.0;
       final artworkSize = math.max(
         0.0,
         math.min(
-          constraints.maxWidth - 32 - artworkPadding * 2,
-          pageHeight - artworkPadding * 2,
+          constraints.maxWidth - shadowInset * 2 - artworkPadding * 2,
+          pageHeight - shadowInset * 2 - artworkPadding * 2,
         ),
       );
       return Column(
@@ -117,19 +119,25 @@ class _ArtworkPage extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 36,
-            offset: const Offset(0, 18),
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: compact ? 16 : 20,
+            offset: Offset(0, compact ? 7 : 10),
           ),
         ],
       ),
-      child: Hero(
-        tag: 'player-artwork:${item.id}',
-        child: SongArtwork(
-          url: item.artUri?.toString(),
-          cacheId: 'song:${item.id}',
-          size: size,
-          radius: compact ? 22 : 28,
+      child: AnimatedSwitcher(
+        duration: KgMotion.resolve(context, KgMotion.slow),
+        switchInCurve: KgMotion.standard,
+        switchOutCurve: Curves.easeInCubic,
+        child: Hero(
+          key: ValueKey(item.id),
+          tag: 'player-artwork:${item.id}',
+          child: SongArtwork(
+            url: item.artUri?.toString(),
+            cacheId: 'song:${item.id}',
+            size: size,
+            radius: compact ? 22 : 28,
+          ),
         ),
       ),
     ),
@@ -160,29 +168,29 @@ class _PageSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.24),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _PageIndicator(
-            active: page == 0,
-            icon: Icons.album_rounded,
-            label: '封面',
-            onTap: () => onSelected(0),
-          ),
-          _PageIndicator(
-            active: page == 1,
-            icon: Icons.lyrics_rounded,
-            label: '歌词',
-            onTap: () => onSelected(1),
-          ),
-        ],
+    child: KgGlassSurface(
+      borderRadius: BorderRadius.circular(18),
+      color: KgColors.surface.withValues(alpha: 0.48),
+      blurSigma: 12,
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _PageIndicator(
+              active: page == 0,
+              icon: Icons.album_rounded,
+              label: '封面',
+              onTap: () => onSelected(0),
+            ),
+            _PageIndicator(
+              active: page == 1,
+              icon: Icons.lyrics_rounded,
+              label: '歌词',
+              onTap: () => onSelected(1),
+            ),
+          ],
+        ),
       ),
     ),
   );

@@ -38,8 +38,8 @@ class PlaylistHeader extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0x18090A0F), Color(0xF0090A0F)],
-            stops: [0.2, 1],
+            colors: [Color(0x8A090A0F), Color(0x18090A0F), Color(0xF0090A0F)],
+            stops: [0, 0.28, 1],
           ),
         ),
       ),

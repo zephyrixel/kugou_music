@@ -160,7 +160,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    bottom: false,
     child: KgContentWidth(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

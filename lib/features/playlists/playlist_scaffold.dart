@@ -5,6 +5,7 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
+import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
@@ -73,9 +74,11 @@ class PlaylistSongsView extends ConsumerWidget {
         slivers: [
           SliverAppBar(
             pinned: true,
+            stretch: true,
             expandedHeight: 310,
-            backgroundColor: KgColors.background,
+            backgroundColor: KgColors.surface.withValues(alpha: 0.98),
             surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             actions: appBarActions,
             title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
             flexibleSpace: FlexibleSpaceBar(
@@ -179,28 +182,36 @@ class _PlaylistControls extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Container(
-    color: KgColors.background.withValues(alpha: 0.97),
-    padding: const EdgeInsets.fromLTRB(
-      KgSpacing.lg,
-      KgSpacing.xs,
-      KgSpacing.lg,
-      KgSpacing.sm,
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: onPlay,
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
+  Widget build(BuildContext context) => KgGlassSurface(
+    borderRadius: BorderRadius.zero,
+    color: KgColors.surface.withValues(alpha: 0.94),
+    blurSigma: 14,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(
+        KgSpacing.lg,
+        KgSpacing.xs,
+        KgSpacing.lg,
+        KgSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: FilledButton.tonalIcon(
+              onPressed: onPlay,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
+              style: FilledButton.styleFrom(
+                backgroundColor: KgColors.accentSoft.withValues(alpha: 0.82),
+                foregroundColor: KgColors.accent,
+              ),
+            ),
           ),
-        ),
-        if (actions?.isNotEmpty == true || trailing != null)
-          const SizedBox(width: KgSpacing.sm),
-        ...?actions,
-        ?trailing,
-      ],
+          if (actions?.isNotEmpty == true || trailing != null)
+            const SizedBox(width: KgSpacing.sm),
+          ...?actions,
+          ?trailing,
+        ],
+      ),
     ),
   );
 }

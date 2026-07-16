@@ -23,7 +23,6 @@ class HomeScreen extends ConsumerWidget {
     final history = ref.watch(historyEntriesProvider).value ?? const [];
     final songs = recommendations.value ?? const <Song>[];
     return SafeArea(
-      bottom: false,
       child: KgContentWidth(
         child: RefreshIndicator(
           onRefresh: () => _refresh(ref),

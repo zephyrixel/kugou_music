@@ -22,7 +22,6 @@ class LibraryScreen extends ConsumerWidget {
         ?.where((playlist) => playlist.isMyFavorite)
         .firstOrNull;
     return SafeArea(
-      bottom: false,
       child: KgContentWidth(
         child: RefreshIndicator(
           onRefresh: () => ref.read(libraryRepositoryProvider).syncNow(),

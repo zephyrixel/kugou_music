@@ -18,13 +18,16 @@ class DiscoverHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _greeting(),
+              name == null ? _greeting() : '${_greeting()} · $name',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: KgColors.textMuted,
                 fontWeight: FontWeight.w600,
@@ -32,7 +35,7 @@ class DiscoverHeader extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              name == null ? '今天想听什么？' : '$name，今天想听什么？',
+              '今天想听什么？',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.headlineMedium,
