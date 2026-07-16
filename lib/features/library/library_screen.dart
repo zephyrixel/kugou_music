@@ -22,6 +22,7 @@ class LibraryScreen extends ConsumerWidget {
         ?.where((playlist) => playlist.isMyFavorite)
         .firstOrNull;
     return SafeArea(
+      bottom: false,
       child: KgContentWidth(
         child: RefreshIndicator(
           onRefresh: () => ref.read(libraryRepositoryProvider).syncNow(),
@@ -98,7 +99,11 @@ class LibraryScreen extends ConsumerWidget {
                 ),
               ),
               _playlistSliver(context, ref, playlists),
-              const SliverToBoxAdapter(child: SizedBox(height: KgSpacing.xxl)),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: MediaQuery.paddingOf(context).bottom + KgSpacing.xxl,
+                ),
+              ),
             ],
           ),
         ),

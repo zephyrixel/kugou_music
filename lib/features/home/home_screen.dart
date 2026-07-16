@@ -23,6 +23,7 @@ class HomeScreen extends ConsumerWidget {
     final history = ref.watch(historyEntriesProvider).value ?? const [];
     final songs = recommendations.value ?? const <Song>[];
     return SafeArea(
+      bottom: false,
       child: KgContentWidth(
         child: RefreshIndicator(
           onRefresh: () => _refresh(ref),
@@ -84,7 +85,11 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               _recommendationList(context, ref, recommendations),
-              const SliverToBoxAdapter(child: SizedBox(height: KgSpacing.xl)),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
+                ),
+              ),
             ],
           ),
         ),

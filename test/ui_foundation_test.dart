@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/app/animated_branch_container.dart';
 import 'package:kgmusic/app/delegated_transition_page.dart';
+import 'package:kgmusic/app/navigation_focus_policy.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
@@ -172,22 +173,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('透明底栏会为页面内容保留完整的动态安全区', (tester) async {
+  testWidgets('透明底栏后的动态尾部留白允许内容完整滑出', (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    const contentKey = ValueKey('safe-scroll-content');
+    const contentKey = ValueKey('last-scroll-content');
 
     await tester.pumpWidget(
       _testApp(
-        const Scaffold(
+        Scaffold(
           extendBody: true,
-          body: SafeArea(child: SizedBox.expand(key: contentKey)),
-          bottomNavigationBar: SizedBox(height: 146),
+          body: Builder(
+            builder: (context) => CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: SizedBox(height: 700)),
+                const SliverToBoxAdapter(
+                  child: SizedBox(key: contentKey, height: 50),
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(height: MediaQuery.paddingOf(context).bottom),
+                ),
+              ],
+            ),
+          ),
+          bottomNavigationBar: const SizedBox(height: 146),
         ),
       ),
     );
 
-    expect(tester.getBottomRight(find.byKey(contentKey)).dy, lessThan(500));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -900));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getBottomRight(find.byKey(contentKey)).dy,
+      lessThanOrEqualTo(500),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -218,6 +237,61 @@ void main() {
     expect(find.text('搜索页'), findsOneWidget);
     expect(incomingMidpoint, lessThan(inactiveStart));
     await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('持久化分支失活时会释放其输入焦点', (tester) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
+    Widget branches(int index) => _testApp(
+      AnimatedBranchContainer(
+        currentIndex: index,
+        children: [
+          Material(child: TextField(focusNode: focusNode)),
+          const ColoredBox(color: Colors.blue),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(branches(0));
+    focusNode.requestFocus();
+    await tester.pump();
+    expect(focusNode.hasFocus, isTrue);
+
+    await tester.pumpWidget(branches(1));
+    await tester.pump();
+    expect(focusNode.hasFocus, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('页面导航后返回不会恢复旧输入框焦点', (tester) async {
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+    late BuildContext navigationContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: [KeyboardDismissNavigatorObserver()],
+        home: Builder(
+          builder: (context) {
+            navigationContext = context;
+            return Scaffold(body: TextField(focusNode: focusNode));
+          },
+        ),
+      ),
+    );
+    focusNode.requestFocus();
+    await tester.pump();
+    expect(focusNode.hasFocus, isTrue);
+
+    Navigator.of(
+      navigationContext,
+    ).push(MaterialPageRoute<void>(builder: (_) => const Scaffold()));
+    await tester.pumpAndSettle();
+    Navigator.of(navigationContext).pop();
+    await tester.pumpAndSettle();
+
+    expect(focusNode.hasFocus, isFalse);
     expect(tester.takeException(), isNull);
   });
 

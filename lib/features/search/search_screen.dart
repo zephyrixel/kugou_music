@@ -160,6 +160,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) => SafeArea(
+    bottom: false,
     child: KgContentWidth(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +289,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return ListView.builder(
       controller: _scrollController,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
+      ),
       itemCount: songs.length + footers.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -330,7 +333,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return ListView.builder(
       controller: _scrollController,
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      padding: EdgeInsets.fromLTRB(
+        12,
+        0,
+        12,
+        MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
+      ),
       itemCount: playlists.length + footers.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {

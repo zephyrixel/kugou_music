@@ -23,12 +23,9 @@ class LibraryCollectionScreen extends ConsumerWidget {
     appBar: AppBar(
       title: Text(kind == LibraryCollectionKind.favorites ? '我喜欢' : '最近播放'),
     ),
-    body: SafeArea(
-      top: false,
-      child: kind == LibraryCollectionKind.favorites
-          ? const _FavoriteSongs()
-          : const _HistorySongs(),
-    ),
+    body: kind == LibraryCollectionKind.favorites
+        ? const _FavoriteSongs()
+        : const _HistorySongs(),
   );
 }
 
@@ -187,7 +184,10 @@ class _SongCollectionView extends ConsumerWidget {
       child: ListView.builder(
         key: PageStorageKey('collection-$label'),
         controller: scrollController,
-        padding: const EdgeInsets.only(top: KgSpacing.xs, bottom: KgSpacing.xl),
+        padding: EdgeInsets.only(
+          top: KgSpacing.xs,
+          bottom: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
+        ),
         itemCount: songs.length + 1 + footers.length,
         itemBuilder: (context, index) {
           if (index == 0) {

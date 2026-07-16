@@ -35,7 +35,7 @@ class AnimatedBranchContainer extends StatelessWidget {
   }
 }
 
-class _AnimatedBranch extends StatelessWidget {
+class _AnimatedBranch extends StatefulWidget {
   const _AnimatedBranch({
     super.key,
     required this.active,
@@ -52,21 +52,51 @@ class _AnimatedBranch extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => IgnorePointer(
-    ignoring: !active,
-    child: ExcludeSemantics(
-      excluding: !active,
-      child: AnimatedOpacity(
-        opacity: active ? 1 : 0,
-        duration: fadeDuration,
-        curve: KgMotion.standard,
-        child: AnimatedSlide(
-          offset: active ? Offset.zero : offset,
-          duration: slideDuration,
+  State<_AnimatedBranch> createState() => _AnimatedBranchState();
+}
+
+class _AnimatedBranchState extends State<_AnimatedBranch> {
+  late final FocusScopeNode _focusScopeNode = FocusScopeNode(
+    debugLabel: 'navigation-branch',
+  );
+
+  @override
+  void didUpdateWidget(covariant _AnimatedBranch oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active && !widget.active && _focusScopeNode.hasFocus) {
+      _focusScopeNode.unfocus(disposition: UnfocusDisposition.scope);
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusScopeNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FocusScope(
+    node: _focusScopeNode,
+    canRequestFocus: widget.active,
+    skipTraversal: !widget.active,
+    descendantsAreFocusable: widget.active,
+    descendantsAreTraversable: widget.active,
+    child: IgnorePointer(
+      ignoring: !widget.active,
+      child: ExcludeSemantics(
+        excluding: !widget.active,
+        child: AnimatedOpacity(
+          opacity: widget.active ? 1 : 0,
+          duration: widget.fadeDuration,
           curve: KgMotion.standard,
-          child: TickerMode(
-            enabled: active,
-            child: RepaintBoundary(child: child),
+          child: AnimatedSlide(
+            offset: widget.active ? Offset.zero : widget.offset,
+            duration: widget.slideDuration,
+            curve: KgMotion.standard,
+            child: TickerMode(
+              enabled: widget.active,
+              child: RepaintBoundary(child: widget.child),
+            ),
           ),
         ),
       ),

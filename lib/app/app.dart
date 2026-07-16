@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/animated_branch_container.dart';
 import 'package:kgmusic/app/delegated_transition_page.dart';
+import 'package:kgmusic/app/navigation_focus_policy.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/platform/android_display_mode.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/features/account/account_screen.dart';
@@ -30,6 +32,7 @@ class KgMusicApp extends ConsumerStatefulWidget {
 
 class _KgMusicAppState extends ConsumerState<KgMusicApp> {
   late final GoRouter _router = GoRouter(
+    observers: [KeyboardDismissNavigatorObserver()],
     routes: [
       StatefulShellRoute(
         builder: (context, state, navigationShell) =>
@@ -41,14 +44,17 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
             ),
         branches: [
           StatefulShellBranch(
+            observers: [KeyboardDismissNavigatorObserver()],
             routes: [GoRoute(path: '/', builder: (_, _) => const HomeScreen())],
           ),
           StatefulShellBranch(
+            observers: [KeyboardDismissNavigatorObserver()],
             routes: [
               GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
             ],
           ),
           StatefulShellBranch(
+            observers: [KeyboardDismissNavigatorObserver()],
             routes: [
               GoRoute(
                 path: '/library',
@@ -98,6 +104,9 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(AndroidDisplayMode.preferHighestRefreshRate());
+    });
     _notificationClickSubscription = AudioService.notificationClicked
         .where((clicked) => clicked)
         .listen((_) => _openNotificationTarget());
