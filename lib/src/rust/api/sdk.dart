@@ -7,14 +7,23 @@ import '../frb_generated.dart';
 import 'dto.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auth_state`, `get_playlist_tracks`, `runtime`, `validated_search`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `KugouRuntime`, `PersistedSession`, `PlaylistTracksRoute`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `eq`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `get_playlist_tracks`, `runtime`, `validated_search`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `PlaylistTracksRoute`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `eq`, `fmt`
 
-Future<void> initializeSdk() => RustLib.instance.api.crateApiSdkInitializeSdk();
+Future<void> initializeSdk({
+  required DeviceProfileDto deviceProfile,
+  String? persistedSession,
+}) => RustLib.instance.api.crateApiSdkInitializeSdk(
+  deviceProfile: deviceProfile,
+  persistedSession: persistedSession,
+);
 
 Future<AuthStateDto> getAuthState() =>
     RustLib.instance.api.crateApiSdkGetAuthState();
+
+Future<AuthStateDto> ensureDeviceRegistered() =>
+    RustLib.instance.api.crateApiSdkEnsureDeviceRegistered();
 
 Future<void> sendSmsCode({required String mobile}) =>
     RustLib.instance.api.crateApiSdkSendSmsCode(mobile: mobile);
@@ -178,6 +187,3 @@ Future<void> removeSongFromPlaylist({
 
 Future<String> exportSession() =>
     RustLib.instance.api.crateApiSdkExportSession();
-
-Future<void> importSession({required String value}) =>
-    RustLib.instance.api.crateApiSdkImportSession(value: value);

@@ -161,6 +161,8 @@ class _FakePlayerSdk implements PlayerSdk {
   @override
   Future<AuthSnapshot> refreshLogin() => authState();
   @override
+  Future<AuthSnapshot> ensureDeviceRegistered() => authState();
+  @override
   Future<AuthSnapshot> registerDevice() => authState();
   @override
   Future<void> logout() async {}

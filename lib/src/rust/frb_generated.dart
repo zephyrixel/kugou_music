@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 912721632;
+  int get rustContentHash => 377130336;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -107,6 +107,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiSdkEditCloudPlaylist({
     required PlaylistEditInputDto input,
   });
+
+  Future<AuthStateDto> crateApiSdkEnsureDeviceRegistered();
 
   Future<String> crateApiSdkExportSession();
 
@@ -149,11 +151,12 @@ abstract class RustLibApi extends BaseApi {
 
   Future<UserVipDto> crateApiSdkGetUserVip();
 
-  Future<void> crateApiSdkImportSession({required String value});
-
   Future<void> crateApiSdkInitApp();
 
-  Future<void> crateApiSdkInitializeSdk();
+  Future<void> crateApiSdkInitializeSdk({
+    required DeviceProfileDto deviceProfile,
+    String? persistedSession,
+  });
 
   Future<SmsLoginResultDto> crateApiSdkLoginBySms({
     required String mobile,
@@ -444,7 +447,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<String> crateApiSdkExportSession() {
+  Future<AuthStateDto> crateApiSdkEnsureDeviceRegistered() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -453,6 +456,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_auth_state_dto,
+          decodeErrorData: sse_decode_bridge_error,
+        ),
+        constMeta: kCrateApiSdkEnsureDeviceRegisteredConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSdkEnsureDeviceRegisteredConstMeta =>
+      const TaskConstMeta(debugName: "ensure_device_registered", argNames: []);
+
+  @override
+  Future<String> crateApiSdkExportSession() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
             port: port_,
           );
         },
@@ -479,7 +509,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -507,7 +537,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 11,
             port: port_,
           );
         },
@@ -539,7 +569,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 12,
             port: port_,
           );
         },
@@ -569,7 +599,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -602,7 +632,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -629,7 +659,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 15,
             port: port_,
           );
         },
@@ -659,7 +689,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 16,
             port: port_,
           );
         },
@@ -693,7 +723,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 17,
             port: port_,
           );
         },
@@ -730,7 +760,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -761,7 +791,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -788,7 +818,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -815,7 +845,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 21,
             port: port_,
           );
         },
@@ -832,34 +862,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSdkGetUserVipConstMeta =>
       const TaskConstMeta(debugName: "get_user_vip", argNames: []);
-
-  @override
-  Future<void> crateApiSdkImportSession({required String value}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(value, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 21,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: sse_decode_bridge_error,
-        ),
-        constMeta: kCrateApiSdkImportSessionConstMeta,
-        argValues: [value],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSdkImportSessionConstMeta =>
-      const TaskConstMeta(debugName: "import_session", argNames: ["value"]);
 
   @override
   Future<void> crateApiSdkInitApp() {
@@ -889,11 +891,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<void> crateApiSdkInitializeSdk() {
+  Future<void> crateApiSdkInitializeSdk({
+    required DeviceProfileDto deviceProfile,
+    String? persistedSession,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_box_autoadd_device_profile_dto(deviceProfile, serializer);
+          sse_encode_opt_String(persistedSession, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -906,14 +913,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_bridge_error,
         ),
         constMeta: kCrateApiSdkInitializeSdkConstMeta,
-        argValues: [],
+        argValues: [deviceProfile, persistedSession],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSdkInitializeSdkConstMeta =>
-      const TaskConstMeta(debugName: "initialize_sdk", argNames: []);
+  TaskConstMeta get kCrateApiSdkInitializeSdkConstMeta => const TaskConstMeta(
+    debugName: "initialize_sdk",
+    argNames: ["deviceProfile", "persistedSession"],
+  );
 
   @override
   Future<SmsLoginResultDto> crateApiSdkLoginBySms({
@@ -1419,6 +1428,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceProfileDto dco_decode_box_autoadd_device_profile_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_device_profile_dto(raw);
+  }
+
+  @protected
   HeartRadioRequestDto dco_decode_box_autoadd_heart_radio_request_dto(
     dynamic raw,
   ) {
@@ -1528,6 +1543,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       page: dco_decode_u_32(arr[1]),
       pageSize: dco_decode_u_32(arr[2]),
       total: dco_decode_opt_CastedPrimitive_u_64(arr[3]),
+    );
+  }
+
+  @protected
+  DeviceProfileDto dco_decode_device_profile_dto(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
+    return DeviceProfileDto(
+      deviceId: dco_decode_String(arr[0]),
+      androidId: dco_decode_opt_String(arr[1]),
+      brand: dco_decode_opt_String(arr[2]),
+      model: dco_decode_opt_String(arr[3]),
+      manufacturer: dco_decode_opt_String(arr[4]),
+      basebandVersion: dco_decode_opt_String(arr[5]),
+      availableRamBytes: dco_decode_opt_CastedPrimitive_u_64(arr[6]),
+      availableInternalStorageBytes: dco_decode_opt_CastedPrimitive_u_64(
+        arr[7],
+      ),
+      availableExternalStorageBytes: dco_decode_opt_CastedPrimitive_u_64(
+        arr[8],
+      ),
+      batteryLevel: dco_decode_opt_box_autoadd_u_32(arr[9]),
+      batteryStatus: dco_decode_opt_box_autoadd_u_32(arr[10]),
+      hasAccelerometer: dco_decode_bool(arr[11]),
+      hasGravity: dco_decode_bool(arr[12]),
+      hasGyroscope: dco_decode_bool(arr[13]),
+      hasLight: dco_decode_bool(arr[14]),
+      hasMagneticField: dco_decode_bool(arr[15]),
+      hasOrientation: dco_decode_bool(arr[16]),
+      hasPressure: dco_decode_bool(arr[17]),
+      hasStepCounter: dco_decode_bool(arr[18]),
+      hasAmbientTemperature: dco_decode_bool(arr[19]),
     );
   }
 
@@ -2222,6 +2271,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  DeviceProfileDto sse_decode_box_autoadd_device_profile_dto(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_device_profile_dto(deserializer));
+  }
+
+  @protected
   HeartRadioRequestDto sse_decode_box_autoadd_heart_radio_request_dto(
     SseDeserializer deserializer,
   ) {
@@ -2350,6 +2407,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       page: var_page,
       pageSize: var_pageSize,
       total: var_total,
+    );
+  }
+
+  @protected
+  DeviceProfileDto sse_decode_device_profile_dto(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_androidId = sse_decode_opt_String(deserializer);
+    var var_brand = sse_decode_opt_String(deserializer);
+    var var_model = sse_decode_opt_String(deserializer);
+    var var_manufacturer = sse_decode_opt_String(deserializer);
+    var var_basebandVersion = sse_decode_opt_String(deserializer);
+    var var_availableRamBytes = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
+    var var_availableInternalStorageBytes = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
+    var var_availableExternalStorageBytes = sse_decode_opt_CastedPrimitive_u_64(
+      deserializer,
+    );
+    var var_batteryLevel = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_batteryStatus = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_hasAccelerometer = sse_decode_bool(deserializer);
+    var var_hasGravity = sse_decode_bool(deserializer);
+    var var_hasGyroscope = sse_decode_bool(deserializer);
+    var var_hasLight = sse_decode_bool(deserializer);
+    var var_hasMagneticField = sse_decode_bool(deserializer);
+    var var_hasOrientation = sse_decode_bool(deserializer);
+    var var_hasPressure = sse_decode_bool(deserializer);
+    var var_hasStepCounter = sse_decode_bool(deserializer);
+    var var_hasAmbientTemperature = sse_decode_bool(deserializer);
+    return DeviceProfileDto(
+      deviceId: var_deviceId,
+      androidId: var_androidId,
+      brand: var_brand,
+      model: var_model,
+      manufacturer: var_manufacturer,
+      basebandVersion: var_basebandVersion,
+      availableRamBytes: var_availableRamBytes,
+      availableInternalStorageBytes: var_availableInternalStorageBytes,
+      availableExternalStorageBytes: var_availableExternalStorageBytes,
+      batteryLevel: var_batteryLevel,
+      batteryStatus: var_batteryStatus,
+      hasAccelerometer: var_hasAccelerometer,
+      hasGravity: var_hasGravity,
+      hasGyroscope: var_hasGyroscope,
+      hasLight: var_hasLight,
+      hasMagneticField: var_hasMagneticField,
+      hasOrientation: var_hasOrientation,
+      hasPressure: var_hasPressure,
+      hasStepCounter: var_hasStepCounter,
+      hasAmbientTemperature: var_hasAmbientTemperature,
     );
   }
 
@@ -3222,6 +3332,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_device_profile_dto(
+    DeviceProfileDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_device_profile_dto(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_heart_radio_request_dto(
     HeartRadioRequestDto self,
     SseSerializer serializer,
@@ -3336,6 +3455,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.page, serializer);
     sse_encode_u_32(self.pageSize, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.total, serializer);
+  }
+
+  @protected
+  void sse_encode_device_profile_dto(
+    DeviceProfileDto self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_opt_String(self.androidId, serializer);
+    sse_encode_opt_String(self.brand, serializer);
+    sse_encode_opt_String(self.model, serializer);
+    sse_encode_opt_String(self.manufacturer, serializer);
+    sse_encode_opt_String(self.basebandVersion, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.availableRamBytes, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(
+      self.availableInternalStorageBytes,
+      serializer,
+    );
+    sse_encode_opt_CastedPrimitive_u_64(
+      self.availableExternalStorageBytes,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_u_32(self.batteryLevel, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.batteryStatus, serializer);
+    sse_encode_bool(self.hasAccelerometer, serializer);
+    sse_encode_bool(self.hasGravity, serializer);
+    sse_encode_bool(self.hasGyroscope, serializer);
+    sse_encode_bool(self.hasLight, serializer);
+    sse_encode_bool(self.hasMagneticField, serializer);
+    sse_encode_bool(self.hasOrientation, serializer);
+    sse_encode_bool(self.hasPressure, serializer);
+    sse_encode_bool(self.hasStepCounter, serializer);
+    sse_encode_bool(self.hasAmbientTemperature, serializer);
   }
 
   @protected

@@ -1,129 +1,58 @@
 use kugou_sdk::user::{YOUTH_DAY_VIP_SOURCE_MINE, YouthDayVipClaimRequest};
 use kugou_sdk::{
     CollectRequest, FreshSongAction, FreshSongsRequest, HeartRadioRequest, HistoryFetchRequest,
-    HistorySongOp, HistoryUploadRequest, KugouClient, LyricSearchRequest, Pagination,
-    PersonalFmRequest, PlatformProfile, PlaybackOutcome, PlaylistEditRequest, PlaylistKind,
-    PlaylistTrackInput, ReportHistoryRequest, ReportRepeatedRequest, SearchRequest, Session,
-    SongRef,
+    HistorySongOp, HistoryUploadRequest, LyricSearchRequest, Pagination, PersonalFmRequest,
+    PlaybackOutcome, PlaylistEditRequest, PlaylistKind, PlaylistTrackInput, ReportHistoryRequest,
+    ReportRepeatedRequest, SearchRequest, SongRef,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
-use tokio::sync::Mutex;
 
 pub use super::dto::*;
 use super::mapping::*;
-
-const SESSION_SCHEMA_VERSION: u32 = 1;
-const SESSION_PLATFORM: &str = "lite";
-
-struct KugouRuntime {
-    client: KugouClient,
-    session: Mutex<Session>,
-}
-
-static RUNTIME: OnceLock<KugouRuntime> = OnceLock::new();
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PersistedSession {
-    schema_version: u32,
-    platform: String,
-    session_json: String,
-}
+use super::{auth, runtime};
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
 }
 
-pub fn initialize_sdk() -> Result<(), BridgeError> {
-    runtime()?;
-    Ok(())
+pub fn initialize_sdk(
+    device_profile: DeviceProfileDto,
+    persisted_session: Option<String>,
+) -> Result<(), BridgeError> {
+    runtime::initialize(device_profile, persisted_session)
 }
 
 pub async fn get_auth_state() -> Result<AuthStateDto, BridgeError> {
-    let runtime = runtime()?;
-    let session = runtime.session.lock().await;
-    Ok(auth_state(&session))
+    auth::auth_state().await
+}
+
+pub async fn ensure_device_registered() -> Result<AuthStateDto, BridgeError> {
+    auth::ensure_device_registered().await
 }
 
 pub async fn send_sms_code(mobile: String) -> Result<(), BridgeError> {
-    let runtime = runtime()?;
-    let mut session = runtime.session.lock().await;
-    runtime
-        .client
-        .auth()
-        .send_sms_code(&mut session, &mobile)
-        .await
-        .map_err(BridgeError::from_sdk)?;
-    Ok(())
+    auth::send_sms_code(mobile).await
 }
 
 pub async fn login_by_sms(mobile: String, code: String) -> Result<SmsLoginResultDto, BridgeError> {
-    let runtime = runtime()?;
-    let mut session = runtime.session.lock().await;
-    runtime
-        .client
-        .auth()
-        .login_by_sms(&mut session, &mobile, &code)
-        .await
-        .map_err(BridgeError::from_sdk)?;
-    if !session.is_authenticated() {
-        return Err(BridgeError::internal(
-            "SMS login returned without an authenticated session",
-        ));
-    }
-    let fingerprint_warning = runtime
-        .client
-        .auth()
-        .register_dev(&mut session, None)
-        .await
-        .err()
-        .map(|error| error.to_string());
-    Ok(SmsLoginResultDto {
-        auth: auth_state(&session),
-        fingerprint_warning,
-    })
+    auth::login_by_sms(mobile, code).await
 }
 
 pub async fn refresh_login() -> Result<AuthStateDto, BridgeError> {
-    let runtime = runtime()?;
-    let mut session = runtime.session.lock().await;
-    runtime
-        .client
-        .auth()
-        .refresh_token(&mut session)
-        .await
-        .map_err(BridgeError::from_sdk)?;
-    if session.device.device_fingerprint_id.is_none() {
-        let _ = runtime.client.auth().register_dev(&mut session, None).await;
-    }
-    Ok(auth_state(&session))
+    auth::refresh_login().await
 }
 
 pub async fn register_device() -> Result<AuthStateDto, BridgeError> {
-    let runtime = runtime()?;
-    let mut session = runtime.session.lock().await;
-    runtime
-        .client
-        .auth()
-        .register_dev(&mut session, None)
-        .await
-        .map_err(BridgeError::from_sdk)?;
-    Ok(auth_state(&session))
+    auth::register_device().await
 }
 
 pub async fn logout() -> Result<AuthStateDto, BridgeError> {
-    let runtime = runtime()?;
-    let mut session = runtime.session.lock().await;
-    let device = session.device.clone();
-    *session = Session::new(device);
-    Ok(auth_state(&session))
+    auth::logout().await
 }
 
 pub async fn search_songs(request: SearchRequestDto) -> Result<SongPageDto, BridgeError> {
     let (keyword, page, page_size) = validated_search(&request)?;
-    let runtime = runtime()?;
+    let runtime = runtime::get()?;
     let mut session = runtime.session.lock().await;
     let response = runtime
         .client
@@ -831,60 +760,11 @@ pub async fn remove_song_from_playlist(list_id: u64, file_id: u64) -> Result<(),
 }
 
 pub async fn export_session() -> Result<String, BridgeError> {
-    let runtime = runtime()?;
-    let session = runtime.session.lock().await;
-    let session_json = session.export().map_err(BridgeError::from_sdk)?;
-    serde_json::to_string(&PersistedSession {
-        schema_version: SESSION_SCHEMA_VERSION,
-        platform: SESSION_PLATFORM.to_owned(),
-        session_json,
-    })
-    .map_err(|error| BridgeError::internal(error.to_string()))
+    runtime::export().await
 }
 
-pub async fn import_session(value: String) -> Result<(), BridgeError> {
-    let persisted: PersistedSession = serde_json::from_str(&value)
-        .map_err(|error| BridgeError::invalid_argument(error.to_string()))?;
-    if persisted.schema_version != SESSION_SCHEMA_VERSION || persisted.platform != SESSION_PLATFORM
-    {
-        return Err(BridgeError::invalid_argument(
-            "only schema v1 Lite sessions can be imported",
-        ));
-    }
-    let restored = Session::import(&persisted.session_json).map_err(BridgeError::from_sdk)?;
-    let runtime = runtime()?;
-    *runtime.session.lock().await = restored;
-    Ok(())
-}
-
-fn runtime() -> Result<&'static KugouRuntime, BridgeError> {
-    if let Some(runtime) = RUNTIME.get() {
-        return Ok(runtime);
-    }
-    let client = KugouClient::builder()
-        .platform(PlatformProfile::Lite)
-        .build()
-        .map_err(BridgeError::from_sdk)?;
-    let _ = RUNTIME.set(KugouRuntime {
-        client,
-        session: Mutex::new(Session::random()),
-    });
-    RUNTIME
-        .get()
-        .ok_or_else(|| BridgeError::internal("failed to initialize Lite SDK runtime"))
-}
-
-fn auth_state(session: &Session) -> AuthStateDto {
-    AuthStateDto {
-        authenticated: session.is_authenticated(),
-        user_id: session.user_id,
-        vip_type: session.vip_type,
-        fingerprint_registered: session
-            .device
-            .device_fingerprint_id
-            .as_deref()
-            .is_some_and(|value| !value.is_empty() && value != "-"),
-    }
+fn runtime() -> Result<&'static runtime::KugouRuntime, BridgeError> {
+    runtime::get()
 }
 
 fn validated_search(request: &SearchRequestDto) -> Result<(&str, u32, u32), BridgeError> {

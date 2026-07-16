@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 912721632;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 377130336;
 
 // Section: executor
 
@@ -300,6 +300,41 @@ fn wire__crate__api__sdk__edit_cloud_playlist_impl(
                 transform_result_sse::<_, crate::api::dto::BridgeError>(
                     (move || async move {
                         let output_ok = crate::api::sdk::edit_cloud_playlist(api_input).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sdk__ensure_device_registered_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "ensure_device_registered",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::dto::BridgeError>(
+                    (move || async move {
+                        let output_ok = crate::api::sdk::ensure_device_registered().await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -788,42 +823,6 @@ fn wire__crate__api__sdk__get_user_vip_impl(
         },
     )
 }
-fn wire__crate__api__sdk__import_session_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "import_session",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_value = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| async move {
-                transform_result_sse::<_, crate::api::dto::BridgeError>(
-                    (move || async move {
-                        let output_ok = crate::api::sdk::import_session(api_value).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__sdk__init_app_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -880,10 +879,14 @@ fn wire__crate__api__sdk__initialize_sdk_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_device_profile =
+                <crate::api::dto::DeviceProfileDto>::sse_decode(&mut deserializer);
+            let api_persisted_session = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, crate::api::dto::BridgeError>((move || {
-                    let output_ok = crate::api::sdk::initialize_sdk()?;
+                    let output_ok =
+                        crate::api::sdk::initialize_sdk(api_device_profile, api_persisted_session)?;
                     Ok(output_ok)
                 })())
             }
@@ -1555,6 +1558,54 @@ impl SseDecode for crate::api::dto::CloudPlaylistPageDto {
             page: var_page,
             page_size: var_pageSize,
             total: var_total,
+        };
+    }
+}
+
+impl SseDecode for crate::api::dto::DeviceProfileDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_deviceId = <String>::sse_decode(deserializer);
+        let mut var_androidId = <Option<String>>::sse_decode(deserializer);
+        let mut var_brand = <Option<String>>::sse_decode(deserializer);
+        let mut var_model = <Option<String>>::sse_decode(deserializer);
+        let mut var_manufacturer = <Option<String>>::sse_decode(deserializer);
+        let mut var_basebandVersion = <Option<String>>::sse_decode(deserializer);
+        let mut var_availableRamBytes = <Option<u64>>::sse_decode(deserializer);
+        let mut var_availableInternalStorageBytes = <Option<u64>>::sse_decode(deserializer);
+        let mut var_availableExternalStorageBytes = <Option<u64>>::sse_decode(deserializer);
+        let mut var_batteryLevel = <Option<u32>>::sse_decode(deserializer);
+        let mut var_batteryStatus = <Option<u32>>::sse_decode(deserializer);
+        let mut var_hasAccelerometer = <bool>::sse_decode(deserializer);
+        let mut var_hasGravity = <bool>::sse_decode(deserializer);
+        let mut var_hasGyroscope = <bool>::sse_decode(deserializer);
+        let mut var_hasLight = <bool>::sse_decode(deserializer);
+        let mut var_hasMagneticField = <bool>::sse_decode(deserializer);
+        let mut var_hasOrientation = <bool>::sse_decode(deserializer);
+        let mut var_hasPressure = <bool>::sse_decode(deserializer);
+        let mut var_hasStepCounter = <bool>::sse_decode(deserializer);
+        let mut var_hasAmbientTemperature = <bool>::sse_decode(deserializer);
+        return crate::api::dto::DeviceProfileDto {
+            device_id: var_deviceId,
+            android_id: var_androidId,
+            brand: var_brand,
+            model: var_model,
+            manufacturer: var_manufacturer,
+            baseband_version: var_basebandVersion,
+            available_ram_bytes: var_availableRamBytes,
+            available_internal_storage_bytes: var_availableInternalStorageBytes,
+            available_external_storage_bytes: var_availableExternalStorageBytes,
+            battery_level: var_batteryLevel,
+            battery_status: var_batteryStatus,
+            has_accelerometer: var_hasAccelerometer,
+            has_gravity: var_hasGravity,
+            has_gyroscope: var_hasGyroscope,
+            has_light: var_hasLight,
+            has_magnetic_field: var_hasMagneticField,
+            has_orientation: var_hasOrientation,
+            has_pressure: var_hasPressure,
+            has_step_counter: var_hasStepCounter,
+            has_ambient_temperature: var_hasAmbientTemperature,
         };
     }
 }
@@ -2404,35 +2455,37 @@ fn pde_ffi_dispatcher_primary_impl(
         5 => wire__crate__api__sdk__create_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
         6 => wire__crate__api__sdk__delete_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__sdk__edit_cloud_playlist_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__sdk__export_session_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__sdk__get_everyday_recommendations_impl(
+        8 => {
+            wire__crate__api__sdk__ensure_device_registered_impl(port, ptr, rust_vec_len, data_len)
+        }
+        9 => wire__crate__api__sdk__export_session_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__sdk__get_everyday_recommendations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        13 => wire__crate__api__sdk__get_heart_radio_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__sdk__get_month_vip_record_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__sdk__get_personal_fm_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__sdk__get_playlist_tracks_by_gid_impl(
+        14 => wire__crate__api__sdk__get_heart_radio_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__sdk__get_month_vip_record_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__sdk__get_personal_fm_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__sdk__get_playlist_tracks_by_gid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        17 => wire__crate__api__sdk__get_playlist_tracks_by_list_id_impl(
+        18 => wire__crate__api__sdk__get_playlist_tracks_by_list_id_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        18 => wire__crate__api__sdk__get_song_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
-        20 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
-        21 => wire__crate__api__sdk__import_session_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__sdk__get_song_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
+        21 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
         22 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
         23 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
         24 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
@@ -2651,6 +2704,49 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::CloudPlaylistPageDto>
     for crate::api::dto::CloudPlaylistPageDto
 {
     fn into_into_dart(self) -> crate::api::dto::CloudPlaylistPageDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dto::DeviceProfileDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.device_id.into_into_dart().into_dart(),
+            self.android_id.into_into_dart().into_dart(),
+            self.brand.into_into_dart().into_dart(),
+            self.model.into_into_dart().into_dart(),
+            self.manufacturer.into_into_dart().into_dart(),
+            self.baseband_version.into_into_dart().into_dart(),
+            self.available_ram_bytes.into_into_dart().into_dart(),
+            self.available_internal_storage_bytes
+                .into_into_dart()
+                .into_dart(),
+            self.available_external_storage_bytes
+                .into_into_dart()
+                .into_dart(),
+            self.battery_level.into_into_dart().into_dart(),
+            self.battery_status.into_into_dart().into_dart(),
+            self.has_accelerometer.into_into_dart().into_dart(),
+            self.has_gravity.into_into_dart().into_dart(),
+            self.has_gyroscope.into_into_dart().into_dart(),
+            self.has_light.into_into_dart().into_dart(),
+            self.has_magnetic_field.into_into_dart().into_dart(),
+            self.has_orientation.into_into_dart().into_dart(),
+            self.has_pressure.into_into_dart().into_dart(),
+            self.has_step_counter.into_into_dart().into_dart(),
+            self.has_ambient_temperature.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dto::DeviceProfileDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::DeviceProfileDto>
+    for crate::api::dto::DeviceProfileDto
+{
+    fn into_into_dart(self) -> crate::api::dto::DeviceProfileDto {
         self
     }
 }
@@ -3523,6 +3619,32 @@ impl SseEncode for crate::api::dto::CloudPlaylistPageDto {
         <u32>::sse_encode(self.page, serializer);
         <u32>::sse_encode(self.page_size, serializer);
         <Option<u64>>::sse_encode(self.total, serializer);
+    }
+}
+
+impl SseEncode for crate::api::dto::DeviceProfileDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.device_id, serializer);
+        <Option<String>>::sse_encode(self.android_id, serializer);
+        <Option<String>>::sse_encode(self.brand, serializer);
+        <Option<String>>::sse_encode(self.model, serializer);
+        <Option<String>>::sse_encode(self.manufacturer, serializer);
+        <Option<String>>::sse_encode(self.baseband_version, serializer);
+        <Option<u64>>::sse_encode(self.available_ram_bytes, serializer);
+        <Option<u64>>::sse_encode(self.available_internal_storage_bytes, serializer);
+        <Option<u64>>::sse_encode(self.available_external_storage_bytes, serializer);
+        <Option<u32>>::sse_encode(self.battery_level, serializer);
+        <Option<u32>>::sse_encode(self.battery_status, serializer);
+        <bool>::sse_encode(self.has_accelerometer, serializer);
+        <bool>::sse_encode(self.has_gravity, serializer);
+        <bool>::sse_encode(self.has_gyroscope, serializer);
+        <bool>::sse_encode(self.has_light, serializer);
+        <bool>::sse_encode(self.has_magnetic_field, serializer);
+        <bool>::sse_encode(self.has_orientation, serializer);
+        <bool>::sse_encode(self.has_pressure, serializer);
+        <bool>::sse_encode(self.has_step_counter, serializer);
+        <bool>::sse_encode(self.has_ambient_temperature, serializer);
     }
 }
 

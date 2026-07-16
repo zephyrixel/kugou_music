@@ -9,6 +9,7 @@ import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
 import 'package:kgmusic/core/native/secure_session_store.dart';
 import 'package:kgmusic/core/native/rust_bridge.dart' as bridge;
+import 'package:kgmusic/core/platform/device_profile.dart';
 
 abstract interface class AuthSdk {
   Future<void> initialize();
@@ -16,6 +17,7 @@ abstract interface class AuthSdk {
   Future<void> sendSmsCode(String mobile);
   Future<SmsLoginResult> loginBySms(String mobile, String code);
   Future<AuthSnapshot> refreshLogin();
+  Future<AuthSnapshot> ensureDeviceRegistered();
   Future<AuthSnapshot> registerDevice();
   Future<void> logout();
 }
@@ -101,23 +103,38 @@ abstract interface class MusicSdk
         LibrarySdk {}
 
 class KugouMusicSdk implements MusicSdk, LyricsSdk {
-  KugouMusicSdk(FlutterSecureStorage storage)
-    : _sessions = SecureSessionStore(storage, key: sessionKey);
+  KugouMusicSdk(
+    FlutterSecureStorage storage, {
+    DeviceProfileSource? deviceProfiles,
+  }) : _storage = storage,
+       _deviceProfiles = deviceProfiles ?? AndroidDeviceProfileSource(storage),
+       _sessions = SecureSessionStore(storage, key: sessionKey);
 
-  static const sessionKey = 'kugou_sdk_lite_session_v1';
+  static const sessionKey = 'kugou_sdk_lite_session_v2';
+  static const legacySessionKey = 'kugou_sdk_lite_session_v1';
+  final FlutterSecureStorage _storage;
+  final DeviceProfileSource _deviceProfiles;
   final SecureSessionStore _sessions;
 
   @override
   Future<void> initialize() async {
-    final persisted = await _sessions.read();
-    if (persisted != null) {
-      try {
-        await bridge.importSession(value: persisted);
-      } catch (_) {
-        await _sessions.delete();
-      }
+    if (await _storage.read(key: legacySessionKey) != null) {
+      await _storage.delete(key: legacySessionKey);
     }
-    await bridge.initializeSdk();
+    final deviceProfile = await _deviceProfiles.read();
+    final persisted = await _sessions.read();
+    try {
+      await bridge.initializeSdk(
+        deviceProfile: _deviceProfileDto(deviceProfile),
+        persistedSession: persisted,
+      );
+    } on bridge.BridgeError {
+      if (persisted == null) rethrow;
+      await _sessions.delete();
+      await bridge.initializeSdk(
+        deviceProfile: _deviceProfileDto(deviceProfile),
+      );
+    }
     await _persistSession();
   }
 
@@ -125,8 +142,10 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
   Future<AuthSnapshot> authState() async => _auth(await bridge.getAuthState());
 
   @override
-  Future<void> sendSmsCode(String mobile) =>
-      _guard(() => bridge.sendSmsCode(mobile: mobile), persist: true);
+  Future<void> sendSmsCode(String mobile) async {
+    await ensureDeviceRegistered();
+    await _guard(() => bridge.sendSmsCode(mobile: mobile), persist: true);
+  }
 
   @override
   Future<SmsLoginResult> loginBySms(String mobile, String code) =>
@@ -141,6 +160,12 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
   @override
   Future<AuthSnapshot> refreshLogin() =>
       _guard(() async => _auth(await bridge.refreshLogin()), persist: true);
+
+  @override
+  Future<AuthSnapshot> ensureDeviceRegistered() => _guard(
+    () async => _auth(await bridge.ensureDeviceRegistered()),
+    persist: true,
+  );
 
   @override
   Future<AuthSnapshot> registerDevice() =>
@@ -620,6 +645,30 @@ AuthSnapshot _auth(bridge.AuthStateDto value) => AuthSnapshot(
   vipType: value.vipType,
   fingerprintRegistered: value.fingerprintRegistered,
 );
+
+bridge.DeviceProfileDto _deviceProfileDto(DeviceProfile value) =>
+    bridge.DeviceProfileDto(
+      deviceId: value.deviceId,
+      androidId: value.androidId,
+      brand: value.brand,
+      model: value.model,
+      manufacturer: value.manufacturer,
+      basebandVersion: value.basebandVersion,
+      availableRamBytes: value.availableRamBytes,
+      availableInternalStorageBytes: value.availableInternalStorageBytes,
+      availableExternalStorageBytes: value.availableExternalStorageBytes,
+      batteryLevel: value.batteryLevel,
+      batteryStatus: value.batteryStatus,
+      hasAccelerometer: value.hasAccelerometer,
+      hasGravity: value.hasGravity,
+      hasGyroscope: value.hasGyroscope,
+      hasLight: value.hasLight,
+      hasMagneticField: value.hasMagneticField,
+      hasOrientation: value.hasOrientation,
+      hasPressure: value.hasPressure,
+      hasStepCounter: value.hasStepCounter,
+      hasAmbientTemperature: value.hasAmbientTemperature,
+    );
 
 AudioQuality _audioQuality(bridge.AudioQualityDto value) => switch (value) {
   bridge.AudioQualityDto.standard => AudioQuality.standard,

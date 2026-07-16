@@ -44,6 +44,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_box_autoadd_bool(dynamic raw);
 
   @protected
+  DeviceProfileDto dco_decode_box_autoadd_device_profile_dto(dynamic raw);
+
+  @protected
   HeartRadioRequestDto dco_decode_box_autoadd_heart_radio_request_dto(
     dynamic raw,
   );
@@ -86,6 +89,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   CloudPlaylistPageDto dco_decode_cloud_playlist_page_dto(dynamic raw);
+
+  @protected
+  DeviceProfileDto dco_decode_device_profile_dto(dynamic raw);
 
   @protected
   HeartRadioRequestDto dco_decode_heart_radio_request_dto(dynamic raw);
@@ -295,6 +301,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_box_autoadd_bool(SseDeserializer deserializer);
 
   @protected
+  DeviceProfileDto sse_decode_box_autoadd_device_profile_dto(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   HeartRadioRequestDto sse_decode_box_autoadd_heart_radio_request_dto(
     SseDeserializer deserializer,
   );
@@ -343,6 +354,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CloudPlaylistPageDto sse_decode_cloud_playlist_page_dto(
     SseDeserializer deserializer,
   );
+
+  @protected
+  DeviceProfileDto sse_decode_device_profile_dto(SseDeserializer deserializer);
 
   @protected
   HeartRadioRequestDto sse_decode_heart_radio_request_dto(
@@ -596,6 +610,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_bool(bool self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_device_profile_dto(
+    DeviceProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_heart_radio_request_dto(
     HeartRadioRequestDto self,
     SseSerializer serializer,
@@ -655,6 +675,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_cloud_playlist_page_dto(
     CloudPlaylistPageDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_device_profile_dto(
+    DeviceProfileDto self,
     SseSerializer serializer,
   );
 

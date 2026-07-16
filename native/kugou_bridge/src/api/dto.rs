@@ -1,4 +1,28 @@
 #[derive(Debug, Clone)]
+pub struct DeviceProfileDto {
+    pub device_id: String,
+    pub android_id: Option<String>,
+    pub brand: Option<String>,
+    pub model: Option<String>,
+    pub manufacturer: Option<String>,
+    pub baseband_version: Option<String>,
+    pub available_ram_bytes: Option<u64>,
+    pub available_internal_storage_bytes: Option<u64>,
+    pub available_external_storage_bytes: Option<u64>,
+    pub battery_level: Option<u32>,
+    pub battery_status: Option<u32>,
+    pub has_accelerometer: bool,
+    pub has_gravity: bool,
+    pub has_gyroscope: bool,
+    pub has_light: bool,
+    pub has_magnetic_field: bool,
+    pub has_orientation: bool,
+    pub has_pressure: bool,
+    pub has_step_counter: bool,
+    pub has_ambient_temperature: bool,
+}
+
+#[derive(Debug, Clone)]
 pub struct AuthStateDto {
     pub authenticated: bool,
     pub user_id: Option<u64>,

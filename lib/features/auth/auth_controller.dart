@@ -132,6 +132,13 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       snapshot = await _sdk.refreshLogin();
       status = AuthStatus.authenticated;
       await _markRefreshed();
+      if (!snapshot.fingerprintRegistered) {
+        try {
+          snapshot = await _sdk.ensureDeviceRegistered();
+        } catch (error) {
+          message = '登录已刷新，但设备登记失败：$error';
+        }
+      }
     } on MusicSdkException catch (error) {
       if (error.expired || error.authenticationRequired) {
         await _expire(error.message);
@@ -148,10 +155,11 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _retryFingerprint() async {
     try {
-      snapshot = await _sdk.registerDevice();
+      snapshot = await _sdk.ensureDeviceRegistered();
       _notify();
-    } catch (_) {
-      // A valid login is more valuable than blocking the app on risk service.
+    } catch (error) {
+      message = '设备登记失败，将在稍后重试：$error';
+      _notify();
     }
   }
 

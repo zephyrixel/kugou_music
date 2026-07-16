@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'dto.freezed.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 class AudioHashesDto {
   final String? standard;
@@ -213,6 +213,103 @@ class CloudPlaylistPageDto {
           page == other.page &&
           pageSize == other.pageSize &&
           total == other.total;
+}
+
+class DeviceProfileDto {
+  final String deviceId;
+  final String? androidId;
+  final String? brand;
+  final String? model;
+  final String? manufacturer;
+  final String? basebandVersion;
+  final int? availableRamBytes;
+  final int? availableInternalStorageBytes;
+  final int? availableExternalStorageBytes;
+  final int? batteryLevel;
+  final int? batteryStatus;
+  final bool hasAccelerometer;
+  final bool hasGravity;
+  final bool hasGyroscope;
+  final bool hasLight;
+  final bool hasMagneticField;
+  final bool hasOrientation;
+  final bool hasPressure;
+  final bool hasStepCounter;
+  final bool hasAmbientTemperature;
+
+  const DeviceProfileDto({
+    required this.deviceId,
+    this.androidId,
+    this.brand,
+    this.model,
+    this.manufacturer,
+    this.basebandVersion,
+    this.availableRamBytes,
+    this.availableInternalStorageBytes,
+    this.availableExternalStorageBytes,
+    this.batteryLevel,
+    this.batteryStatus,
+    required this.hasAccelerometer,
+    required this.hasGravity,
+    required this.hasGyroscope,
+    required this.hasLight,
+    required this.hasMagneticField,
+    required this.hasOrientation,
+    required this.hasPressure,
+    required this.hasStepCounter,
+    required this.hasAmbientTemperature,
+  });
+
+  @override
+  int get hashCode =>
+      deviceId.hashCode ^
+      androidId.hashCode ^
+      brand.hashCode ^
+      model.hashCode ^
+      manufacturer.hashCode ^
+      basebandVersion.hashCode ^
+      availableRamBytes.hashCode ^
+      availableInternalStorageBytes.hashCode ^
+      availableExternalStorageBytes.hashCode ^
+      batteryLevel.hashCode ^
+      batteryStatus.hashCode ^
+      hasAccelerometer.hashCode ^
+      hasGravity.hashCode ^
+      hasGyroscope.hashCode ^
+      hasLight.hashCode ^
+      hasMagneticField.hashCode ^
+      hasOrientation.hashCode ^
+      hasPressure.hashCode ^
+      hasStepCounter.hashCode ^
+      hasAmbientTemperature.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeviceProfileDto &&
+          runtimeType == other.runtimeType &&
+          deviceId == other.deviceId &&
+          androidId == other.androidId &&
+          brand == other.brand &&
+          model == other.model &&
+          manufacturer == other.manufacturer &&
+          basebandVersion == other.basebandVersion &&
+          availableRamBytes == other.availableRamBytes &&
+          availableInternalStorageBytes ==
+              other.availableInternalStorageBytes &&
+          availableExternalStorageBytes ==
+              other.availableExternalStorageBytes &&
+          batteryLevel == other.batteryLevel &&
+          batteryStatus == other.batteryStatus &&
+          hasAccelerometer == other.hasAccelerometer &&
+          hasGravity == other.hasGravity &&
+          hasGyroscope == other.hasGyroscope &&
+          hasLight == other.hasLight &&
+          hasMagneticField == other.hasMagneticField &&
+          hasOrientation == other.hasOrientation &&
+          hasPressure == other.hasPressure &&
+          hasStepCounter == other.hasStepCounter &&
+          hasAmbientTemperature == other.hasAmbientTemperature;
 }
 
 class HeartRadioRequestDto {

@@ -14,7 +14,7 @@ features/*
     │       ├── LibraryStore ── Drift CRUD / watch
     │       └── LibraryRemote ── core/native/MusicSdk
     │                              └── FRB ── Rust kugou_bridge
-    │                                               └── kugou_sdk 0.2.4 / Lite
+    │                                               └── kugou_sdk 0.2.5 / Lite
     ├── core/cache/MusicRepository ── 推荐、搜索与资料响应缓存
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
@@ -36,6 +36,18 @@ features/*
 - `lib/features/auth/`、`account/`、`playlists/`：SMS 登录、账号生命周期与歌单管理。
 - `lib/src/rust/`：FRB 自动生成代码，业务页面不得直接依赖。
 - `native/kugou_bridge/`：Rust 异步运行时、Lite SDK 调用和桥接错误映射。
+
+## 设备身份与会话
+
+- Android 启动时通过独立平台通道采集 `ANDROID_ID`、品牌、型号、厂商及免权限的
+  内存、存储、电池和传感器信息；无法取得 `ANDROID_ID` 时使用安全存储中的稳定安装 ID。
+- Rust 必须收到 `DeviceProfileDto` 后才能初始化运行时，并通过
+  `DeviceIdentity::builder` 生成稳定的 `mid/guid/uuid`；生产路径禁止
+  `Session::random()`。
+- 登录会话使用 schema v2 存入 `flutter_secure_storage`。恢复时必须与当前设备身份
+  匹配，并以本次采集的数据刷新设备属性，同时保留 token、cookies、`t1` 和 `dfid`。
+- 首次短信发码前必须完成 `register_dev`；播放风控重试可强制重新登记。设备指纹
+  和账号登录态均不进入 Drift、日志或普通接口缓存。
 
 ## 可维护性约束
 

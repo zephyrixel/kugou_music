@@ -7,8 +7,14 @@ import android.os.Bundle
 import android.view.Display
 import android.view.WindowManager
 import com.ryanheise.audioservice.AudioServiceActivity
+import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : AudioServiceActivity() {
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        DeviceProfileChannel.register(this, flutterEngine)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferHighestRefreshRate()
