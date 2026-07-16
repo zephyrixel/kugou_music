@@ -92,7 +92,7 @@ void main() {
   );
 }
 
-class _MembershipSdk implements MusicSdk {
+class _MembershipSdk implements MembershipSdk {
   int claimCalls = 0;
   int upgradeCalls = 0;
   int recordCalls = 0;
@@ -123,5 +123,5 @@ class _MembershipSdk implements MusicSdk {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Future<UserVip> userVip() async => const UserVip();
 }

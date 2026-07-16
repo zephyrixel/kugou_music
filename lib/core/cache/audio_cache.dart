@@ -18,7 +18,12 @@ class CachedAudioHandle {
   final File file;
 }
 
-class AudioCacheManager {
+abstract interface class AudioCache {
+  Future<CachedAudioHandle> sourceFor(Song song, PlayableResolution resolution);
+  void setActive(CachedAudioHandle? handle);
+}
+
+class AudioCacheManager implements AudioCache {
   AudioCacheManager._({required this._directory, required this.maxBytes});
 
   static const defaultMaxBytes = 1024 * 1024 * 1024;
@@ -45,6 +50,7 @@ class AudioCacheManager {
     return manager;
   }
 
+  @override
   Future<CachedAudioHandle> sourceFor(
     Song song,
     PlayableResolution resolution,
@@ -66,6 +72,7 @@ class AudioCacheManager {
     return CachedAudioHandle(source: source, file: file);
   }
 
+  @override
   void setActive(CachedAudioHandle? handle) {
     final previousPath = _activePath;
     _activePath = handle?.file.path;

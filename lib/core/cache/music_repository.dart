@@ -14,7 +14,7 @@ class MusicRepository {
 
   static const _keyVersion = 'v1';
 
-  final MusicSdk _remote;
+  final BrowseSdk _remote;
   final AppDatabase _database;
   final Map<String, Future<Object?>> _inFlight = {};
 
@@ -82,9 +82,6 @@ class MusicRepository {
       pageSize: pageSize,
     ),
   );
-
-  Future<void> clearAccountCache(int userId) =>
-      _database.clearAccountCache(userId: userId);
 
   Stream<T> _cachedStream<T>({
     required String key,

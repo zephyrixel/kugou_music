@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/dto.dart';
 import 'api/sdk.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -57,11 +58,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlaylistEditInputDto dco_decode_box_autoadd_playlist_edit_input_dto(
-    dynamic raw,
-  );
-
-  @protected
-  PlaylistTracksRequestDto dco_decode_box_autoadd_playlist_tracks_request_dto(
     dynamic raw,
   );
 
@@ -210,13 +206,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  PlaylistTracksRequestDto dco_decode_playlist_tracks_request_dto(dynamic raw);
-
-  @protected
   RecommendationBatchDto dco_decode_recommendation_batch_dto(dynamic raw);
-
-  @protected
-  RecommendationDto dco_decode_recommendation_dto(dynamic raw);
 
   @protected
   RecommendationHistoryActionDto dco_decode_recommendation_history_action_dto(
@@ -232,9 +222,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ResolvePlaybackRequestDto dco_decode_resolve_playback_request_dto(
     dynamic raw,
   );
-
-  @protected
-  SdkCapabilitiesDto dco_decode_sdk_capabilities_dto(dynamic raw);
 
   @protected
   SearchRequestDto dco_decode_search_request_dto(dynamic raw);
@@ -319,11 +306,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlaylistEditInputDto sse_decode_box_autoadd_playlist_edit_input_dto(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  PlaylistTracksRequestDto sse_decode_box_autoadd_playlist_tracks_request_dto(
     SseDeserializer deserializer,
   );
 
@@ -504,17 +486,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  PlaylistTracksRequestDto sse_decode_playlist_tracks_request_dto(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   RecommendationBatchDto sse_decode_recommendation_batch_dto(
     SseDeserializer deserializer,
   );
-
-  @protected
-  RecommendationDto sse_decode_recommendation_dto(SseDeserializer deserializer);
 
   @protected
   RecommendationHistoryActionDto sse_decode_recommendation_history_action_dto(
@@ -528,11 +502,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ResolvePlaybackRequestDto sse_decode_resolve_playback_request_dto(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  SdkCapabilitiesDto sse_decode_sdk_capabilities_dto(
     SseDeserializer deserializer,
   );
 
@@ -637,12 +606,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_playlist_edit_input_dto(
     PlaylistEditInputDto self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_playlist_tracks_request_dto(
-    PlaylistTracksRequestDto self,
     SseSerializer serializer,
   );
 
@@ -872,20 +835,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_playlist_tracks_request_dto(
-    PlaylistTracksRequestDto self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_recommendation_batch_dto(
     RecommendationBatchDto self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_recommendation_dto(
-    RecommendationDto self,
     SseSerializer serializer,
   );
 
@@ -904,12 +855,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_resolve_playback_request_dto(
     ResolvePlaybackRequestDto self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_sdk_capabilities_dto(
-    SdkCapabilitiesDto self,
     SseSerializer serializer,
   );
 

@@ -6,7 +6,7 @@ import 'package:kgmusic/core/widgets/app_error_bus.dart';
 class RecommendationReporter {
   RecommendationReporter(this._sdk, this._errors);
 
-  final MusicSdk _sdk;
+  final RecommendationSdk _sdk;
   final AppErrorBus _errors;
   Future<void> _tail = Future<void>.value();
 

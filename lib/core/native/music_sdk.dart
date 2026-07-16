@@ -7,17 +7,37 @@ import 'package:kgmusic/core/models/recommendation.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
-import 'package:kgmusic/src/rust/api/sdk.dart' as bridge;
+import 'package:kgmusic/core/native/secure_session_store.dart';
+import 'package:kgmusic/core/native/rust_bridge.dart' as bridge;
 
-abstract interface class MusicSdk {
-  Future<SdkCapabilities> initialize();
+abstract interface class AuthSdk {
+  Future<void> initialize();
   Future<AuthSnapshot> authState();
   Future<void> sendSmsCode(String mobile);
   Future<SmsLoginResult> loginBySms(String mobile, String code);
   Future<AuthSnapshot> refreshLogin();
   Future<AuthSnapshot> registerDevice();
   Future<void> logout();
+}
+
+abstract interface class BrowseSdk {
   Future<List<Song>> everydayRecommendations();
+  Future<SearchPage> search(String keyword, {int page = 1, int pageSize = 30});
+  Future<PlaylistSearchPage> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  });
+  Future<UserProfile> userProfile();
+  Future<UserVip> userVip();
+  Future<SearchPage> publicPlaylistTracks(
+    String globalCollectionId, {
+    int page = 1,
+    int pageSize = 50,
+  });
+}
+
+abstract interface class RecommendationSdk {
   Future<RecommendationBatch> personalFm(PersonalFmInput input);
   Future<RecommendationBatch> heartRadio({
     List<int> currentMixSongIds = const [],
@@ -30,22 +50,26 @@ abstract interface class MusicSdk {
     required int remainSongCount,
   });
   Future<void> reportRecommendationFavoriteClick(Song song);
-  Future<SearchPage> search(String keyword, {int page = 1, int pageSize = 30});
-  Future<PlaylistSearchPage> searchPlaylists(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  });
+}
+
+abstract interface class PlaybackSdk {
   Future<PlaybackResolution> resolve(
     Song song, {
     AudioQuality quality = AudioQuality.standard,
     bool freePreview = false,
   });
-  Future<UserProfile> userProfile();
+}
+
+abstract interface class PlayerSdk implements AuthSdk, PlaybackSdk {}
+
+abstract interface class MembershipSdk {
   Future<UserVip> userVip();
   Future<VipClaimResult> claimDayVip();
   Future<VipUpgradeResult> upgradeDayVip();
   Future<VipMonthRecord> monthVipRecord();
+}
+
+abstract interface class LibrarySdk {
   Future<HistoryPage> cloudHistory({String? cursor});
   Future<void> uploadHistory(List<HistoryUpload> items);
   Future<PlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50});
@@ -59,11 +83,6 @@ abstract interface class MusicSdk {
     int page = 1,
     int pageSize = 50,
   });
-  Future<SearchPage> publicPlaylistTracks(
-    String globalCollectionId, {
-    int page = 1,
-    int pageSize = 50,
-  });
   Future<PlaylistMutation> createPlaylist(String name, {required bool private});
   Future<PlaylistMutation> collectPlaylist(PlaylistSearchHit playlist);
   Future<void> deletePlaylist({required int listId, required bool collected});
@@ -72,39 +91,33 @@ abstract interface class MusicSdk {
   Future<void> removeSongFromPlaylist(int listId, int fileId);
 }
 
+abstract interface class MusicSdk
+    implements
+        PlayerSdk,
+        BrowseSdk,
+        RecommendationSdk,
+        MembershipSdk,
+        LibrarySdk {}
+
 class KugouMusicSdk implements MusicSdk, LyricsSdk {
-  KugouMusicSdk(this._storage);
+  KugouMusicSdk(FlutterSecureStorage storage)
+    : _sessions = SecureSessionStore(storage, key: sessionKey);
 
   static const sessionKey = 'kugou_sdk_lite_session_v1';
-  final FlutterSecureStorage _storage;
+  final SecureSessionStore _sessions;
 
   @override
-  Future<SdkCapabilities> initialize() async {
-    final persisted = await _storage.read(key: sessionKey);
+  Future<void> initialize() async {
+    final persisted = await _sessions.read();
     if (persisted != null) {
       try {
         await bridge.importSession(value: persisted);
       } catch (_) {
-        await _storage.delete(key: sessionKey);
+        await _sessions.delete();
       }
     }
-    final value = await bridge.initializeSdk();
-    if (value.platform != 'lite') {
-      throw const MusicSdkException('SDK 返回了非 Lite 平台，已拒绝启动');
-    }
+    await bridge.initializeSdk();
     await _persistSession();
-    return SdkCapabilities(
-      platform: value.platform,
-      songSearch: value.songSearch,
-      playlistSearch: value.playlistSearch,
-      dailyRecommendation: value.dailyRecommendation,
-      smsAuth: value.smsAuth,
-      cloudLibrary: value.cloudLibrary,
-      playlistMutations: value.playlistMutations,
-      personalFm: value.personalFm,
-      heartRadio: value.heartRadio,
-      recommendationReports: value.recommendationReports,
-    );
   }
 
   @override
@@ -133,16 +146,12 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
       _guard(() async => _auth(await bridge.registerDevice()), persist: true);
 
   @override
-  Future<void> logout() => _guard(() async {
-    await bridge.logout();
-    await _persistSession();
-  });
+  Future<void> logout() => _guard(bridge.logout);
 
   @override
   Future<List<Song>> everydayRecommendations() => _guard(() async {
     final result = await bridge.getEverydayRecommendations();
-    await _persistSession();
-    return result.songs.map(_songFromDto).toList(growable: false);
+    return result.map(_songFromDto).toList(growable: false);
   });
 
   @override
@@ -163,7 +172,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
             markList: input.markList,
           ),
         );
-        await _persistSession();
         return _recommendationBatch(value);
       });
 
@@ -176,7 +184,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
         currentMixSongIds: currentMixSongIds,
       ),
     );
-    await _persistSession();
     return _recommendationBatch(value);
   });
 
@@ -232,7 +239,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
         pageSize: pageSize,
       ),
     );
-    await _persistSession();
     return SearchPage(
       songs: result.items.map(_songFromDto).toList(growable: false),
       page: result.page,
@@ -281,7 +287,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
         freePreview: freePreview,
       ),
     );
-    await _persistSession();
     return value.when(
       playable: (url, artworkUrl, quality, bitRate, durationSecs) =>
           PlayableResolution(
@@ -300,8 +305,7 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
             bitRate: bitRate,
             durationSecs: durationSecs,
           ),
-      denied: (status, failProcess) =>
-          DeniedResolution(status: status, failProcess: failProcess),
+      denied: DeniedResolution.new,
       unavailable: UnavailableResolution.new,
     );
   });
@@ -440,7 +444,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
           page: value.page,
           pageSize: value.pageSize,
           total: value.total,
-          totalVersion: value.totalVersion,
         );
       });
 
@@ -454,15 +457,14 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
     // `tracks_by_listid` is oldest-first. Prefer gid whenever present (0.2.2+).
     final gid = playlist.globalCollectionId?.trim();
     final hasGid = gid != null && gid.isNotEmpty;
-    return _tracks(
-      bridge.PlaylistTracksRequestDto(
-        listId: playlist.listId,
-        globalCollectionId: hasGid ? gid : playlist.globalCollectionId,
-        owned: !playlist.isCollected && !hasGid,
-        page: page,
-        pageSize: pageSize,
-      ),
-    );
+    if (hasGid) {
+      return _tracksByGid(gid, page: page, pageSize: pageSize);
+    }
+    final listId = playlist.listId;
+    if (listId == null) {
+      throw const MusicSdkException('歌单缺少可用的云端标识');
+    }
+    return _tracksByListId(listId, page: page, pageSize: pageSize);
   }
 
   @override
@@ -470,39 +472,40 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
     int listId, {
     int page = 1,
     int pageSize = 50,
-  }) => _tracks(
-    bridge.PlaylistTracksRequestDto(
-      listId: listId,
-      owned: true,
-      page: page,
-      pageSize: pageSize,
-    ),
-  );
+  }) => _tracksByListId(listId, page: page, pageSize: pageSize);
 
   @override
   Future<SearchPage> publicPlaylistTracks(
     String globalCollectionId, {
     int page = 1,
     int pageSize = 50,
-  }) => _tracks(
-    bridge.PlaylistTracksRequestDto(
+  }) => _tracksByGid(globalCollectionId, page: page, pageSize: pageSize);
+
+  Future<SearchPage> _tracksByGid(
+    String globalCollectionId, {
+    required int page,
+    required int pageSize,
+  }) => _guard(() async {
+    final value = await bridge.getPlaylistTracksByGid(
       globalCollectionId: globalCollectionId,
-      owned: false,
       page: page,
       pageSize: pageSize,
-    ),
-  );
+    );
+    return _searchPage(value);
+  });
 
-  Future<SearchPage> _tracks(bridge.PlaylistTracksRequestDto request) =>
-      _guard(() async {
-        final value = await bridge.getPlaylistTracks(request: request);
-        return SearchPage(
-          songs: value.items.map(_songFromDto).toList(growable: false),
-          page: value.page,
-          pageSize: value.pageSize,
-          total: value.total,
-        );
-      });
+  Future<SearchPage> _tracksByListId(
+    int listId, {
+    required int page,
+    required int pageSize,
+  }) => _guard(() async {
+    final value = await bridge.getPlaylistTracksByListId(
+      listId: listId,
+      page: page,
+      pageSize: pageSize,
+    );
+    return _searchPage(value);
+  });
 
   @override
   Future<PlaylistMutation> createPlaylist(
@@ -513,10 +516,8 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
       name: name,
       private: private,
     );
-    final listId = value.listId;
-    if (listId == null) throw const MusicSdkException('云端未返回新歌单 ID');
     return PlaylistMutation(
-      listId: listId,
+      listId: value.listId,
       globalCollectionId: value.globalCollectionId,
     );
   }, persist: true);
@@ -529,10 +530,8 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
           ownerUserId: playlist.creatorUserId,
           name: playlist.name,
         );
-        final listId = value.listId;
-        if (listId == null) throw const MusicSdkException('云端未返回收藏歌单 ID');
         return PlaylistMutation(
-          listId: listId,
+          listId: value.listId,
           globalCollectionId: value.globalCollectionId,
         );
       }, persist: true);
@@ -553,7 +552,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
         private: input.private,
         intro: input.intro,
         tags: input.tags,
-        totalVersion: input.totalVersion,
       ),
     ),
     persist: true,
@@ -577,7 +575,7 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
 
   Future<T> _guard<T>(
     Future<T> Function() action, {
-    bool persist = false,
+    bool persist = true,
   }) async {
     try {
       final value = await action();
@@ -597,9 +595,16 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
 
   Future<void> _persistSession() async {
     final value = await bridge.exportSession();
-    await _storage.write(key: sessionKey, value: value);
+    await _sessions.writeIfChanged(value);
   }
 }
+
+SearchPage _searchPage(bridge.SongPageDto value) => SearchPage(
+  songs: value.items.map(_songFromDto).toList(growable: false),
+  page: value.page,
+  pageSize: value.pageSize,
+  total: value.total,
+);
 
 AuthSnapshot _auth(bridge.AuthStateDto value) => AuthSnapshot(
   authenticated: value.authenticated,
@@ -724,31 +729,6 @@ RecommendationBatch _recommendationBatch(bridge.RecommendationBatchDto value) =>
       songs: value.songs.map(_songFromDto).toList(growable: false),
     );
 
-class SdkCapabilities {
-  const SdkCapabilities({
-    required this.platform,
-    required this.songSearch,
-    required this.playlistSearch,
-    required this.dailyRecommendation,
-    required this.smsAuth,
-    required this.cloudLibrary,
-    required this.playlistMutations,
-    this.personalFm = false,
-    this.heartRadio = false,
-    this.recommendationReports = false,
-  });
-  final String platform;
-  final bool songSearch;
-  final bool playlistSearch;
-  final bool dailyRecommendation;
-  final bool smsAuth;
-  final bool cloudLibrary;
-  final bool playlistMutations;
-  final bool personalFm;
-  final bool heartRadio;
-  final bool recommendationReports;
-}
-
 class SearchPage {
   const SearchPage({
     required this.songs,
@@ -828,9 +808,7 @@ class PreviewResolution extends PlayableResolution {
 }
 
 class DeniedResolution extends PlaybackResolution {
-  const DeniedResolution({this.status, this.failProcess});
-  final int? status;
-  final int? failProcess;
+  const DeniedResolution();
 }
 
 class UnavailableResolution extends PlaybackResolution {

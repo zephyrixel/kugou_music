@@ -4,6 +4,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
+import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
@@ -94,7 +96,7 @@ void main() {
   });
 }
 
-class _FakeMusicSdk implements MusicSdk {
+class _FakeMusicSdk implements BrowseSdk {
   _FakeMusicSdk(this._dailyLoader);
 
   final Future<List<Song>> Function() _dailyLoader;
@@ -107,5 +109,31 @@ class _FakeMusicSdk implements MusicSdk {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Future<SearchPage> search(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async => SearchPage(songs: const [], page: page, pageSize: pageSize);
+
+  @override
+  Future<PlaylistSearchPage> searchPlaylists(
+    String keyword, {
+    int page = 1,
+    int pageSize = 30,
+  }) async =>
+      PlaylistSearchPage(items: const [], page: page, pageSize: pageSize);
+
+  @override
+  Future<SearchPage> publicPlaylistTracks(
+    String globalCollectionId, {
+    int page = 1,
+    int pageSize = 50,
+  }) async => SearchPage(songs: const [], page: page, pageSize: pageSize);
+
+  @override
+  Future<UserProfile> userProfile() async =>
+      const UserProfile(displayName: 'test');
+
+  @override
+  Future<UserVip> userVip() async => const UserVip();
 }

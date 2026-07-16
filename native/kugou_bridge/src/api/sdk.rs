@@ -1,19 +1,17 @@
 use kugou_sdk::user::{YOUTH_DAY_VIP_SOURCE_MINE, YouthDayVipClaimRequest};
 use kugou_sdk::{
-    AudioQuality, ClientPlaylistItem, CollectRequest, FreshSongAction, FreshSongsRequest,
-    HeartRadioRequest, HistoryFetchRequest, HistorySongOp, HistoryUploadRequest, KugouClient,
-    KugouError, LyricDocument, LyricFormat, LyricSearchRequest, Pagination, PersonalFmRequest,
-    PlatformProfile, PlaybackOutcome, PlaybackRequest, PlaylistEditRequest, PlaylistKind,
-    PlaylistTrackInput, ReportHistoryRequest, ReportRepeatedRequest, ResourceHashes,
-    SearchPlaylist, SearchRequest, Session, SongRef, UserPlaylist,
+    CollectRequest, FreshSongAction, FreshSongsRequest, HeartRadioRequest, HistoryFetchRequest,
+    HistorySongOp, HistoryUploadRequest, KugouClient, LyricSearchRequest, Pagination,
+    PersonalFmRequest, PlatformProfile, PlaybackOutcome, PlaylistEditRequest, PlaylistKind,
+    PlaylistTrackInput, ReportHistoryRequest, ReportRepeatedRequest, SearchRequest, Session,
+    SongRef,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::{
-    collections::{BTreeMap, HashMap},
-    sync::OnceLock,
-};
+use std::sync::OnceLock;
 use tokio::sync::Mutex;
+
+pub use super::dto::*;
+use super::mapping::*;
 
 const SESSION_SCHEMA_VERSION: u32 = 1;
 const SESSION_PLATFORM: &str = "lite";
@@ -24,387 +22,6 @@ struct KugouRuntime {
 }
 
 static RUNTIME: OnceLock<KugouRuntime> = OnceLock::new();
-
-#[derive(Debug, Clone)]
-pub struct SdkCapabilitiesDto {
-    pub platform: String,
-    pub song_search: bool,
-    pub playlist_search: bool,
-    pub daily_recommendation: bool,
-    pub sms_auth: bool,
-    pub cloud_library: bool,
-    pub playlist_mutations: bool,
-    pub personal_fm: bool,
-    pub heart_radio: bool,
-    pub recommendation_reports: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct AuthStateDto {
-    pub authenticated: bool,
-    pub user_id: Option<u64>,
-    pub vip_type: Option<u32>,
-    pub fingerprint_registered: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct SmsLoginResultDto {
-    pub auth: AuthStateDto,
-    pub fingerprint_warning: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct SearchRequestDto {
-    pub keyword: String,
-    pub page: u32,
-    pub page_size: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct SongPageDto {
-    pub items: Vec<SongDto>,
-    pub page: u32,
-    pub page_size: u32,
-    pub total: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HistorySongDto {
-    pub song: SongDto,
-    pub played_at_secs: Option<u64>,
-    pub play_count: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HistoryPageDto {
-    pub items: Vec<HistorySongDto>,
-    pub cursor: Option<String>,
-    pub has_more: bool,
-    pub total: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HistoryUploadItemDto {
-    pub mix_song_id: u64,
-    pub played_at_secs: u64,
-    pub play_count: u64,
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaylistSearchPageDto {
-    pub items: Vec<PlaylistSearchHitDto>,
-    pub page: u32,
-    pub page_size: u32,
-    pub total: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaylistSearchHitDto {
-    pub special_id: Option<u64>,
-    pub global_collection_id: Option<String>,
-    pub name: String,
-    pub intro: Option<String>,
-    pub artwork_url: Option<String>,
-    pub song_count: Option<u64>,
-    pub play_count: Option<u64>,
-    pub collect_count: Option<u64>,
-    pub creator_name: Option<String>,
-    pub creator_user_id: Option<u64>,
-    pub tags: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct RecommendationDto {
-    pub title: String,
-    pub subtitle: Option<String>,
-    pub artwork_url: Option<String>,
-    pub creation_date: Option<String>,
-    pub songs: Vec<SongDto>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PersonalFmActionDto {
-    Play,
-    Skip,
-    Garbage,
-}
-
-#[derive(Debug, Clone)]
-pub struct PersonalFmRequestDto {
-    pub action: PersonalFmActionDto,
-    pub current_song: Option<SongDto>,
-    pub remain_song_count: u32,
-    pub playtime_secs: Option<u64>,
-    pub mark_list: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct HeartRadioRequestDto {
-    pub current_mix_song_ids: Vec<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct RecommendationBatchDto {
-    pub title: String,
-    pub subtitle: Option<String>,
-    pub mark_list: Option<String>,
-    pub songs: Vec<SongDto>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RecommendationHistoryActionDto {
-    Play,
-    Collect,
-    Trash,
-}
-
-#[derive(Debug, Clone)]
-pub struct RecommendationHistoryItemDto {
-    pub action: RecommendationHistoryActionDto,
-    pub song: SongDto,
-}
-
-#[derive(Debug, Clone)]
-pub struct SongDto {
-    pub id: String,
-    pub title: String,
-    pub artist: Option<String>,
-    pub album: Option<String>,
-    pub duration_secs: Option<u64>,
-    pub artwork_url: Option<String>,
-    pub privilege: Option<i64>,
-    pub album_id: Option<u64>,
-    pub mix_song_id: Option<u64>,
-    pub file_id: Option<u64>,
-    pub hashes: AudioHashesDto,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct AudioHashesDto {
-    pub standard: Option<String>,
-    pub high: Option<String>,
-    pub flac: Option<String>,
-    pub hi_res: Option<String>,
-    pub super_hash: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AudioQualityDto {
-    Standard,
-    High,
-    Flac,
-    HiRes,
-    Super,
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvePlaybackRequestDto {
-    pub song: SongDto,
-    pub quality: AudioQualityDto,
-    pub free_preview: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LyricFormatDto {
-    Krc,
-    Lrc,
-    Plain,
-}
-
-#[derive(Debug, Clone)]
-pub struct LyricWordDto {
-    pub start_ms: u64,
-    pub duration_ms: u64,
-    pub text: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct LyricLineDto {
-    pub start_ms: u64,
-    pub duration_ms: u64,
-    pub text: String,
-    pub words: Vec<LyricWordDto>,
-    pub translation: Option<String>,
-    pub transliteration: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct LyricDocumentDto {
-    pub format: LyricFormatDto,
-    pub offset_ms: i64,
-    pub lines: Vec<LyricLineDto>,
-}
-
-#[derive(Debug, Clone)]
-pub enum LyricFetchDto {
-    Found { document: LyricDocumentDto },
-    NotFound,
-}
-
-#[derive(Debug, Clone)]
-pub enum PlaybackResolutionDto {
-    Playable {
-        url: String,
-        artwork_url: Option<String>,
-        quality: AudioQualityDto,
-        bit_rate: Option<u64>,
-        duration_secs: Option<u64>,
-    },
-    Preview {
-        url: String,
-        artwork_url: Option<String>,
-        quality: AudioQualityDto,
-        end_ms: Option<u64>,
-        bit_rate: Option<u64>,
-        duration_secs: Option<u64>,
-    },
-    Denied {
-        status: Option<i64>,
-        fail_process: Option<i64>,
-    },
-    Unavailable,
-}
-
-#[derive(Debug, Clone)]
-pub struct UserProfileDto {
-    pub user_id: Option<u64>,
-    pub display_name: String,
-    pub username: Option<String>,
-    pub avatar_url: Option<String>,
-    pub gender: Option<i64>,
-    pub birthday: Option<String>,
-    pub city: Option<String>,
-    pub province: Option<String>,
-    pub signature: Option<String>,
-    pub following_count: Option<u64>,
-    pub fan_count: Option<u64>,
-    pub visitor_count: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct UserVipDto {
-    pub vip_type: Option<i64>,
-    pub music_package_type: Option<i64>,
-    pub yearly_type: Option<i64>,
-    pub vip_end_time: Option<String>,
-    pub music_end_time: Option<String>,
-    pub yearly_end_time: Option<String>,
-    pub product_type: Option<String>,
-    pub business_type: Option<String>,
-    pub products: Vec<VipProductDto>,
-}
-
-#[derive(Debug, Clone)]
-pub struct VipProductDto {
-    pub product_type: Option<String>,
-    pub business_type: Option<String>,
-    pub active: bool,
-    pub paid: bool,
-    pub yearly: bool,
-    pub vip_end_time: Option<String>,
-    pub paid_expire_time: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct VipClaimResultDto {
-    pub granted_units: Option<i64>,
-    pub end_time: Option<String>,
-    pub server_time_secs: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct VipUpgradeResultDto {
-    pub status_code: Option<i64>,
-    pub message: Option<String>,
-    pub end_time: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct VipMonthRecordDto {
-    pub claimed_days: Option<u64>,
-    pub claim_dates: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CloudPlaylistDto {
-    pub list_id: Option<u64>,
-    pub global_collection_id: Option<String>,
-    pub name: String,
-    pub intro: Option<String>,
-    pub artwork_url: Option<String>,
-    pub count: Option<u64>,
-    pub list_type: Option<u32>,
-    pub creator_user_id: Option<u64>,
-    pub creator_name: Option<String>,
-    pub is_private: bool,
-    pub is_my_favorite: bool,
-    pub is_default_collect: bool,
-    pub tags: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CloudPlaylistPageDto {
-    pub items: Vec<CloudPlaylistDto>,
-    pub page: u32,
-    pub page_size: u32,
-    pub total: Option<u64>,
-    pub total_version: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaylistTracksRequestDto {
-    pub list_id: Option<u64>,
-    pub global_collection_id: Option<String>,
-    /// Prefer gid path when `global_collection_id` is set (newest-first).
-    /// `owned` only selects `tracks_by_listid` when **no** gid is available
-    /// (oldest-first physical order). Callers should pass gid for UI lists.
-    pub owned: bool,
-    pub page: u32,
-    pub page_size: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaylistEditInputDto {
-    pub list_id: u64,
-    pub name: Option<String>,
-    pub private: Option<bool>,
-    pub intro: Option<String>,
-    pub tags: Option<String>,
-    pub total_version: Option<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaylistMutationDto {
-    pub list_id: Option<u64>,
-    pub global_collection_id: Option<String>,
-    pub name: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaylistTracksMutationDto {
-    pub file_ids: Vec<u64>,
-}
-
-#[derive(Debug, Clone)]
-pub enum BridgeErrorKind {
-    InvalidArgument,
-    Transport,
-    Upstream,
-    AuthenticationRequired,
-    AuthenticationExpired,
-    SecurityChallenge,
-    Unsupported,
-    Internal,
-}
-
-#[derive(Debug, Clone, thiserror::Error)]
-#[error("{message}")]
-pub struct BridgeError {
-    pub kind: BridgeErrorKind,
-    pub message: String,
-    pub code: Option<i64>,
-    pub retryable: bool,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -419,25 +36,9 @@ pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
 }
 
-pub fn initialize_sdk() -> Result<SdkCapabilitiesDto, BridgeError> {
+pub fn initialize_sdk() -> Result<(), BridgeError> {
     runtime()?;
-    Ok(get_sdk_capabilities())
-}
-
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_sdk_capabilities() -> SdkCapabilitiesDto {
-    SdkCapabilitiesDto {
-        platform: SESSION_PLATFORM.to_owned(),
-        song_search: true,
-        playlist_search: true,
-        daily_recommendation: true,
-        sms_auth: true,
-        cloud_library: true,
-        playlist_mutations: true,
-        personal_fm: true,
-        heart_radio: true,
-        recommendation_reports: true,
-    }
+    Ok(())
 }
 
 pub async fn get_auth_state() -> Result<AuthStateDto, BridgeError> {
@@ -571,7 +172,7 @@ pub async fn search_playlists(
     })
 }
 
-pub async fn get_everyday_recommendations() -> Result<RecommendationDto, BridgeError> {
+pub async fn get_everyday_recommendations() -> Result<Vec<SongDto>, BridgeError> {
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
     let response = runtime
@@ -582,13 +183,7 @@ pub async fn get_everyday_recommendations() -> Result<RecommendationDto, BridgeE
         .map_err(BridgeError::from_sdk)?;
     let songs =
         songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
-    Ok(RecommendationDto {
-        title: "每日推荐".to_owned(),
-        subtitle: response.data.sub_title,
-        artwork_url: response.data.cover_img_url,
-        creation_date: response.data.creation_date,
-        songs,
-    })
+    Ok(songs)
 }
 
 pub async fn get_personal_fm(
@@ -725,17 +320,16 @@ pub async fn resolve_playback(
     request: ResolvePlaybackRequestDto,
 ) -> Result<PlaybackResolutionDto, BridgeError> {
     let runtime = runtime()?;
-    let (hash, actual_quality) = select_hash(&request.song.hashes, request.quality)
+    let song = song_dto_to_song_ref(&request.song);
+    let requested_quality = audio_quality_from_dto(request.quality);
+    let (_, actual_quality) = song
+        .resources
+        .select_for(requested_quality)
         .ok_or_else(|| BridgeError::invalid_argument("song has no usable resource hash"))?;
-    let mut playback = PlaybackRequest::new(hash)
-        .quality(actual_quality)
+    let playback = song
+        .playback_request(requested_quality)
+        .ok_or_else(|| BridgeError::invalid_argument("song has no usable resource hash"))?
         .free_preview(request.free_preview);
-    if let Some(album_id) = request.song.album_id {
-        playback = playback.album_id(album_id);
-    }
-    if let Some(mix_song_id) = request.song.mix_song_id {
-        playback = playback.album_audio_id(mix_song_id);
-    }
     let mut session = runtime.session.lock().await;
     let response = runtime
         .client
@@ -763,13 +357,7 @@ pub async fn resolve_playback(
             bit_rate,
             duration_secs,
         },
-        PlaybackOutcome::Denied {
-            status,
-            fail_process,
-        } => PlaybackResolutionDto::Denied {
-            status,
-            fail_process,
-        },
+        PlaybackOutcome::Denied { .. } => PlaybackResolutionDto::Denied,
         _ => PlaybackResolutionDto::Unavailable,
     })
 }
@@ -1008,56 +596,57 @@ pub async fn get_cloud_playlists(
         page,
         page_size,
         total: value.list_count,
-        total_version: value.total_ver,
     })
 }
 
 #[derive(Debug, PartialEq, Eq)]
-enum PlaylistTracksRoute<'a> {
-    Gid(&'a str),
+enum PlaylistTracksRoute {
+    Gid(String),
     ListId(u64),
 }
 
-fn playlist_tracks_route(
-    request: &PlaylistTracksRequestDto,
-) -> Result<PlaylistTracksRoute<'_>, BridgeError> {
-    if let Some(gid) = request
-        .global_collection_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        return Ok(PlaylistTracksRoute::Gid(gid));
+pub async fn get_playlist_tracks_by_gid(
+    global_collection_id: String,
+    page: u32,
+    page_size: u32,
+) -> Result<SongPageDto, BridgeError> {
+    let gid = global_collection_id.trim();
+    if gid.is_empty() {
+        return Err(BridgeError::invalid_argument(
+            "playlist requires collection id",
+        ));
     }
-    if request.owned {
-        return request
-            .list_id
-            .filter(|id| *id > 0)
-            .map(PlaylistTracksRoute::ListId)
-            .ok_or_else(|| BridgeError::invalid_argument("owned playlist requires list_id"));
-    }
-    Err(BridgeError::invalid_argument(
-        "playlist requires collection id",
-    ))
+    get_playlist_tracks(PlaylistTracksRoute::Gid(gid.to_owned()), page, page_size).await
 }
 
-pub async fn get_playlist_tracks(
-    request: PlaylistTracksRequestDto,
+pub async fn get_playlist_tracks_by_list_id(
+    list_id: u64,
+    page: u32,
+    page_size: u32,
 ) -> Result<SongPageDto, BridgeError> {
-    let page = request.page.max(1);
-    let page_size = request.page_size.clamp(1, 100);
-    let route = playlist_tracks_route(&request)?;
+    if list_id == 0 {
+        return Err(BridgeError::invalid_argument(
+            "owned playlist requires list_id",
+        ));
+    }
+    get_playlist_tracks(PlaylistTracksRoute::ListId(list_id), page, page_size).await
+}
+
+async fn get_playlist_tracks(
+    route: PlaylistTracksRoute,
+    page: u32,
+    page_size: u32,
+) -> Result<SongPageDto, BridgeError> {
+    let page = page.max(1);
+    let page_size = page_size.clamp(1, 100);
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
-    // Prefer gid whenever present: public path is newest-first (official UI).
-    // Own-list `tracks_by_listid` is oldest-first — only when no gid.
-    // Compatible with kugou_sdk =0.2.2 (no new fields required).
     let value = match route {
         PlaylistTracksRoute::Gid(gid) => {
             runtime
                 .client
                 .playlists()
-                .tracks(&mut session, gid, Pagination::new(page, page_size))
+                .tracks(&mut session, &gid, Pagination::new(page, page_size))
                 .await
                 .map_err(BridgeError::from_sdk)?
                 .data
@@ -1094,10 +683,13 @@ pub async fn create_cloud_playlist(
         .await
         .map_err(BridgeError::from_sdk)?
         .data;
+    let list_id = value
+        .list_id
+        .filter(|id| *id > 0)
+        .ok_or_else(|| BridgeError::internal("cloud create returned no playlist id"))?;
     Ok(PlaylistMutationDto {
-        list_id: value.list_id,
+        list_id,
         global_collection_id: value.global_collection_id,
-        name: value.name,
     })
 }
 
@@ -1122,10 +714,13 @@ pub async fn collect_cloud_playlist(
         .await
         .map_err(BridgeError::from_sdk)?
         .data;
+    let list_id = value
+        .list_id
+        .filter(|id| *id > 0)
+        .ok_or_else(|| BridgeError::internal("cloud collect returned no playlist id"))?;
     Ok(PlaylistMutationDto {
-        list_id: value.list_id,
+        list_id,
         global_collection_id: value.global_collection_id,
-        name: value.name,
     })
 }
 
@@ -1162,9 +757,6 @@ pub async fn edit_cloud_playlist(input: PlaylistEditInputDto) -> Result<(), Brid
     }
     if let Some(tags) = input.tags {
         request = request.tags(tags);
-    }
-    if let Some(version) = input.total_version {
-        request = request.total_ver(version);
     }
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
@@ -1297,585 +889,12 @@ fn validated_search(request: &SearchRequestDto) -> Result<(&str, u32, u32), Brid
     ))
 }
 
-#[derive(Debug, Clone, Default)]
-#[flutter_rust_bridge::frb(ignore)]
-struct SongDetailEnrichment {
-    artwork_url: Option<String>,
-    hashes: AudioHashesDto,
-}
-
-fn song_to_dto_with_enrichment(
-    song: &SongRef,
-    enrichment: Option<&SongDetailEnrichment>,
-) -> SongDto {
-    let primary_hash = song.primary_hash().map(str::to_ascii_lowercase);
-    let detail_hashes = enrichment.map(|value| &value.hashes);
-    SongDto {
-        id: stable_song_id(song.mix_song_id, primary_hash.as_deref()),
-        title: song.display_name().to_owned(),
-        artist: song.singer.clone(),
-        album: song.album.clone(),
-        duration_secs: song.duration_secs,
-        artwork_url: artwork_from_extra(&song.extra)
-            .or_else(|| enrichment.and_then(|value| value.artwork_url.clone())),
-        privilege: song.privilege,
-        album_id: song.album_id,
-        mix_song_id: song.mix_song_id,
-        file_id: song.file_id,
-        hashes: AudioHashesDto {
-            standard: song
-                .resources
-                .standard
-                .clone()
-                .or_else(|| detail_hashes.and_then(|hashes| hashes.standard.clone())),
-            high: song
-                .resources
-                .high
-                .clone()
-                .or_else(|| detail_hashes.and_then(|hashes| hashes.high.clone())),
-            flac: song
-                .resources
-                .flac
-                .clone()
-                .or_else(|| detail_hashes.and_then(|hashes| hashes.flac.clone())),
-            hi_res: song
-                .resources
-                .hires
-                .clone()
-                .or_else(|| detail_hashes.and_then(|hashes| hashes.hi_res.clone())),
-            super_hash: song
-                .resources
-                .super_hash
-                .clone()
-                .or_else(|| detail_hashes.and_then(|hashes| hashes.super_hash.clone())),
-        },
-    }
-}
-
-fn song_dto_to_lyric_ref(song: &SongDto) -> SongRef {
-    let mut result = song_dto_to_song_ref(song);
-    // Lyrics deliberately search by the standard FileHash, not the currently
-    // selected playback-quality hash.
-    result.resources.high = None;
-    result.resources.flac = None;
-    result.resources.hires = None;
-    result.resources.super_hash = None;
-    result
-}
-
-fn song_dto_to_song_ref(song: &SongDto) -> SongRef {
-    let mut resources = ResourceHashes::default();
-    resources.standard = song.hashes.standard.clone();
-    resources.high = song.hashes.high.clone();
-    resources.flac = song.hashes.flac.clone();
-    resources.hires = song.hashes.hi_res.clone();
-    resources.super_hash = song.hashes.super_hash.clone();
-    let mut result = SongRef::default();
-    result.name = Some(song.title.clone());
-    result.album = song.album.clone();
-    result.singer = song.artist.clone();
-    result.resources = resources;
-    result.mix_song_id = song.mix_song_id;
-    result.album_id = song.album_id;
-    result.duration_secs = song.duration_secs;
-    result.privilege = song.privilege;
-    result.file_id = song.file_id;
-    result
-}
-
-fn recommendation_history_item_to_sdk(item: &RecommendationHistoryItemDto) -> ClientPlaylistItem {
-    let song = song_dto_to_song_ref(&item.song);
-    match item.action {
-        RecommendationHistoryActionDto::Play => ClientPlaylistItem::play(&song),
-        RecommendationHistoryActionDto::Collect => ClientPlaylistItem::collect(&song),
-        RecommendationHistoryActionDto::Trash => ClientPlaylistItem::trash(&song),
-    }
-}
-
-fn lyric_document_to_dto(document: LyricDocument) -> LyricDocumentDto {
-    LyricDocumentDto {
-        format: match document.format {
-            LyricFormat::Krc => LyricFormatDto::Krc,
-            LyricFormat::Lrc => LyricFormatDto::Lrc,
-            LyricFormat::Plain => LyricFormatDto::Plain,
-            _ => LyricFormatDto::Plain,
-        },
-        offset_ms: document.offset_ms,
-        lines: document
-            .lines
-            .into_iter()
-            .map(|line| LyricLineDto {
-                start_ms: line.start_ms,
-                duration_ms: line.duration_ms,
-                text: line.text,
-                words: line
-                    .words
-                    .into_iter()
-                    .map(|word| LyricWordDto {
-                        start_ms: word.start_ms,
-                        duration_ms: word.duration_ms,
-                        text: word.text,
-                    })
-                    .collect(),
-                translation: line.translation,
-                transliteration: line.transliteration,
-            })
-            .collect(),
-    }
-}
-
-async fn songs_to_dtos_with_artwork(
-    client: &KugouClient,
-    session: &mut Session,
-    songs: &[SongRef],
-) -> Vec<SongDto> {
-    let mut enrichment_by_mix_id = HashMap::new();
-    let mut mix_ids = Vec::new();
-
-    for song in songs {
-        let Some(mix_id) = song.mix_song_id else {
-            continue;
-        };
-        if !mix_ids.contains(&mix_id) {
-            mix_ids.push(mix_id);
-        }
-    }
-
-    // Cover art and higher-quality hashes are optional metadata. Enrich in
-    // bounded batches, but never make the base song list fail with details.
-    for chunk in mix_ids.chunks(40) {
-        if let Ok(response) = client.songs().details_by_mix_ids_raw(session, chunk).await {
-            collect_detail_enrichment(&response.data, &mut enrichment_by_mix_id);
-        }
-    }
-
-    songs
-        .iter()
-        .map(|song| {
-            let enrichment = song
-                .mix_song_id
-                .and_then(|id| enrichment_by_mix_id.get(&id));
-            song_to_dto_with_enrichment(song, enrichment)
-        })
-        .collect()
-}
-
-fn artwork_from_extra(extra: &BTreeMap<String, Value>) -> Option<String> {
-    artwork_from_object(extra.iter().map(|(key, value)| (key.as_str(), value)))
-}
-
-fn artwork_from_value(value: &Value) -> Option<String> {
-    match value {
-        Value::String(value) => nonempty_artwork(value),
-        Value::Array(values) => values.iter().find_map(artwork_from_value),
-        Value::Object(values) => {
-            artwork_from_object(values.iter().map(|(key, value)| (key.as_str(), value)))
-        }
-        _ => None,
-    }
-}
-
-fn artwork_from_object<'a>(
-    entries: impl Iterator<Item = (&'a str, &'a Value)> + Clone,
-) -> Option<String> {
-    const ARTWORK_KEYS: &[&str] = &[
-        "sizable_cover",
-        "union_cover",
-        "cover_url",
-        "album_cover",
-        "album_img",
-        "album_image",
-        "imgurl",
-        "img_url",
-        "Image",
-        "image",
-        "cover",
-        "pic_url",
-        "pic",
-        "img",
-    ];
-    const CONTAINER_KEYS: &[&str] = &["album_info", "albuminfo", "base", "trans_param", "extra"];
-
-    for key in ARTWORK_KEYS {
-        if let Some(value) = entries
-            .clone()
-            .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
-            && let Some(artwork) = artwork_from_value(value)
-        {
-            return Some(artwork);
-        }
-    }
-    for key in CONTAINER_KEYS {
-        if let Some(value) = entries
-            .clone()
-            .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
-            && let Some(artwork) = artwork_from_value(value)
-        {
-            return Some(artwork);
-        }
-    }
-    None
-}
-
-fn artwork_key_matches(left: &str, right: &str) -> bool {
-    left.bytes()
-        .filter(|byte| byte.is_ascii_alphanumeric())
-        .map(|byte| byte.to_ascii_lowercase())
-        .eq(right
-            .bytes()
-            .filter(|byte| byte.is_ascii_alphanumeric())
-            .map(|byte| byte.to_ascii_lowercase()))
-}
-
-fn nonempty_artwork(value: &str) -> Option<String> {
-    let value = value.trim();
-    (!value.is_empty() && value != "-").then(|| value.to_owned())
-}
-
-fn collect_detail_enrichment(value: &Value, output: &mut HashMap<u64, SongDetailEnrichment>) {
-    match value {
-        Value::Array(items) => {
-            for item in items {
-                collect_detail_enrichment(item, output);
-            }
-        }
-        Value::Object(object) => {
-            let mix_id = value_u64_for_keys(value, &["album_audio_id", "MixSongID", "mixsongid"])
-                .or_else(|| {
-                    object.get("base").and_then(|base| {
-                        value_u64_for_keys(
-                            base,
-                            &["album_audio_id", "MixSongID", "mixsongid", "ID"],
-                        )
-                    })
-                });
-            if let Some(mix_id) = mix_id {
-                output.insert(
-                    mix_id,
-                    SongDetailEnrichment {
-                        artwork_url: artwork_from_value(value),
-                        hashes: audio_hashes_from_detail(value),
-                    },
-                );
-            }
-            for key in ["data", "items", "info", "list", "lists"] {
-                if let Some(nested) = object.get(key) {
-                    collect_detail_enrichment(nested, output);
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-fn audio_hashes_from_detail(value: &Value) -> AudioHashesDto {
-    let audio_info = value
-        .as_object()
-        .and_then(|object| object_value_for_key(object, "audio_info"));
-    let find = |keys: &[&str]| {
-        string_for_keys(value, keys)
-            .or_else(|| audio_info.and_then(|audio_info| string_for_keys(audio_info, keys)))
-    };
-    AudioHashesDto {
-        standard: find(&["FileHash", "filehash", "hash", "hash_128"]),
-        high: find(&["HQFileHash", "hq_hash", "hash_320", "320hash"]),
-        flac: find(&["SQFileHash", "sq_hash", "hash_flac", "sqhash"]),
-        hi_res: find(&["ResFileHash", "hash_high", "hash_hires"]),
-        super_hash: find(&["SuperFileHash", "super_hash", "hash_super"]),
-    }
-}
-
-fn object_value_for_key<'a>(
-    object: &'a serde_json::Map<String, Value>,
-    key: &str,
-) -> Option<&'a Value> {
-    object
-        .iter()
-        .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
-}
-
-fn string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
-    let object = value.as_object()?;
-    keys.iter().find_map(|key| {
-        object.iter().find_map(|(name, value)| {
-            if !artwork_key_matches(name, key) {
-                return None;
-            }
-            value
-                .as_str()
-                .map(str::trim)
-                .filter(|value| !value.is_empty() && *value != "-")
-                .map(str::to_owned)
-        })
-    })
-}
-
-fn scalar_string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
-    let object = value.as_object()?;
-    keys.iter().find_map(|key| {
-        let value = object_value_for_key(object, key)?;
-        match value {
-            Value::String(value) => nonempty_artwork(value),
-            Value::Number(value) => Some(value.to_string()),
-            _ => None,
-        }
-    })
-}
-
-fn bool_for_keys(value: &Value, keys: &[&str]) -> bool {
-    let Some(object) = value.as_object() else {
-        return false;
-    };
-    keys.iter().any(|key| {
-        let Some(value) = object_value_for_key(object, key) else {
-            return false;
-        };
-        match value {
-            Value::Bool(value) => *value,
-            Value::Number(value) => value.as_i64().is_some_and(|value| value != 0),
-            Value::String(value) => matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes"
-            ),
-            _ => false,
-        }
-    })
-}
-
-fn vip_product_to_dto(value: &Value) -> VipProductDto {
-    VipProductDto {
-        product_type: scalar_string_for_keys(value, &["product_type", "productType"]),
-        business_type: scalar_string_for_keys(value, &["busi_type", "busiType"]),
-        active: bool_for_keys(value, &["is_vip", "isVip"]),
-        paid: bool_for_keys(value, &["is_paid_vip", "isPaidVip"]),
-        yearly: bool_for_keys(value, &["y_type", "yType"]),
-        vip_end_time: scalar_string_for_keys(value, &["vip_end_time", "vipEndTime", "vip_endtime"]),
-        paid_expire_time: scalar_string_for_keys(
-            value,
-            &[
-                "paid_vip_expire_time",
-                "paidVipExpireTime",
-                "paid_vip_end_time",
-            ],
-        ),
-    }
-}
-
-fn value_u64_for_keys(value: &Value, keys: &[&str]) -> Option<u64> {
-    let object = value.as_object()?;
-    keys.iter().find_map(|key| {
-        let value = object.get(*key)?;
-        value
-            .as_u64()
-            .or_else(|| value.as_str()?.trim().parse().ok())
-            .filter(|value| *value > 0)
-    })
-}
-
-fn search_playlist_to_dto(value: &SearchPlaylist) -> PlaylistSearchHitDto {
-    PlaylistSearchHitDto {
-        special_id: value.special_id,
-        global_collection_id: value.global_collection_id.clone(),
-        name: value.display_name().to_owned(),
-        intro: value.intro.clone(),
-        artwork_url: value.img.clone(),
-        song_count: value.song_count,
-        play_count: value.play_count,
-        collect_count: value.collect_count,
-        creator_name: value.nickname.clone(),
-        creator_user_id: value.user_id,
-        tags: value.tags.clone(),
-    }
-}
-
-fn cloud_playlist_to_dto(value: &UserPlaylist) -> CloudPlaylistDto {
-    CloudPlaylistDto {
-        list_id: value.list_id,
-        global_collection_id: value.global_collection_id.clone(),
-        name: value
-            .name
-            .clone()
-            .unwrap_or_else(|| "未命名歌单".to_owned()),
-        intro: value.intro.clone(),
-        artwork_url: value.pic.clone(),
-        count: value.count,
-        list_type: value.list_type,
-        creator_user_id: value.create_userid,
-        creator_name: value.create_username.clone(),
-        is_private: value.is_pri == Some(1),
-        is_my_favorite: value.is_my_fav(),
-        is_default_collect: value.is_default_collect(),
-        tags: value.tags.clone(),
-    }
-}
-
-fn stable_song_id(mix_song_id: Option<u64>, primary_hash: Option<&str>) -> String {
-    if let Some(id) = mix_song_id {
-        format!("mix:{id}")
-    } else if let Some(hash) = primary_hash.filter(|value| !value.is_empty()) {
-        format!("hash:{}", hash.to_ascii_lowercase())
-    } else {
-        "unknown".to_owned()
-    }
-}
-
-fn select_hash(
-    hashes: &AudioHashesDto,
-    quality: AudioQualityDto,
-) -> Option<(String, AudioQuality)> {
-    let candidates: &[(Option<&String>, AudioQuality)] = match quality {
-        AudioQualityDto::Standard => &[(hashes.standard.as_ref(), AudioQuality::Standard)],
-        AudioQualityDto::High => &[
-            (hashes.high.as_ref(), AudioQuality::High),
-            (hashes.standard.as_ref(), AudioQuality::Standard),
-        ],
-        AudioQualityDto::Flac => &[
-            (hashes.flac.as_ref(), AudioQuality::Flac),
-            (hashes.high.as_ref(), AudioQuality::High),
-            (hashes.standard.as_ref(), AudioQuality::Standard),
-        ],
-        AudioQualityDto::HiRes => &[
-            (hashes.hi_res.as_ref(), AudioQuality::HiRes),
-            (hashes.flac.as_ref(), AudioQuality::Flac),
-            (hashes.high.as_ref(), AudioQuality::High),
-            (hashes.standard.as_ref(), AudioQuality::Standard),
-        ],
-        AudioQualityDto::Super => &[
-            (hashes.super_hash.as_ref(), AudioQuality::Super),
-            (hashes.hi_res.as_ref(), AudioQuality::HiRes),
-            (hashes.flac.as_ref(), AudioQuality::Flac),
-            (hashes.high.as_ref(), AudioQuality::High),
-            (hashes.standard.as_ref(), AudioQuality::Standard),
-        ],
-    };
-    candidates.iter().find_map(|(hash, actual_quality)| {
-        hash.filter(|value| !value.trim().is_empty())
-            .map(|value| ((*value).clone(), *actual_quality))
-    })
-}
-
-fn audio_quality_to_dto(quality: AudioQuality) -> AudioQualityDto {
-    match quality {
-        AudioQuality::Standard => AudioQualityDto::Standard,
-        AudioQuality::High => AudioQualityDto::High,
-        AudioQuality::Flac => AudioQualityDto::Flac,
-        AudioQuality::HiRes => AudioQualityDto::HiRes,
-        AudioQuality::Super => AudioQualityDto::Super,
-        _ => AudioQualityDto::Standard,
-    }
-}
-
-impl BridgeError {
-    fn invalid_argument(message: impl Into<String>) -> Self {
-        Self {
-            kind: BridgeErrorKind::InvalidArgument,
-            message: message.into(),
-            code: None,
-            retryable: false,
-        }
-    }
-
-    fn internal(message: impl Into<String>) -> Self {
-        Self {
-            kind: BridgeErrorKind::Internal,
-            message: message.into(),
-            code: None,
-            retryable: false,
-        }
-    }
-
-    fn from_sdk(error: KugouError) -> Self {
-        let message = error.to_string();
-        match error {
-            KugouError::InvalidArgument(_) => Self::invalid_argument(message),
-            KugouError::AuthenticationRequired => Self {
-                kind: BridgeErrorKind::AuthenticationRequired,
-                message,
-                code: None,
-                retryable: false,
-            },
-            KugouError::Transport(_) => Self {
-                kind: BridgeErrorKind::Transport,
-                message,
-                code: None,
-                retryable: true,
-            },
-            KugouError::Http { status: 404, .. } => Self {
-                kind: BridgeErrorKind::Unsupported,
-                message,
-                code: Some(404),
-                retryable: false,
-            },
-            KugouError::Http { status, .. } => Self {
-                kind: BridgeErrorKind::Upstream,
-                message,
-                code: Some(i64::from(status)),
-                retryable: status >= 500,
-            },
-            KugouError::Business { code, .. } if code == 20017 || code == 20018 => Self {
-                kind: BridgeErrorKind::AuthenticationExpired,
-                message,
-                code: Some(code),
-                retryable: false,
-            },
-            KugouError::Business { code, .. } => Self {
-                kind: BridgeErrorKind::Upstream,
-                message,
-                code: Some(code),
-                retryable: false,
-            },
-            KugouError::SecurityChallenge(challenge) => Self {
-                kind: BridgeErrorKind::SecurityChallenge,
-                message,
-                code: challenge.code.parse().ok(),
-                retryable: true,
-            },
-            _ => Self::internal(message),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn capabilities_are_lite_and_authenticated_features_are_exposed() {
-        let capabilities = get_sdk_capabilities();
-        assert_eq!(capabilities.platform, "lite");
-        assert!(capabilities.sms_auth);
-        assert!(capabilities.playlist_mutations);
-        assert!(capabilities.personal_fm);
-        assert!(capabilities.heart_radio);
-        assert!(capabilities.recommendation_reports);
-    }
-
-    #[test]
-    fn playlist_tracks_prefers_gid_and_keeps_listid_as_explicit_fallback() {
-        let with_gid = PlaylistTracksRequestDto {
-            list_id: Some(2),
-            global_collection_id: Some("  collection_3_1_2_0  ".into()),
-            owned: true,
-            page: 1,
-            page_size: 50,
-        };
-        assert_eq!(
-            playlist_tracks_route(&with_gid).unwrap(),
-            PlaylistTracksRoute::Gid("collection_3_1_2_0")
-        );
-
-        let by_list_id = PlaylistTracksRequestDto {
-            list_id: Some(2),
-            global_collection_id: None,
-            owned: true,
-            page: 1,
-            page_size: 50,
-        };
-        assert_eq!(
-            playlist_tracks_route(&by_list_id).unwrap(),
-            PlaylistTracksRoute::ListId(2)
-        );
-    }
+    use kugou_sdk::{AudioQuality, ClientPlaylistItem, LyricDocument, LyricFormat, ResourceHashes};
+    use serde_json::Value;
+    use std::collections::{BTreeMap, HashMap};
 
     #[test]
     fn stable_id_prefers_mix_id() {
@@ -1974,14 +993,11 @@ mod tests {
 
     #[test]
     fn quality_falls_back_with_matching_label() {
-        let hashes = AudioHashesDto {
-            standard: Some("STD".into()),
-            high: None,
-            flac: None,
-            hi_res: None,
-            super_hash: None,
-        };
-        let selected = select_hash(&hashes, AudioQualityDto::Flac).unwrap();
+        let mut hashes = ResourceHashes::default();
+        hashes.standard = Some("STD".into());
+        let selected = hashes
+            .select_for(audio_quality_from_dto(AudioQualityDto::Flac))
+            .unwrap();
         assert_eq!(selected.0, "STD");
         assert_eq!(selected.1, AudioQuality::Standard);
         assert_eq!(audio_quality_to_dto(selected.1), AudioQualityDto::Standard);

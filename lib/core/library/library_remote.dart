@@ -12,7 +12,7 @@ class LibraryRemote {
   static const pageSize = 100;
   static const historyLimit = 100;
 
-  final MusicSdk _sdk;
+  final LibrarySdk _sdk;
 
   Future<List<Playlist>> fetchAllPlaylists() async {
     final result = <Playlist>[];
@@ -72,18 +72,19 @@ class LibraryRemote {
     return result.take(historyLimit).toList(growable: false);
   }
 
-  Future<PlaylistMutation> createPlaylist(String name, {required bool private}) =>
-      _sdk.createPlaylist(name, private: private);
+  Future<PlaylistMutation> createPlaylist(
+    String name, {
+    required bool private,
+  }) => _sdk.createPlaylist(name, private: private);
 
   Future<PlaylistMutation> collectPlaylist(PlaylistSearchHit hit) =>
       _sdk.collectPlaylist(hit);
 
-  Future<void> editPlaylist(PlaylistEditInput input) => _sdk.editPlaylist(input);
+  Future<void> editPlaylist(PlaylistEditInput input) =>
+      _sdk.editPlaylist(input);
 
-  Future<void> deletePlaylist({
-    required int listId,
-    required bool collected,
-  }) => _sdk.deletePlaylist(listId: listId, collected: collected);
+  Future<void> deletePlaylist({required int listId, required bool collected}) =>
+      _sdk.deletePlaylist(listId: listId, collected: collected);
 
   Future<PlaylistTracksMutation> addSong(int listId, Song song) =>
       _sdk.addSongToPlaylist(listId, song);
@@ -125,7 +126,9 @@ class LibraryRemote {
 
   static Playlist _withLocalId(Playlist remote) {
     if (remote.listId != null) {
-      return remote.copyWith(localId: Playlist.localIdForRemote(remote.listId!));
+      return remote.copyWith(
+        localId: Playlist.localIdForRemote(remote.listId!),
+      );
     }
     // Collected cloud rows without listId yet (rare mid-sync edge).
     if (remote.globalCollectionId != null) {

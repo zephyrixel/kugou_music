@@ -19,7 +19,7 @@ class MembershipController extends ChangeNotifier {
     this._onMembershipChanged,
   );
 
-  final MusicSdk _sdk;
+  final MembershipSdk _sdk;
   final FlutterSecureStorage _storage;
   final int userId;
   final Future<void> Function() _refreshLogin;

@@ -87,10 +87,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
               hasMore: hasMore,
               origin: activeRequest.origin.copyWith(totalCount: page.total),
             );
-            _songs = List.unmodifiable(merged);
-            if (_order == PlaybackOrder.shuffle) {
-              _shuffleRemaining.addAll(appended.map((item) => item.id));
-            }
+            _queueController.append(appended);
             _publishMediaQueue();
             _emitQueueState();
             unawaited(_persistQueue());
@@ -112,32 +109,15 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
   }
 
   Future<void> setPlaybackOrder(PlaybackOrder order) async {
-    _order = order;
-    if (order == PlaybackOrder.shuffle) {
-      _shuffleRemaining
-        ..clear()
-        ..addAll(
-          _songs
-              .where((song) => _index < 0 || song.id != _songs[_index].id)
-              .map((song) => song.id),
-        );
-    } else {
-      _shuffleRemaining.clear();
-    }
+    _queueController.setOrder(order);
     _emitQueueState();
     _publishSystemPlaybackState();
     unawaited(_persistQueue());
   }
 
   Future<void> _removeQueueItemAt(int index) async {
-    if (index < 0 || index >= _songs.length || index == _index) return;
-    final updated = [..._songs]..removeAt(index);
-    _index = index < _index ? _index - 1 : _index;
-    _songs = List.unmodifiable(updated);
+    if (!_queueController.removeAt(index)) return;
     _queueRequest = _queueRequest?.copyWith(songs: _songs);
-    _shuffleRemaining.removeWhere(
-      (id) => !updated.any((song) => song.id == id),
-    );
     _publishMediaQueue();
     _emitQueueState();
     _publishSystemPlaybackState();
@@ -145,10 +125,8 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
   }
 
   Future<void> clearUpcoming() async {
-    if (_index < 0 || _index + 1 >= _songs.length) return;
-    _songs = List.unmodifiable(_songs.take(_index + 1));
+    if (!_queueController.clearUpcoming()) return;
     _queueRequest = _queueRequest?.copyWith(songs: _songs, hasMore: false);
-    _shuffleRemaining.clear();
     _publishMediaQueue();
     _emitQueueState();
     _publishSystemPlaybackState();
@@ -156,18 +134,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
   }
 
   Future<void> moveQueueItem(int oldIndex, int newIndex) async {
-    if (oldIndex < 0 || oldIndex >= _songs.length) return;
-    if (newIndex > oldIndex) newIndex -= 1;
-    newIndex = newIndex.clamp(0, _songs.length - 1);
-    if (oldIndex == newIndex) return;
-    final currentId = _index >= 0 ? _songs[_index].id : null;
-    final updated = [..._songs];
-    final song = updated.removeAt(oldIndex);
-    updated.insert(newIndex, song);
-    _songs = List.unmodifiable(updated);
-    _index = currentId == null
-        ? -1
-        : updated.indexWhere((item) => item.id == currentId);
+    if (!_queueController.move(oldIndex, newIndex)) return;
     _queueRequest = _queueRequest?.copyWith(songs: _songs);
     _publishMediaQueue();
     _emitQueueState();
@@ -220,9 +187,11 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
       source: restoredSource,
       hasMore: restoredSource != null && snapshot.request.hasMore,
     );
-    _songs = List.unmodifiable(snapshot.request.songs);
-    _index = snapshot.currentIndex.clamp(-1, _songs.length - 1);
-    _order = snapshot.order;
+    _queueController.restore(
+      snapshot.request.songs,
+      snapshot.currentIndex,
+      snapshot.order,
+    );
     _restoredPosition = Duration(milliseconds: snapshot.positionMs);
     _currentMediaDuration = null;
     _publishMediaQueue();
@@ -240,9 +209,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
     _currentAudioHandle = null;
     _queueRequest = null;
     _queueState = null;
-    _songs = const [];
-    _index = -1;
-    _shuffleRemaining.clear();
+    _queueController.clear();
     _restoredPosition = null;
     _currentMediaDuration = null;
     queue.add(const []);

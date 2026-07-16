@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:kgmusic/core/database/app_database.dart';
-import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/models/song_codec.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 
 class PlaybackQueueSnapshot {
@@ -37,7 +37,7 @@ class PlaybackQueueStore {
       if (map is! Map) return null;
       final songs = (map['songs'] as List? ?? const [])
           .whereType<Map>()
-          .map((item) => _songFromJson(item))
+          .map(SongCodec.decode)
           .toList(growable: false);
       final originMap = map['origin'] as Map?;
       final origin = PlaybackQueueOrigin(
@@ -80,7 +80,7 @@ class PlaybackQueueStore {
         'id': request.origin.id,
         'totalCount': request.origin.totalCount,
       },
-      'songs': request.songs.map(_songToJson).toList(growable: false),
+      'songs': request.songs.map(SongCodec.encode).toList(growable: false),
       'currentIndex': snapshot.currentIndex,
       'order': snapshot.order.index,
       'positionMs': snapshot.positionMs,
@@ -98,49 +98,6 @@ class PlaybackQueueStore {
 
   Future<void> clear(int userId) =>
       _database.deleteCachedResponse('$_keyPrefix$userId');
-}
-
-Map<String, Object?> _songToJson(Song value) => {
-  'id': value.id,
-  'title': value.title,
-  'artist': value.artist,
-  'album': value.album,
-  'durationSecs': value.durationSecs,
-  'artworkUrl': value.artworkUrl,
-  'privilege': value.privilege,
-  'albumId': value.albumId,
-  'mixSongId': value.mixSongId,
-  'fileId': value.fileId,
-  'hashes': {
-    'standard': value.hashes.standard,
-    'high': value.hashes.high,
-    'flac': value.hashes.flac,
-    'hiRes': value.hashes.hiRes,
-    'super': value.hashes.superHash,
-  },
-};
-
-Song _songFromJson(Map value) {
-  final hashes = value['hashes'] as Map? ?? const {};
-  return Song(
-    id: value['id'] as String? ?? 'unknown',
-    title: value['title'] as String? ?? '未知歌曲',
-    artist: value['artist'] as String?,
-    album: value['album'] as String?,
-    durationSecs: _asInt(value['durationSecs']),
-    artworkUrl: value['artworkUrl'] as String?,
-    privilege: _asInt(value['privilege']),
-    albumId: _asInt(value['albumId']),
-    mixSongId: _asInt(value['mixSongId']),
-    fileId: _asInt(value['fileId']),
-    hashes: AudioHashes(
-      standard: hashes['standard'] as String?,
-      high: hashes['high'] as String?,
-      flac: hashes['flac'] as String?,
-      hiRes: hashes['hiRes'] as String?,
-      superHash: hashes['super'] as String?,
-    ),
-  );
 }
 
 int? _asInt(Object? value) => value is num ? value.toInt() : null;

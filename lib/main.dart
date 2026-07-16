@@ -52,7 +52,7 @@ Future<void> main() async {
   final audioHandler = await AudioService.init<MusicAudioHandler>(
     builder: () => MusicAudioHandler(
       sdk,
-      library,
+      library.recordPlayed,
       audioCache,
       queueStore: queueStore,
       queueSourceFactory: queueSourceFactory,
@@ -69,6 +69,7 @@ Future<void> main() async {
         musicRepositoryProvider.overrideWithValue(musicRepository),
         libraryRepositoryProvider.overrideWithValue(library),
         audioCacheProvider.overrideWithValue(audioCache),
+        playbackQueueFactoryProvider.overrideWithValue(queueSourceFactory),
         appErrorBusProvider.overrideWithValue(appErrorBus),
         recommendationReporterProvider.overrideWithValue(
           recommendationReporter,

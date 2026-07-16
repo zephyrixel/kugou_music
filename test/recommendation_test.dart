@@ -174,7 +174,7 @@ class _RepeatedReport {
   final int remainSongCount;
 }
 
-class _FakeMusicSdk implements MusicSdk {
+class _FakeMusicSdk implements RecommendationSdk {
   final Queue<RecommendationBatch> personalBatches = Queue();
   final Queue<RecommendationBatch> heartBatches = Queue();
   final List<PersonalFmInput> personalInputs = [];
@@ -218,7 +218,4 @@ class _FakeMusicSdk implements MusicSdk {
   Future<void> reportRecommendationFavoriteClick(Song song) async {
     favoriteClicks.add(song);
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

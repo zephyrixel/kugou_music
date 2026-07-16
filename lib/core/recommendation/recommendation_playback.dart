@@ -7,7 +7,7 @@ import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 class RecommendationPlayback {
   const RecommendationPlayback(this._sdk, this._reporter);
 
-  final MusicSdk _sdk;
+  final RecommendationSdk _sdk;
   final RecommendationReporter _reporter;
 
   Future<PlaybackQueueRequest> start(RecommendationKind kind) async {

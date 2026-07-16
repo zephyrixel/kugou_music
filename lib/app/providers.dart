@@ -17,6 +17,7 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
+import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
 import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
@@ -53,6 +54,12 @@ final lyricsRepositoryProvider = Provider<LyricsRepository>(
 
 final audioHandlerProvider = Provider<MusicAudioHandler>(
   (ref) => throw UnimplementedError('audioHandlerProvider must be overridden'),
+);
+
+final playbackQueueFactoryProvider = Provider<PlaybackQueueSourceFactory>(
+  (ref) => throw UnimplementedError(
+    'playbackQueueFactoryProvider must be overridden',
+  ),
 );
 
 final audioCacheProvider = Provider<AudioCacheManager>(

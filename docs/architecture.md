@@ -14,7 +14,7 @@ features/*
     │       ├── LibraryStore ── Drift CRUD / watch
     │       └── LibraryRemote ── core/native/MusicSdk
     │                              └── FRB ── Rust kugou_bridge
-    │                                               └── kugou_sdk 0.2.3 / Lite
+    │                                               └── kugou_sdk 0.2.4 / Lite
     ├── core/cache/MusicRepository ── 推荐、搜索与资料响应缓存
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
@@ -36,6 +36,22 @@ features/*
 - `lib/features/auth/`、`account/`、`playlists/`：SMS 登录、账号生命周期与歌单管理。
 - `lib/src/rust/`：FRB 自动生成代码，业务页面不得直接依赖。
 - `native/kugou_bridge/`：Rust 异步运行时、Lite SDK 调用和桥接错误映射。
+
+## 可维护性约束
+
+- 页面只依赖 `MusicSdk` 的窄接口（如 `BrowseSdk`、`LibrarySdk`、`PlaybackSdk`），
+  不直接接触 FRB 类型或 Rust 实现。新增能力先落在对应接口，再接入页面。
+- Rust Bridge 按职责拆分为 `api/dto.rs`（跨语言 DTO）、`api/mapping.rs`（SDK 与 DTO
+  映射）、`api/error.rs`（统一错误分类）和 `api/sdk.rs`（Lite API 调用）。DTO 仍由
+  `sdk` 模块重新导出，以保持生成绑定的公开路径稳定。
+- `SongCodec` 是歌曲快照的唯一编解码入口，同时服务响应缓存和播放队列恢复；不要在
+  其他缓存或页面中重复实现 JSON 映射。
+- `PlaybackQueueController` 只管理队列、索引和顺序；地址解析、音频装载和网络分页
+  由播放器协调层负责。`AudioPlayerPort` 用于隔离 just_audio，便于测试和替换。
+- `PlaylistTrackLoader` 负责歌单曲目的分页写入、同歌单请求合并和账号切换失效；
+  `LibraryRepository` 只协调本地优先写入、云端同步与账号生命周期。
+- 保持简单的单向依赖：feature → core → native/database。避免为尚未存在的 Lite API
+  添加空壳抽象、全局状态或第二套本地/云端模型。
 
 ## 播放策略
 

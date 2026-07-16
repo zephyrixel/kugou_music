@@ -9,13 +9,6 @@ extension PlaybackOrderInfo on PlaybackOrder {
     PlaybackOrder.repeatOne => '单曲循环',
     PlaybackOrder.shuffle => '随机播放',
   };
-
-  String get description => switch (this) {
-    PlaybackOrder.sequential => '播放到队列末尾后停止',
-    PlaybackOrder.repeatAll => '播放完队列后从第一首继续',
-    PlaybackOrder.repeatOne => '循环当前歌曲',
-    PlaybackOrder.shuffle => '从待播歌曲中随机选择',
-  };
 }
 
 enum PlaybackQueueOriginKind {

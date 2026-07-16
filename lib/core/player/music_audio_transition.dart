@@ -141,16 +141,11 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       final committedQueue = [...request.songs];
       committedQueue[index] = prepared.song;
       _queueRequest = request.copyWith(songs: committedQueue);
-      _songs = List.unmodifiable(committedQueue);
-      _index = index;
-      if (_order == PlaybackOrder.shuffle) {
-        if (replacingQueue) {
-          _shuffleRemaining
-            ..clear()
-            ..addAll(committedQueue.map((song) => song.id));
-        }
-        _shuffleRemaining.remove(prepared.song.id);
-      }
+      _queueController.commit(
+        committedQueue,
+        index,
+        replacingQueue: replacingQueue,
+      );
       _publishMediaQueue();
       mediaItem.add(
         _toMediaItem(prepared.song, actualDuration: _currentMediaDuration),
@@ -170,7 +165,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       );
       unawaited(_persistQueue());
       if (recordHistory && _isCurrentRequest(generation)) {
-        await _library.recordPlayed(prepared.song);
+        await _recordPlayed(prepared.song);
       }
       if (!_isCurrentRequest(generation)) return;
       if (autoPlay) {
@@ -243,7 +238,8 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
         return;
       }
       if (_order == PlaybackOrder.shuffle) {
-        while (_shuffleRemaining.isNotEmpty || _queueRequest?.hasMore == true) {
+        while (_queueController.hasShuffleCandidates ||
+            _queueRequest?.hasMore == true) {
           try {
             await _skipToNextInternal();
             return;

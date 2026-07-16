@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/models/song_codec.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
 class CacheCodec<T> {
@@ -23,15 +24,14 @@ class CacheCodec<T> {
 
 abstract final class CacheCodecs {
   static final songs = CacheCodec<List<Song>>(
-    encodeValue: (value) => value.map(_songToJson).toList(growable: false),
-    decodeValue: (value) => _list(
-      value,
-    ).map((item) => _songFromJson(_map(item))).toList(growable: false),
+    encodeValue: (value) => value.map(SongCodec.encode).toList(growable: false),
+    decodeValue: (value) =>
+        _list(value).map(SongCodec.decode).toList(growable: false),
   );
 
   static final searchPage = CacheCodec<SearchPage>(
     encodeValue: (value) => {
-      'songs': value.songs.map(_songToJson).toList(growable: false),
+      'songs': value.songs.map(SongCodec.encode).toList(growable: false),
       'page': value.page,
       'pageSize': value.pageSize,
       'total': value.total,
@@ -41,7 +41,7 @@ abstract final class CacheCodecs {
       return SearchPage(
         songs: _list(
           map['songs'],
-        ).map((item) => _songFromJson(_map(item))).toList(growable: false),
+        ).map(SongCodec.decode).toList(growable: false),
         page: _int(map['page']) ?? 1,
         pageSize: _int(map['pageSize']) ?? 30,
         total: _int(map['total']),
@@ -157,49 +157,6 @@ abstract final class CacheCodecs {
             .toList(growable: false),
       );
     },
-  );
-}
-
-Map<String, Object?> _songToJson(Song value) => {
-  'id': value.id,
-  'title': value.title,
-  'artist': value.artist,
-  'album': value.album,
-  'durationSecs': value.durationSecs,
-  'artworkUrl': value.artworkUrl,
-  'privilege': value.privilege,
-  'albumId': value.albumId,
-  'mixSongId': value.mixSongId,
-  'fileId': value.fileId,
-  'hashes': {
-    'standard': value.hashes.standard,
-    'high': value.hashes.high,
-    'flac': value.hashes.flac,
-    'hiRes': value.hashes.hiRes,
-    'super': value.hashes.superHash,
-  },
-};
-
-Song _songFromJson(Map<String, Object?> value) {
-  final hashes = _map(value['hashes']);
-  return Song(
-    id: _string(value['id']) ?? 'unknown',
-    title: _string(value['title']) ?? '未知歌曲',
-    artist: _string(value['artist']),
-    album: _string(value['album']),
-    durationSecs: _int(value['durationSecs']),
-    artworkUrl: _string(value['artworkUrl']),
-    privilege: _int(value['privilege']),
-    albumId: _int(value['albumId']),
-    mixSongId: _int(value['mixSongId']),
-    fileId: _int(value['fileId']),
-    hashes: AudioHashes(
-      standard: _string(hashes['standard']),
-      high: _string(hashes['high']),
-      flac: _string(hashes['flac']),
-      hiRes: _string(hashes['hiRes']),
-      superHash: _string(hashes['super']),
-    ),
   );
 }
 

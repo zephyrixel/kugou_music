@@ -32,7 +32,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   static const refreshInterval = Duration(hours: 12);
   static const _lastRefreshKey = 'kugou_lite_last_refresh_at';
 
-  final MusicSdk _sdk;
+  final AuthSdk _sdk;
   final FlutterSecureStorage _storage;
   final AppDatabase _database;
   final LibraryRepository _library;

@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'sdk.dart';
+part of 'dto.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -176,7 +176,7 @@ return notFound();case _:
 
 class LyricFetchDto_Found extends LyricFetchDto {
   const LyricFetchDto_Found({required this.document}): super._();
-
+  
 
  final  LyricDocumentDto document;
 
@@ -242,7 +242,7 @@ as LyricDocumentDto,
 
 class LyricFetchDto_NotFound extends LyricFetchDto {
   const LyricFetchDto_NotFound(): super._();
-
+  
 
 
 
@@ -383,12 +383,12 @@ return unavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? bitRate,  int? durationSecs)?  playable,TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult Function( int? status,  int? failProcess)?  denied,TResult Function()?  unavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? bitRate,  int? durationSecs)?  playable,TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult Function()?  denied,TResult Function()?  unavailable,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case PlaybackResolutionDto_Playable() when playable != null:
 return playable(_that.url,_that.artworkUrl,_that.quality,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview() when preview != null:
 return preview(_that.url,_that.artworkUrl,_that.quality,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied() when denied != null:
-return denied(_that.status,_that.failProcess);case PlaybackResolutionDto_Unavailable() when unavailable != null:
+return denied();case PlaybackResolutionDto_Unavailable() when unavailable != null:
 return unavailable();case _:
   return orElse();
 
@@ -407,12 +407,12 @@ return unavailable();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? bitRate,  int? durationSecs)  playable,required TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? endMs,  int? bitRate,  int? durationSecs)  preview,required TResult Function( int? status,  int? failProcess)  denied,required TResult Function()  unavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? bitRate,  int? durationSecs)  playable,required TResult Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? endMs,  int? bitRate,  int? durationSecs)  preview,required TResult Function()  denied,required TResult Function()  unavailable,}) {final _that = this;
 switch (_that) {
 case PlaybackResolutionDto_Playable():
 return playable(_that.url,_that.artworkUrl,_that.quality,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview():
 return preview(_that.url,_that.artworkUrl,_that.quality,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied():
-return denied(_that.status,_that.failProcess);case PlaybackResolutionDto_Unavailable():
+return denied();case PlaybackResolutionDto_Unavailable():
 return unavailable();}
 }
 /// A variant of `when` that fallback to returning `null`
@@ -427,12 +427,12 @@ return unavailable();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? bitRate,  int? durationSecs)?  playable,TResult? Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult? Function( int? status,  int? failProcess)?  denied,TResult? Function()?  unavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? bitRate,  int? durationSecs)?  playable,TResult? Function( String url,  String? artworkUrl,  AudioQualityDto quality,  int? endMs,  int? bitRate,  int? durationSecs)?  preview,TResult? Function()?  denied,TResult? Function()?  unavailable,}) {final _that = this;
 switch (_that) {
 case PlaybackResolutionDto_Playable() when playable != null:
 return playable(_that.url,_that.artworkUrl,_that.quality,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Preview() when preview != null:
 return preview(_that.url,_that.artworkUrl,_that.quality,_that.endMs,_that.bitRate,_that.durationSecs);case PlaybackResolutionDto_Denied() when denied != null:
-return denied(_that.status,_that.failProcess);case PlaybackResolutionDto_Unavailable() when unavailable != null:
+return denied();case PlaybackResolutionDto_Unavailable() when unavailable != null:
 return unavailable();case _:
   return null;
 
@@ -595,69 +595,33 @@ as int?,
 
 
 class PlaybackResolutionDto_Denied extends PlaybackResolutionDto {
-  const PlaybackResolutionDto_Denied({this.status, this.failProcess}): super._();
+  const PlaybackResolutionDto_Denied(): super._();
   
 
- final  int? status;
- final  int? failProcess;
 
-/// Create a copy of PlaybackResolutionDto
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-$PlaybackResolutionDto_DeniedCopyWith<PlaybackResolutionDto_Denied> get copyWith => _$PlaybackResolutionDto_DeniedCopyWithImpl<PlaybackResolutionDto_Denied>(this, _$identity);
+
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackResolutionDto_Denied&&(identical(other.status, status) || other.status == status)&&(identical(other.failProcess, failProcess) || other.failProcess == failProcess));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PlaybackResolutionDto_Denied);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,failProcess);
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'PlaybackResolutionDto.denied(status: $status, failProcess: $failProcess)';
+  return 'PlaybackResolutionDto.denied()';
 }
 
 
 }
 
-/// @nodoc
-abstract mixin class $PlaybackResolutionDto_DeniedCopyWith<$Res> implements $PlaybackResolutionDtoCopyWith<$Res> {
-  factory $PlaybackResolutionDto_DeniedCopyWith(PlaybackResolutionDto_Denied value, $Res Function(PlaybackResolutionDto_Denied) _then) = _$PlaybackResolutionDto_DeniedCopyWithImpl;
-@useResult
-$Res call({
- int? status, int? failProcess
-});
 
 
-
-
-}
-/// @nodoc
-class _$PlaybackResolutionDto_DeniedCopyWithImpl<$Res>
-    implements $PlaybackResolutionDto_DeniedCopyWith<$Res> {
-  _$PlaybackResolutionDto_DeniedCopyWithImpl(this._self, this._then);
-
-  final PlaybackResolutionDto_Denied _self;
-  final $Res Function(PlaybackResolutionDto_Denied) _then;
-
-/// Create a copy of PlaybackResolutionDto
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? status = freezed,Object? failProcess = freezed,}) {
-  return _then(PlaybackResolutionDto_Denied(
-status: freezed == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as int?,failProcess: freezed == failProcess ? _self.failProcess : failProcess // ignore: cast_nullable_to_non_nullable
-as int?,
-  ));
-}
-
-
-}
 
 /// @nodoc
 

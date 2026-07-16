@@ -30,7 +30,7 @@ class RecommendationQueueSource
 
   @override
   final RecommendationKind kind;
-  final MusicSdk _sdk;
+  final RecommendationSdk _sdk;
   final RecommendationReporter _reporter;
   Future<void> _operationTail = Future<void>.value();
   String? _markList;

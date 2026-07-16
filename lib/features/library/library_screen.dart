@@ -6,7 +6,6 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
-import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
@@ -120,22 +119,15 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
               label: '${songs.length} 首收藏',
               queueRequest: favorite?.localId == null
                   ? null
-                  : (items) => PlaybackQueueRequest(
-                      origin: PlaybackQueueOrigin(
-                        kind: PlaybackQueueOriginKind.favorites,
-                        title: '我喜欢',
-                        id: favorite!.localId,
-                        totalCount: favorite.count,
-                      ),
-                      songs: List.unmodifiable(items),
-                      source: LibraryPlaylistPlaybackQueueSource(
-                        repository: ref.read(libraryRepositoryProvider),
-                        localId: favorite.localId!,
-                      ),
-                      nextPage: ((items.length + 99) ~/ 100) + 1,
-                      hasMore: items.length < favorite.count,
-                      pageSize: 100,
-                    ),
+                  : (items) => ref
+                        .read(playbackQueueFactoryProvider)
+                        .libraryPlaylist(
+                          playlist: favorite!,
+                          songs: items,
+                          count: favorite.count,
+                          nextPage: ((items.length + 99) ~/ 100) + 1,
+                          hasMore: items.length < favorite.count,
+                        ),
               trailingBuilder: (song) => IconButton(
                 tooltip: '取消喜欢',
                 onPressed: () =>

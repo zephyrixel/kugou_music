@@ -6,7 +6,6 @@ import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/library/library_store.dart';
-import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -212,6 +211,33 @@ void main() {
     expect((await store.syncState)?.userId, 2);
   });
 
+  test('account switch does not reuse a stale playlist track load', () async {
+    sdk.playlists = const [_favoritePlaylist, _customPlaylist];
+    sdk.tracksByListId[4] = const [remoteSong];
+    await library.activate(1);
+
+    final gate = Completer<void>();
+    final started = Completer<void>();
+    sdk.nextPlaylistTracksGate = gate;
+    sdk.nextPlaylistTracksStarted = started;
+    final staleLoad = library.ensurePlaylistLoaded('remote:4');
+    await started.future;
+
+    await library.deactivate();
+    await library.activate(2);
+    await library.ensurePlaylistLoaded('remote:4');
+
+    expect(sdk.trackCalls, ['gid:4:1', 'gid:4:1']);
+    expect(
+      (await store.watchPlaylistTracks('remote:4').first).single.id,
+      remoteSong.id,
+    );
+
+    gate.complete();
+    await staleLoad;
+    expect((await store.syncState)?.userId, 2);
+  });
+
   test('recordPlayed uploads history when mixSongId present', () async {
     sdk.playlists = const [_favoritePlaylist];
     await library.activate(99);
@@ -278,10 +304,7 @@ HistoryEntry _historyEntry(int mixSongId, DateTime playedAt) => HistoryEntry(
   playCount: 1,
 );
 
-class _FakeMusicSdk implements MusicSdk {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-
+class _FakeMusicSdk implements LibrarySdk {
   List<Playlist> playlists = const [];
   final Map<int, List<Song>> tracksByListId = {};
   List<HistoryEntry> historyItems = const [];
@@ -295,80 +318,8 @@ class _FakeMusicSdk implements MusicSdk {
   int? tracksPageSize;
   Completer<void>? nextCloudPlaylistsGate;
   Completer<void>? nextCloudPlaylistsStarted;
-
-  @override
-  Future<SdkCapabilities> initialize() async => const SdkCapabilities(
-    platform: 'lite',
-    songSearch: true,
-    playlistSearch: true,
-    dailyRecommendation: true,
-    smsAuth: true,
-    cloudLibrary: true,
-    playlistMutations: true,
-  );
-
-  @override
-  Future<AuthSnapshot> authState() async => const AuthSnapshot(
-    authenticated: true,
-    userId: 99,
-    fingerprintRegistered: true,
-  );
-
-  @override
-  Future<void> sendSmsCode(String mobile) async {}
-
-  @override
-  Future<SmsLoginResult> loginBySms(String mobile, String code) async =>
-      SmsLoginResult(auth: await authState());
-
-  @override
-  Future<AuthSnapshot> refreshLogin() async => authState();
-
-  @override
-  Future<AuthSnapshot> registerDevice() async => authState();
-
-  @override
-  Future<void> logout() async {}
-
-  @override
-  Future<List<Song>> everydayRecommendations() async => const [];
-
-  @override
-  Future<SearchPage> search(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async => const SearchPage(songs: [], page: 1, pageSize: 30);
-
-  @override
-  Future<PlaylistSearchPage> searchPlaylists(
-    String keyword, {
-    int page = 1,
-    int pageSize = 30,
-  }) async => const PlaylistSearchPage(items: [], page: 1, pageSize: 30);
-
-  @override
-  Future<PlaybackResolution> resolve(
-    Song song, {
-    AudioQuality quality = AudioQuality.standard,
-    bool freePreview = false,
-  }) async => const UnavailableResolution();
-
-  @override
-  Future<UserProfile> userProfile() async =>
-      const UserProfile(userId: 99, displayName: 't');
-
-  @override
-  Future<UserVip> userVip() async => const UserVip();
-
-  @override
-  Future<VipClaimResult> claimDayVip() async => const VipClaimResult();
-
-  @override
-  Future<VipUpgradeResult> upgradeDayVip() async => const VipUpgradeResult();
-
-  @override
-  Future<VipMonthRecord> monthVipRecord() async => const VipMonthRecord();
+  Completer<void>? nextPlaylistTracksGate;
+  Completer<void>? nextPlaylistTracksStarted;
 
   @override
   Future<HistoryPage> cloudHistory({String? cursor}) async {
@@ -411,6 +362,14 @@ class _FakeMusicSdk implements MusicSdk {
   }) async {
     final listId = playlist.listId;
     trackCalls.add('gid:${listId ?? playlist.globalCollectionId}:$page');
+    final gate = nextPlaylistTracksGate;
+    if (gate != null) {
+      nextPlaylistTracksGate = null;
+      final started = nextPlaylistTracksStarted;
+      nextPlaylistTracksStarted = null;
+      started?.complete();
+      await gate.future;
+    }
     return _pageTracks(listId, page: page, pageSize: pageSize);
   }
 
@@ -450,13 +409,6 @@ class _FakeMusicSdk implements MusicSdk {
       total: all.length,
     );
   }
-
-  @override
-  Future<SearchPage> publicPlaylistTracks(
-    String globalCollectionId, {
-    int page = 1,
-    int pageSize = 50,
-  }) async => const SearchPage(songs: [], page: 1, pageSize: 50);
 
   @override
   Future<PlaylistMutation> createPlaylist(

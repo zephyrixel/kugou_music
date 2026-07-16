@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_store.dart';
+import 'package:kgmusic/core/library/playlist_track_loader.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
@@ -12,11 +13,19 @@ import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 
 /// Feature-facing library API: Drift read model + online write-back.
 class LibraryRepository {
-  LibraryRepository(this._store, this._remote, [this._reporter]);
+  LibraryRepository(
+    LibraryStore store,
+    LibraryRemote remote, [
+    RecommendationReporter? reporter,
+  ]) : _store = store,
+       _remote = remote,
+       _reporter = reporter,
+       _trackLoader = PlaylistTrackLoader(store, remote);
 
   final LibraryStore _store;
   final LibraryRemote _remote;
   final RecommendationReporter? _reporter;
+  final PlaylistTrackLoader _trackLoader;
 
   final StreamController<LibrarySyncStatus> _statuses =
       StreamController.broadcast(sync: true);
@@ -26,10 +35,6 @@ class LibraryRepository {
   Future<void>? _running;
   int? _runningGeneration;
   bool _disposed = false;
-
-  /// localId → in-flight progressive track load (page-by-page into Drift).
-  final Map<String, Future<void>> _trackLoads = {};
-  final Map<String, int> _trackLoadTokens = {};
 
   Stream<List<Playlist>> watchPlaylists() => _store.watchPlaylists();
   Stream<List<Song>> watchFavorites() => _store.watchFavoriteSongs();
@@ -88,6 +93,7 @@ class LibraryRepository {
     }
     return remote;
   }
+
   Stream<LibrarySyncStatus> get syncStatuses async* {
     yield _status;
     yield* _statuses.stream;
@@ -96,6 +102,7 @@ class LibraryRepository {
   LibrarySyncStatus get status => _status;
 
   Future<void> activate(int userId) async {
+    _trackLoader.cancelAll();
     final generation = ++_generation;
     _userId = userId;
     final state = await _store.syncState;
@@ -110,6 +117,7 @@ class LibraryRepository {
   }
 
   Future<void> deactivate() async {
+    _trackLoader.cancelAll();
     _generation += 1;
     _userId = null;
     await _store.clearLibrary();
@@ -129,56 +137,57 @@ class LibraryRepository {
     if (current != null && _runningGeneration == generation) return current;
 
     late final Future<void> tracked;
-    tracked = Future(() async {
-      if (!_isCurrent(generation, userId)) return;
-      _emit(
-        LibrarySyncStatus(
-          phase: LibrarySyncPhase.syncing,
-          lastSyncedAt: _status.lastSyncedAt,
-        ),
-      );
-      try {
-        final playlists = await _remote.fetchAllPlaylists();
-        if (!_isCurrent(generation, userId)) return;
-        final history = await _remote.fetchHistory();
-        if (!_isCurrent(generation, userId)) return;
-        if (wipe) {
-          await _store.clearLibrary();
+    tracked =
+        Future(() async {
           if (!_isCurrent(generation, userId)) return;
-        }
-        await _store.replaceLibrary(
-          userId: userId,
-          playlists: playlists,
-          history: history,
-        );
-        if (!_isCurrent(generation, userId)) return;
-        await _store.setSyncResult(userId: userId);
-        if (!_isCurrent(generation, userId)) return;
-        _emit(
-          LibrarySyncStatus(
-            phase: LibrarySyncPhase.idle,
-            lastSyncedAt: DateTime.now(),
-          ),
-        );
-      } catch (error) {
-        if (!_isCurrent(generation, userId)) return;
-        await _store.setSyncResult(userId: userId, error: error.toString());
-        if (!_isCurrent(generation, userId)) return;
-        _emit(
-          LibrarySyncStatus(
-            phase: LibrarySyncPhase.failed,
-            message: error.toString(),
-            lastSyncedAt: _status.lastSyncedAt,
-          ),
-        );
-        rethrow;
-      }
-    }).whenComplete(() {
-      if (identical(_running, tracked)) {
-        _running = null;
-        _runningGeneration = null;
-      }
-    });
+          _emit(
+            LibrarySyncStatus(
+              phase: LibrarySyncPhase.syncing,
+              lastSyncedAt: _status.lastSyncedAt,
+            ),
+          );
+          try {
+            final playlists = await _remote.fetchAllPlaylists();
+            if (!_isCurrent(generation, userId)) return;
+            final history = await _remote.fetchHistory();
+            if (!_isCurrent(generation, userId)) return;
+            if (wipe) {
+              await _store.clearLibrary();
+              if (!_isCurrent(generation, userId)) return;
+            }
+            await _store.replaceLibrary(
+              userId: userId,
+              playlists: playlists,
+              history: history,
+            );
+            if (!_isCurrent(generation, userId)) return;
+            await _store.setSyncResult(userId: userId);
+            if (!_isCurrent(generation, userId)) return;
+            _emit(
+              LibrarySyncStatus(
+                phase: LibrarySyncPhase.idle,
+                lastSyncedAt: DateTime.now(),
+              ),
+            );
+          } catch (error) {
+            if (!_isCurrent(generation, userId)) return;
+            await _store.setSyncResult(userId: userId, error: error.toString());
+            if (!_isCurrent(generation, userId)) return;
+            _emit(
+              LibrarySyncStatus(
+                phase: LibrarySyncPhase.failed,
+                message: error.toString(),
+                lastSyncedAt: _status.lastSyncedAt,
+              ),
+            );
+            rethrow;
+          }
+        }).whenComplete(() {
+          if (identical(_running, tracked)) {
+            _running = null;
+            _runningGeneration = null;
+          }
+        });
     _running = tracked;
     _runningGeneration = generation;
     return tracked;
@@ -195,83 +204,11 @@ class LibraryRepository {
     final generation = _generation;
     final userId = _userId;
     if (userId == null) return;
-    final playlist = await _store.playlist(localId);
-    if (!_isCurrent(generation, userId) || playlist == null) return;
-    if (playlist.tracksLoaded && !force) return;
-
-    final existing = _trackLoads[localId];
-    if (existing != null && !force) return existing;
-
-    final token = (_trackLoadTokens[localId] ?? 0) + 1;
-    _trackLoadTokens[localId] = token;
-
-    final tracked = _loadAllPlaylistTracks(
+    await _trackLoader.ensure(
       localId,
-      playlist: playlist,
-      generation: generation,
-      userId: userId,
-      token: token,
+      force: force,
+      isCurrent: () => _isCurrent(generation, userId),
     );
-    _trackLoads[localId] = tracked;
-    try {
-      await tracked;
-    } finally {
-      if (identical(_trackLoads[localId], tracked)) {
-        _trackLoads.remove(localId);
-      }
-    }
-  }
-
-  Future<void> _loadAllPlaylistTracks(
-    String localId, {
-    required Playlist playlist,
-    required int generation,
-    required int userId,
-    required int token,
-  }) async {
-    bool stillCurrent() =>
-        _isCurrent(generation, userId) && _trackLoadTokens[localId] == token;
-
-    await _store.clearPlaylistTracks(localId);
-    if (!stillCurrent()) return;
-
-    var page = 1;
-    var loaded = 0;
-    final known = <String>{};
-
-    while (true) {
-      if (!stillCurrent()) return;
-
-      final response = await _remote.fetchTracksPage(playlist, page: page);
-      if (!stillCurrent()) return;
-
-      final fresh = <Song>[];
-      for (final song in response.songs) {
-        if (known.add(song.id)) fresh.add(song);
-      }
-      if (fresh.isNotEmpty || response.total != null) {
-        await _store.appendPlaylistTracks(
-          localId,
-          fresh,
-          startPosition: loaded,
-          totalCount: response.total,
-        );
-        loaded += fresh.length;
-      }
-      if (!stillCurrent()) return;
-
-      final hasMore = canLoadNextPage(
-        loadedItemCount: loaded,
-        lastPageItemCount: response.songs.length,
-        pageSize: response.pageSize,
-        total: response.total,
-      );
-      if (!hasMore) {
-        await _store.markPlaylistTracksLoaded(localId, count: loaded);
-        return;
-      }
-      page += 1;
-    }
   }
 
   Future<void> ensureFavoriteLoaded({bool force = false}) async {
@@ -286,11 +223,7 @@ class LibraryRepository {
       throw StateError('账号没有可用的“我喜欢”歌单');
     }
     final present = await _store.isTrackMember(favorite!.localId!, song.id);
-    await _setMembership(
-      favorite,
-      song,
-      present: !present,
-    );
+    await _setMembership(favorite, song, present: !present);
   }
 
   Future<void> addSong(String playlistLocalId, Song song) async {
@@ -492,12 +425,9 @@ class LibraryRepository {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _trackLoader.cancelAll();
     _generation += 1;
     _userId = null;
-    for (final localId in _trackLoadTokens.keys.toList()) {
-      _trackLoadTokens[localId] = (_trackLoadTokens[localId] ?? 0) + 1;
-    }
-    _trackLoads.clear();
     await _statuses.close();
   }
 }

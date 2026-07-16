@@ -6,8 +6,6 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/player/playback_queue.dart';
-import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
@@ -101,24 +99,22 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
       footerSlivers: pagedListFooterSlivers(_pager),
       queueRequest: (songs) {
         final userId = ref.read(authControllerProvider).snapshot.userId;
-        return PlaybackQueueRequest(
-          origin: PlaybackQueueOrigin(
-            kind: PlaybackQueueOriginKind.publicPlaylist,
-            title: widget.playlist.name,
-            id: widget.playlist.globalCollectionId,
-            totalCount:
-                _pager.total ?? widget.playlist.songCount ?? songs.length,
-          ),
-          songs: List.unmodifiable(songs),
-          source: PublicPlaylistPlaybackQueueSource(
-            repository: ref.read(musicRepositoryProvider),
-            globalCollectionId: widget.playlist.globalCollectionId!,
-            userId: userId,
-          ),
-          nextPage: _pager.nextPage,
-          hasMore: _pager.hasMore,
-          pageSize: _pageSize,
-        );
+        final gid = widget.playlist.globalCollectionId;
+        if (gid == null || gid.isEmpty) {
+          throw StateError('公开歌单缺少全局标识');
+        }
+        return ref
+            .read(playbackQueueFactoryProvider)
+            .publicPlaylist(
+              globalCollectionId: gid,
+              title: widget.playlist.name,
+              songs: songs,
+              nextPage: _pager.nextPage,
+              hasMore: _pager.hasMore,
+              total: _pager.total ?? widget.playlist.songCount,
+              userId: userId,
+              pageSize: _pageSize,
+            );
       },
     ),
   );

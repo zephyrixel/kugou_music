@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
@@ -7,10 +6,11 @@ import 'package:flutter/widgets.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:kgmusic/core/cache/artwork_cache.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
-import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/player/audio_player_port.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/player/playback_queue_controller.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/player/playback_queue_store.dart';
 import 'package:kgmusic/core/recommendation/recommendation_queue_source.dart';
@@ -23,11 +23,15 @@ class MusicAudioHandler extends BaseAudioHandler
     with SeekHandler, WidgetsBindingObserver {
   MusicAudioHandler(
     this._sdk,
-    this._library,
+    this._recordPlayed,
     this._audioCache, {
     this.queueStore,
     this.queueSourceFactory,
-  }) {
+    AudioPlayerPort? player,
+    Future<void> Function()? configureSession,
+    bool observeLifecycle = true,
+    bool restoreQueueOnStart = true,
+  }) : _player = player ?? JustAudioPlayerPort() {
     _player.playbackEventStream.listen(_broadcastState);
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
@@ -35,24 +39,23 @@ class MusicAudioHandler extends BaseAudioHandler
       }
     });
     _player.positionStream.listen(_enforcePreviewEnd);
-    WidgetsBinding.instance.addObserver(this);
-    unawaited(_configureSession());
-    unawaited(_restoreQueue());
+    if (observeLifecycle) WidgetsBinding.instance.addObserver(this);
+    unawaited((configureSession ?? _configureSession)());
+    if (restoreQueueOnStart) unawaited(_restoreQueue());
   }
 
-  final MusicSdk _sdk;
-  final LibraryRepository _library;
-  final AudioCacheManager _audioCache;
+  final PlayerSdk _sdk;
+  final Future<void> Function(Song) _recordPlayed;
+  final AudioCache _audioCache;
   final PlaybackQueueStore? queueStore;
   final PlaybackQueueSourceFactory? queueSourceFactory;
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayerPort _player;
   final StreamController<String?> _messages = StreamController.broadcast();
   final StreamController<PlaybackQualityState> _qualityStates =
       StreamController.broadcast(sync: true);
   final StreamController<PlaybackQueueState> _queueStates =
       StreamController.broadcast(sync: true);
-  List<Song> _songs = const [];
-  int _index = -1;
+  final PlaybackQueueController _queueController = PlaybackQueueController();
   int _loadGeneration = 0;
   AudioQuality _preferredQuality = AudioQuality.standard;
   PlaybackQualityState _qualityState = const PlaybackQualityState(
@@ -70,9 +73,6 @@ class MusicAudioHandler extends BaseAudioHandler
   Future<void>? _loadMoreOperation;
   Timer? _prefetchTimer;
   String? _prefetchAttemptedSongId;
-  PlaybackOrder _order = PlaybackOrder.sequential;
-  final Random _random = Random();
-  final Set<String> _shuffleRemaining = {};
   Duration? _restoredPosition;
   Duration? _currentMediaDuration;
 
@@ -85,7 +85,10 @@ class MusicAudioHandler extends BaseAudioHandler
   PlaybackQualityState get qualityState => _qualityState;
   PlaybackQueueState? get queueState => _queueState;
   Duration get position => _player.position;
-  List<Song> get songs => List.unmodifiable(_songs);
+  List<Song> get _songs => _queueController.songs;
+  int get _index => _queueController.currentIndex;
+  PlaybackOrder get _order => _queueController.order;
+  List<Song> get songs => _songs;
   int get currentIndex => _index;
   bool get isRecommendationQueue =>
       _queueRequest?.source is RecommendationFeedbackSource;
@@ -297,15 +300,13 @@ class MusicAudioHandler extends BaseAudioHandler
       return;
     }
     if (_order == PlaybackOrder.shuffle) {
-      if (_shuffleRemaining.isEmpty && _queueRequest?.hasMore == true) {
+      if (!_queueController.hasShuffleCandidates &&
+          _queueRequest?.hasMore == true) {
         await loadMoreQueue();
       }
-      if (_shuffleRemaining.isNotEmpty) {
-        final ids = _shuffleRemaining.toList(growable: false);
-        final id = ids[_random.nextInt(ids.length)];
-        _shuffleRemaining.remove(id);
-        final target = _songs.indexWhere((song) => song.id == id);
-        if (target >= 0) {
+      if (_queueController.hasShuffleCandidates) {
+        final target = _queueController.takeRandomIndex();
+        if (target != null) {
           await _requestPlayback(
             request: _queueRequest!,
             index: target,

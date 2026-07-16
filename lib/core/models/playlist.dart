@@ -87,14 +87,12 @@ class PlaylistPage {
     required this.page,
     required this.pageSize,
     this.total,
-    this.totalVersion,
   });
 
   final List<Playlist> items;
   final int page;
   final int pageSize;
   final int? total;
-  final int? totalVersion;
 }
 
 class PlaylistSearchHit {
@@ -145,12 +143,10 @@ class PlaylistEditInput {
     this.private,
     this.intro,
     this.tags,
-    this.totalVersion,
   });
   final int listId;
   final String? name;
   final bool? private;
   final String? intro;
   final String? tags;
-  final int? totalVersion;
 }
