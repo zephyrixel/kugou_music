@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
@@ -45,12 +46,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _songPager = PagedListController<Song>(
       pageSize: 30,
       itemId: (song) => song.id,
-      fetchPage: (page, pageSize) {
+      fetchPage: (page, pageSize, forceRefresh) {
         final keyword = _keyword;
         final userId = ref.read(authControllerProvider).snapshot.userId;
         return ref
             .read(musicRepositoryProvider)
-            .search(keyword, userId: userId, page: page, pageSize: pageSize)
+            .search(
+              keyword,
+              userId: userId,
+              page: page,
+              pageSize: pageSize,
+              mode: forceRefresh
+                  ? CacheLoadMode.forceRefresh
+                  : CacheLoadMode.normal,
+            )
             .map(
               (result) => PageSnapshot(
                 items: result.songs,
@@ -67,7 +76,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           hit.globalCollectionId ??
           hit.specialId?.toString() ??
           '${hit.name}:${hit.creatorUserId}',
-      fetchPage: (page, pageSize) {
+      fetchPage: (page, pageSize, forceRefresh) {
         final keyword = _keyword;
         final userId = ref.read(authControllerProvider).snapshot.userId;
         return ref
@@ -77,6 +86,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               userId: userId,
               page: page,
               pageSize: pageSize,
+              mode: forceRefresh
+                  ? CacheLoadMode.forceRefresh
+                  : CacheLoadMode.normal,
             )
             .map(
               (result) => PageSnapshot(

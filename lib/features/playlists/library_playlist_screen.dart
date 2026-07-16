@@ -9,8 +9,10 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
+import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
+import 'package:kgmusic/features/playlists/library_playlist_pager.dart';
 
 class LibraryPlaylistScreen extends ConsumerStatefulWidget {
   const LibraryPlaylistScreen({super.key, required this.playlist});
@@ -24,29 +26,53 @@ class LibraryPlaylistScreen extends ConsumerStatefulWidget {
 
 class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
   Object? _loadError;
-  bool _loading = false;
+  final _scrollController = ScrollController();
+  late final PagedListController<Song> _pager;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    _pager =
+        createLibraryPlaylistPager(
+            repository: ref.read(libraryRepositoryProvider),
+            localId: widget.playlist.localId!,
+          )
+          ..addListener(_onPagerChanged)
+          ..attach();
+    _scrollController.addListener(_onScroll);
   }
 
   Future<void> _load({bool force = false}) async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
+    if (force && mounted) setState(() => _loadError = null);
     try {
-      await ref
-          .read(libraryRepositoryProvider)
-          .ensurePlaylistLoaded(widget.playlist.localId!, force: force);
+      if (force) {
+        await _pager.reset(forceRefresh: true, keepItems: true);
+      } else if (!_pager.initialLoading && _pager.items.isEmpty) {
+        await _pager.loadMore(reset: true);
+      }
     } catch (error) {
       if (mounted) setState(() => _loadError = error);
-    } finally {
-      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _onPagerChanged() {
+    if (mounted) setState(() {});
+    _pager.loadAgainIfShort(_scrollController);
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      _pager.onScroll(_scrollController.position);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _pager.removeListener(_onPagerChanged);
+    _pager.dispose();
+    super.dispose();
   }
 
   @override
@@ -93,8 +119,9 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         count: count,
         songs: songs,
         // Only full-screen spinner when nothing to show yet.
-        loading: _loading && songs.isEmpty,
-        error: _loadError,
+        loading: _pager.initialLoading && songs.isEmpty,
+        error: _loadError ?? _pager.initialError,
+        scrollController: _scrollController,
         onRefresh: () => _load(force: true),
         onRetry: _load,
         songTrailing: (context, ref, song) => SongTileActions(
@@ -107,9 +134,9 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         ),
         // Reuse the same footer used by public playlists / search.
         footerSlivers: loadMoreFooterSlivers(
-          loading: _loading && songs.isNotEmpty,
-          error: songs.isNotEmpty ? _loadError : null,
-          onRetry: _load,
+          loading: _pager.loadingMore,
+          error: songs.isNotEmpty ? _pager.loadMoreError : null,
+          onRetry: () => _load(),
         ),
         queueRequest: (items) => ref
             .read(playbackQueueFactoryProvider)

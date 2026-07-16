@@ -30,7 +30,10 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
+
+  DateTime? _lastResponsePruneAt;
+  int _responseWritesSincePrune = 0;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +69,16 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(storedPlaylistTracks);
         await migrator.createTable(librarySyncStates);
       }
+      if (from >= 5 && from < 6) {
+        await migrator.addColumn(
+          storedPlaylists,
+          storedPlaylists.trackSnapshotCount,
+        );
+        await migrator.addColumn(
+          storedPlaylists,
+          storedPlaylists.tracksUpdatedAt,
+        );
+      }
     },
   );
 
@@ -74,9 +87,12 @@ class AppDatabase extends _$AppDatabase {
       cachedResponses,
     )..where((item) => item.cacheKey.equals(cacheKey))).getSingleOrNull();
     if (row == null) return null;
-    await (update(cachedResponses)
-          ..where((item) => item.cacheKey.equals(cacheKey)))
-        .write(CachedResponsesCompanion(lastAccessedAt: Value(DateTime.now())));
+    final now = DateTime.now();
+    if (now.difference(row.lastAccessedAt) >= const Duration(hours: 1)) {
+      await (update(cachedResponses)
+            ..where((item) => item.cacheKey.equals(cacheKey)))
+          .write(CachedResponsesCompanion(lastAccessedAt: Value(now)));
+    }
     return row;
   }
 
@@ -97,7 +113,15 @@ class AppDatabase extends _$AppDatabase {
         lastAccessedAt: now,
       ),
     );
-    await pruneResponseCache();
+    _responseWritesSincePrune += 1;
+    final lastPrune = _lastResponsePruneAt;
+    if (_responseWritesSincePrune >= 25 ||
+        lastPrune == null ||
+        now.difference(lastPrune) >= const Duration(hours: 1)) {
+      await pruneResponseCache();
+      _lastResponsePruneAt = now;
+      _responseWritesSincePrune = 0;
+    }
   }
 
   Future<void> deleteCachedResponse(String cacheKey) => (delete(

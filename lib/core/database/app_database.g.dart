@@ -1092,6 +1092,28 @@ class $StoredPlaylistsTable extends StoredPlaylists
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _trackSnapshotCountMeta =
+      const VerificationMeta('trackSnapshotCount');
+  @override
+  late final GeneratedColumn<int> trackSnapshotCount = GeneratedColumn<int>(
+    'track_snapshot_count',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tracksUpdatedAtMeta = const VerificationMeta(
+    'tracksUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tracksUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'tracks_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
   @override
   late final GeneratedColumn<String> tags = GeneratedColumn<String>(
@@ -1129,6 +1151,8 @@ class $StoredPlaylistsTable extends StoredPlaylists
     isMyFavorite,
     isDefaultCollect,
     tracksLoaded,
+    trackSnapshotCount,
+    tracksUpdatedAt,
     tags,
     sortOrder,
   ];
@@ -1253,6 +1277,24 @@ class $StoredPlaylistsTable extends StoredPlaylists
         ),
       );
     }
+    if (data.containsKey('track_snapshot_count')) {
+      context.handle(
+        _trackSnapshotCountMeta,
+        trackSnapshotCount.isAcceptableOrUnknown(
+          data['track_snapshot_count']!,
+          _trackSnapshotCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tracks_updated_at')) {
+      context.handle(
+        _tracksUpdatedAtMeta,
+        tracksUpdatedAt.isAcceptableOrUnknown(
+          data['tracks_updated_at']!,
+          _tracksUpdatedAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('tags')) {
       context.handle(
         _tagsMeta,
@@ -1330,6 +1372,14 @@ class $StoredPlaylistsTable extends StoredPlaylists
         DriftSqlType.bool,
         data['${effectivePrefix}tracks_loaded'],
       )!,
+      trackSnapshotCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}track_snapshot_count'],
+      ),
+      tracksUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tracks_updated_at'],
+      ),
       tags: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}tags'],
@@ -1362,6 +1412,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
   final bool isMyFavorite;
   final bool isDefaultCollect;
   final bool tracksLoaded;
+  final int? trackSnapshotCount;
+  final DateTime? tracksUpdatedAt;
   final String? tags;
   final int sortOrder;
   const StoredPlaylist({
@@ -1379,6 +1431,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     required this.isMyFavorite,
     required this.isDefaultCollect,
     required this.tracksLoaded,
+    this.trackSnapshotCount,
+    this.tracksUpdatedAt,
     this.tags,
     required this.sortOrder,
   });
@@ -1413,6 +1467,12 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     map['is_my_favorite'] = Variable<bool>(isMyFavorite);
     map['is_default_collect'] = Variable<bool>(isDefaultCollect);
     map['tracks_loaded'] = Variable<bool>(tracksLoaded);
+    if (!nullToAbsent || trackSnapshotCount != null) {
+      map['track_snapshot_count'] = Variable<int>(trackSnapshotCount);
+    }
+    if (!nullToAbsent || tracksUpdatedAt != null) {
+      map['tracks_updated_at'] = Variable<DateTime>(tracksUpdatedAt);
+    }
     if (!nullToAbsent || tags != null) {
       map['tags'] = Variable<String>(tags);
     }
@@ -1450,6 +1510,12 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       isMyFavorite: Value(isMyFavorite),
       isDefaultCollect: Value(isDefaultCollect),
       tracksLoaded: Value(tracksLoaded),
+      trackSnapshotCount: trackSnapshotCount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trackSnapshotCount),
+      tracksUpdatedAt: tracksUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tracksUpdatedAt),
       tags: tags == null && nullToAbsent ? const Value.absent() : Value(tags),
       sortOrder: Value(sortOrder),
     );
@@ -1477,6 +1543,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       isMyFavorite: serializer.fromJson<bool>(json['isMyFavorite']),
       isDefaultCollect: serializer.fromJson<bool>(json['isDefaultCollect']),
       tracksLoaded: serializer.fromJson<bool>(json['tracksLoaded']),
+      trackSnapshotCount: serializer.fromJson<int?>(json['trackSnapshotCount']),
+      tracksUpdatedAt: serializer.fromJson<DateTime?>(json['tracksUpdatedAt']),
       tags: serializer.fromJson<String?>(json['tags']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
@@ -1499,6 +1567,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       'isMyFavorite': serializer.toJson<bool>(isMyFavorite),
       'isDefaultCollect': serializer.toJson<bool>(isDefaultCollect),
       'tracksLoaded': serializer.toJson<bool>(tracksLoaded),
+      'trackSnapshotCount': serializer.toJson<int?>(trackSnapshotCount),
+      'tracksUpdatedAt': serializer.toJson<DateTime?>(tracksUpdatedAt),
       'tags': serializer.toJson<String?>(tags),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
@@ -1519,6 +1589,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     bool? isMyFavorite,
     bool? isDefaultCollect,
     bool? tracksLoaded,
+    Value<int?> trackSnapshotCount = const Value.absent(),
+    Value<DateTime?> tracksUpdatedAt = const Value.absent(),
     Value<String?> tags = const Value.absent(),
     int? sortOrder,
   }) => StoredPlaylist(
@@ -1540,6 +1612,12 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     isMyFavorite: isMyFavorite ?? this.isMyFavorite,
     isDefaultCollect: isDefaultCollect ?? this.isDefaultCollect,
     tracksLoaded: tracksLoaded ?? this.tracksLoaded,
+    trackSnapshotCount: trackSnapshotCount.present
+        ? trackSnapshotCount.value
+        : this.trackSnapshotCount,
+    tracksUpdatedAt: tracksUpdatedAt.present
+        ? tracksUpdatedAt.value
+        : this.tracksUpdatedAt,
     tags: tags.present ? tags.value : this.tags,
     sortOrder: sortOrder ?? this.sortOrder,
   );
@@ -1575,6 +1653,12 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       tracksLoaded: data.tracksLoaded.present
           ? data.tracksLoaded.value
           : this.tracksLoaded,
+      trackSnapshotCount: data.trackSnapshotCount.present
+          ? data.trackSnapshotCount.value
+          : this.trackSnapshotCount,
+      tracksUpdatedAt: data.tracksUpdatedAt.present
+          ? data.tracksUpdatedAt.value
+          : this.tracksUpdatedAt,
       tags: data.tags.present ? data.tags.value : this.tags,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
@@ -1597,6 +1681,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           ..write('isMyFavorite: $isMyFavorite, ')
           ..write('isDefaultCollect: $isDefaultCollect, ')
           ..write('tracksLoaded: $tracksLoaded, ')
+          ..write('trackSnapshotCount: $trackSnapshotCount, ')
+          ..write('tracksUpdatedAt: $tracksUpdatedAt, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -1619,6 +1705,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     isMyFavorite,
     isDefaultCollect,
     tracksLoaded,
+    trackSnapshotCount,
+    tracksUpdatedAt,
     tags,
     sortOrder,
   );
@@ -1640,6 +1728,8 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           other.isMyFavorite == this.isMyFavorite &&
           other.isDefaultCollect == this.isDefaultCollect &&
           other.tracksLoaded == this.tracksLoaded &&
+          other.trackSnapshotCount == this.trackSnapshotCount &&
+          other.tracksUpdatedAt == this.tracksUpdatedAt &&
           other.tags == this.tags &&
           other.sortOrder == this.sortOrder);
 }
@@ -1659,6 +1749,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
   final Value<bool> isMyFavorite;
   final Value<bool> isDefaultCollect;
   final Value<bool> tracksLoaded;
+  final Value<int?> trackSnapshotCount;
+  final Value<DateTime?> tracksUpdatedAt;
   final Value<String?> tags;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -1677,6 +1769,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.isMyFavorite = const Value.absent(),
     this.isDefaultCollect = const Value.absent(),
     this.tracksLoaded = const Value.absent(),
+    this.trackSnapshotCount = const Value.absent(),
+    this.tracksUpdatedAt = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1696,6 +1790,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.isMyFavorite = const Value.absent(),
     this.isDefaultCollect = const Value.absent(),
     this.tracksLoaded = const Value.absent(),
+    this.trackSnapshotCount = const Value.absent(),
+    this.tracksUpdatedAt = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1716,6 +1812,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Expression<bool>? isMyFavorite,
     Expression<bool>? isDefaultCollect,
     Expression<bool>? tracksLoaded,
+    Expression<int>? trackSnapshotCount,
+    Expression<DateTime>? tracksUpdatedAt,
     Expression<String>? tags,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -1736,6 +1834,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
       if (isMyFavorite != null) 'is_my_favorite': isMyFavorite,
       if (isDefaultCollect != null) 'is_default_collect': isDefaultCollect,
       if (tracksLoaded != null) 'tracks_loaded': tracksLoaded,
+      if (trackSnapshotCount != null)
+        'track_snapshot_count': trackSnapshotCount,
+      if (tracksUpdatedAt != null) 'tracks_updated_at': tracksUpdatedAt,
       if (tags != null) 'tags': tags,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
@@ -1757,6 +1858,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Value<bool>? isMyFavorite,
     Value<bool>? isDefaultCollect,
     Value<bool>? tracksLoaded,
+    Value<int?>? trackSnapshotCount,
+    Value<DateTime?>? tracksUpdatedAt,
     Value<String?>? tags,
     Value<int>? sortOrder,
     Value<int>? rowid,
@@ -1776,6 +1879,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
       isMyFavorite: isMyFavorite ?? this.isMyFavorite,
       isDefaultCollect: isDefaultCollect ?? this.isDefaultCollect,
       tracksLoaded: tracksLoaded ?? this.tracksLoaded,
+      trackSnapshotCount: trackSnapshotCount ?? this.trackSnapshotCount,
+      tracksUpdatedAt: tracksUpdatedAt ?? this.tracksUpdatedAt,
       tags: tags ?? this.tags,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
@@ -1827,6 +1932,12 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     if (tracksLoaded.present) {
       map['tracks_loaded'] = Variable<bool>(tracksLoaded.value);
     }
+    if (trackSnapshotCount.present) {
+      map['track_snapshot_count'] = Variable<int>(trackSnapshotCount.value);
+    }
+    if (tracksUpdatedAt.present) {
+      map['tracks_updated_at'] = Variable<DateTime>(tracksUpdatedAt.value);
+    }
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
@@ -1856,6 +1967,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
           ..write('isMyFavorite: $isMyFavorite, ')
           ..write('isDefaultCollect: $isDefaultCollect, ')
           ..write('tracksLoaded: $tracksLoaded, ')
+          ..write('trackSnapshotCount: $trackSnapshotCount, ')
+          ..write('tracksUpdatedAt: $tracksUpdatedAt, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -3463,6 +3576,8 @@ typedef $$StoredPlaylistsTableCreateCompanionBuilder =
       Value<bool> isMyFavorite,
       Value<bool> isDefaultCollect,
       Value<bool> tracksLoaded,
+      Value<int?> trackSnapshotCount,
+      Value<DateTime?> tracksUpdatedAt,
       Value<String?> tags,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -3483,6 +3598,8 @@ typedef $$StoredPlaylistsTableUpdateCompanionBuilder =
       Value<bool> isMyFavorite,
       Value<bool> isDefaultCollect,
       Value<bool> tracksLoaded,
+      Value<int?> trackSnapshotCount,
+      Value<DateTime?> tracksUpdatedAt,
       Value<String?> tags,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -3564,6 +3681,16 @@ class $$StoredPlaylistsTableFilterComposer
 
   ColumnFilters<bool> get tracksLoaded => $composableBuilder(
     column: $table.tracksLoaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get trackSnapshotCount => $composableBuilder(
+    column: $table.trackSnapshotCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tracksUpdatedAt => $composableBuilder(
+    column: $table.tracksUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3657,6 +3784,16 @@ class $$StoredPlaylistsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get trackSnapshotCount => $composableBuilder(
+    column: $table.trackSnapshotCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tracksUpdatedAt => $composableBuilder(
+    column: $table.tracksUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get tags => $composableBuilder(
     column: $table.tags,
     builder: (column) => ColumnOrderings(column),
@@ -3735,6 +3872,16 @@ class $$StoredPlaylistsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get trackSnapshotCount => $composableBuilder(
+    column: $table.trackSnapshotCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get tracksUpdatedAt => $composableBuilder(
+    column: $table.tracksUpdatedAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
 
@@ -3793,6 +3940,8 @@ class $$StoredPlaylistsTableTableManager
                 Value<bool> isMyFavorite = const Value.absent(),
                 Value<bool> isDefaultCollect = const Value.absent(),
                 Value<bool> tracksLoaded = const Value.absent(),
+                Value<int?> trackSnapshotCount = const Value.absent(),
+                Value<DateTime?> tracksUpdatedAt = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3811,6 +3960,8 @@ class $$StoredPlaylistsTableTableManager
                 isMyFavorite: isMyFavorite,
                 isDefaultCollect: isDefaultCollect,
                 tracksLoaded: tracksLoaded,
+                trackSnapshotCount: trackSnapshotCount,
+                tracksUpdatedAt: tracksUpdatedAt,
                 tags: tags,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -3831,6 +3982,8 @@ class $$StoredPlaylistsTableTableManager
                 Value<bool> isMyFavorite = const Value.absent(),
                 Value<bool> isDefaultCollect = const Value.absent(),
                 Value<bool> tracksLoaded = const Value.absent(),
+                Value<int?> trackSnapshotCount = const Value.absent(),
+                Value<DateTime?> tracksUpdatedAt = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3849,6 +4002,8 @@ class $$StoredPlaylistsTableTableManager
                 isMyFavorite: isMyFavorite,
                 isDefaultCollect: isDefaultCollect,
                 tracksLoaded: tracksLoaded,
+                trackSnapshotCount: trackSnapshotCount,
+                tracksUpdatedAt: tracksUpdatedAt,
                 tags: tags,
                 sortOrder: sortOrder,
                 rowid: rowid,

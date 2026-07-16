@@ -38,6 +38,8 @@ class StoredPlaylists extends Table {
   BoolColumn get isDefaultCollect =>
       boolean().withDefault(const Constant(false))();
   BoolColumn get tracksLoaded => boolean().withDefault(const Constant(false))();
+  IntColumn get trackSnapshotCount => integer().nullable()();
+  DateTimeColumn get tracksUpdatedAt => dateTime().nullable()();
   TextColumn get tags => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 

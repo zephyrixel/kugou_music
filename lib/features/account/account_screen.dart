@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/models/account.dart';
@@ -30,6 +31,16 @@ class AccountScreen extends ConsumerWidget {
         onRefresh: () async {
           await auth.refreshIfDue(force: true);
           await ref.read(libraryRepositoryProvider).syncNow();
+          final userId = auth.snapshot.userId;
+          if (userId != null) {
+            final repository = ref.read(musicRepositoryProvider);
+            await Future.wait([
+              repository
+                  .userProfile(userId, mode: CacheLoadMode.forceRefresh)
+                  .last,
+              repository.userVip(userId, mode: CacheLoadMode.forceRefresh).last,
+            ]);
+          }
           ref.invalidate(userProfileProvider);
           ref.invalidate(userVipProvider);
         },

@@ -33,6 +33,7 @@ void main() {
     final values = await MusicRepository(
       remote,
       database,
+      now: () => DateTime.now().add(const Duration(hours: 7)),
     ).everydayRecommendations(userId: 42).toList();
 
     expect(values.map((songs) => songs.single.title), ['Cached', 'Fresh']);
@@ -70,7 +71,11 @@ void main() {
     );
 
     await expectLater(
-      MusicRepository(remote, database).everydayRecommendations(userId: 42),
+      MusicRepository(
+        remote,
+        database,
+        now: () => DateTime.now().add(const Duration(hours: 7)),
+      ).everydayRecommendations(userId: 42),
       emitsInOrder([
         predicate<List<Song>>((songs) => songs.single.title == 'Cached'),
         emitsError(isA<MusicSdkException>()),
@@ -94,6 +99,25 @@ void main() {
     expect((await first).single.title, 'Fresh');
     expect((await second).single.title, 'Fresh');
   });
+
+  test(
+    'fresh cache suppresses repeated network requests until its TTL expires',
+    () async {
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      var now = DateTime.utc(2026, 7, 16, 8);
+      final remote = _FakeMusicSdk(() async => const [freshSong]);
+      final repository = MusicRepository(remote, database, now: () => now);
+
+      await repository.everydayRecommendations(userId: 42).last;
+      await repository.everydayRecommendations(userId: 42).last;
+      expect(remote.dailyCalls, 1);
+
+      now = now.add(const Duration(hours: 7));
+      await repository.everydayRecommendations(userId: 42).last;
+      expect(remote.dailyCalls, 2);
+    },
+  );
 }
 
 class _FakeMusicSdk implements BrowseSdk {

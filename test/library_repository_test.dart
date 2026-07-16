@@ -17,12 +17,14 @@ void main() {
   late LibraryStore store;
   late _FakeMusicSdk sdk;
   late LibraryRepository library;
+  late DateTime now;
 
   setUp(() {
     database = AppDatabase.forTesting(NativeDatabase.memory());
     store = LibraryStore(database);
     sdk = _FakeMusicSdk();
-    library = LibraryRepository(store, LibraryRemote(sdk));
+    now = DateTime.now();
+    library = LibraryRepository(store, LibraryRemote(sdk), now: () => now);
   });
 
   tearDown(() async {
@@ -47,7 +49,7 @@ void main() {
     expect(playlists.map((item) => item.name), ['我喜欢']);
     expect(await store.watchFavoriteSongs().first, isEmpty);
     expect(sdk.trackCalls, isEmpty);
-    await library.ensureFavoriteLoaded();
+    await library.refreshFavoriteIndexIfNeeded();
     expect((await store.watchFavoriteSongs().first).single.id, remoteSong.id);
     expect(sdk.trackCalls, ['gid:2:1']);
     await library.syncNow();
@@ -80,7 +82,7 @@ void main() {
       sdk.playlists = const [_favoritePlaylist, _customPlaylist];
       sdk.tracksByListId[4] = const [localSong];
       await library.activate(99);
-      await library.ensurePlaylistLoaded('remote:4');
+      await library.refreshPlaylistSnapshot('remote:4');
       expect(sdk.trackCalls, ['gid:4:1']);
 
       sdk.playlists = const [_favoritePlaylist, _customPlaylistUpdated];
@@ -96,7 +98,20 @@ void main() {
     },
   );
 
-  test('playlist tracks load page-by-page into Drift', () async {
+  test('automatic library sync respects the five minute cooldown', () async {
+    sdk.playlists = const [_favoritePlaylist];
+    await library.activate(99);
+    final firstSyncCalls = sdk.cloudPlaylistCalls;
+
+    await library.syncIfDue();
+    expect(sdk.cloudPlaylistCalls, firstSyncCalls);
+
+    now = now.add(const Duration(minutes: 6));
+    await library.syncIfDue();
+    expect(sdk.cloudPlaylistCalls, greaterThan(firstSyncCalls));
+  });
+
+  test('complete snapshot refresh swaps into Drift atomically', () async {
     sdk.playlists = const [_favoritePlaylist, _customPlaylist];
     sdk.tracksByListId[4] = [
       for (var i = 0; i < 5; i++)
@@ -115,15 +130,14 @@ void main() {
       progressive.add(songs.length);
     });
 
-    await library.ensurePlaylistLoaded('remote:4');
+    await library.refreshPlaylistSnapshot('remote:4');
     await Future<void>.delayed(Duration.zero);
     await sub.cancel();
 
     expect(sdk.trackCalls, ['gid:4:1', 'gid:4:2', 'gid:4:3']);
     expect((await store.watchPlaylistTracks('remote:4').first).length, 5);
     expect((await store.playlist('remote:4'))?.tracksLoaded, isTrue);
-    // UI should have seen intermediate sizes, not only the final 5.
-    expect(progressive.any((n) => n > 0 && n < 5), isTrue);
+    expect(progressive.where((n) => n > 0), everyElement(5));
     expect(progressive.last, 5);
   });
 
@@ -170,6 +184,29 @@ void main() {
     );
     expect(await store.watchFavoriteSongs().first, isEmpty);
   });
+
+  test(
+    'background favorite snapshot cannot overwrite a newer local change',
+    () async {
+      sdk.playlists = [_favoritePlaylist.copyWith(count: 1)];
+      sdk.tracksByListId[2] = const [remoteSong];
+      await library.activate(99);
+
+      final gate = Completer<void>();
+      final started = Completer<void>();
+      sdk.nextPlaylistTracksGate = gate;
+      sdk.nextPlaylistTracksStarted = started;
+      final refresh = library.refreshPlaylistSnapshot('remote:2');
+      await started.future;
+
+      await library.toggleFavorite(localSong);
+      gate.complete();
+      await refresh;
+
+      final favorites = await store.watchFavoriteSongs().first;
+      expect(favorites.map((song) => song.id), contains(localSong.id));
+    },
+  );
 
   test('history walk keeps newest entries', () async {
     sdk.playlists = const [_favoritePlaylist];
@@ -220,12 +257,12 @@ void main() {
     final started = Completer<void>();
     sdk.nextPlaylistTracksGate = gate;
     sdk.nextPlaylistTracksStarted = started;
-    final staleLoad = library.ensurePlaylistLoaded('remote:4');
+    final staleLoad = library.refreshPlaylistSnapshot('remote:4');
     await started.future;
 
     await library.deactivate();
     await library.activate(2);
-    await library.ensurePlaylistLoaded('remote:4');
+    await library.refreshPlaylistSnapshot('remote:4');
 
     expect(sdk.trackCalls, ['gid:4:1', 'gid:4:1']);
     expect(
@@ -311,6 +348,7 @@ class _FakeMusicSdk implements LibrarySdk {
   final Map<String?, HistoryPage> historyPages = {};
   final List<String> calls = [];
   final List<String> trackCalls = [];
+  int cloudPlaylistCalls = 0;
   final List<HistoryUpload> historyUploads = [];
   bool addShouldFail = false;
 
@@ -337,6 +375,7 @@ class _FakeMusicSdk implements LibrarySdk {
 
   @override
   Future<PlaylistPage> cloudPlaylists({int page = 1, int pageSize = 50}) async {
+    cloudPlaylistCalls += 1;
     final gate = page == 1 ? nextCloudPlaylistsGate : null;
     if (page == 1) {
       nextCloudPlaylistsGate = null;

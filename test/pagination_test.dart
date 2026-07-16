@@ -56,7 +56,7 @@ void main() {
       final controller = PagedListController<String>(
         pageSize: 3,
         itemId: (item) => item,
-        fetchPage: (page, pageSize) async* {
+        fetchPage: (page, pageSize, forceRefresh) async* {
           yield PageSnapshot(
             items: pages[page] ?? const [],
             page: page,
@@ -85,7 +85,7 @@ void main() {
       final controller = PagedListController<String>(
         pageSize: 2,
         itemId: (item) => item,
-        fetchPage: (page, pageSize) async* {
+        fetchPage: (page, pageSize, forceRefresh) async* {
           if (page == 1) {
             page1Calls += 1;
             if (page1Calls == 1) {
@@ -126,7 +126,7 @@ void main() {
       final controller = PagedListController<String>(
         pageSize: 1,
         itemId: (item) => item,
-        fetchPage: (page, pageSize) async* {
+        fetchPage: (page, pageSize, forceRefresh) async* {
           calls += 1;
           if (calls == 1) {
             yield PageSnapshot(

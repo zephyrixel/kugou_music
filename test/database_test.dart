@@ -140,6 +140,14 @@ void main() {
     expect(tableNames, contains('library_sync_states'));
     expect(tableNames, isNot(contains('library_outbox')));
     expect(tableNames, isNot(contains('library_tracks')));
+    final playlistColumns =
+        (await database
+                .customSelect('PRAGMA table_info(stored_playlists)')
+                .get())
+            .map((row) => row.read<String>('name'))
+            .toSet();
+    expect(playlistColumns, contains('track_snapshot_count'));
+    expect(playlistColumns, contains('tracks_updated_at'));
     expect(
       await database.readCachedResponse('v1/user/7/cloud/playlists/1/50'),
       isNull,

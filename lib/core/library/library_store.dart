@@ -42,9 +42,8 @@ class LibraryStore {
     );
   }
 
-  Stream<Set<String>> watchFavoriteSongIds() => watchFavoriteSongs().map(
-    (songs) => songs.map((song) => song.id).toSet(),
-  );
+  Stream<Set<String>> watchFavoriteSongIds() =>
+      watchFavoriteSongs().map((songs) => songs.map((song) => song.id).toSet());
 
   Stream<List<HistoryEntry>> watchHistory() =>
       (database.select(database.storedSongs)
@@ -129,10 +128,9 @@ class LibraryStore {
   }
 
   Future<Playlist?> favoritePlaylist() async {
-    final row =
-        await (database.select(database.storedPlaylists)
-              ..where((item) => item.isMyFavorite.equals(true)))
-            .getSingleOrNull();
+    final row = await (database.select(
+      database.storedPlaylists,
+    )..where((item) => item.isMyFavorite.equals(true))).getSingleOrNull();
     return row == null ? null : _playlistFromRow(row);
   }
 
@@ -154,55 +152,49 @@ class LibraryStore {
     await database.delete(database.librarySyncStates).go();
   });
 
-  /// Full replace of library metadata + history (baseline or refresh).
+  /// Merge cloud metadata and history without discarding cached track pages.
   Future<void> replaceLibrary({
     required int userId,
     required List<Playlist> playlists,
     required List<HistoryEntry> history,
   }) => database.transaction(() async {
-    final previous = await database.select(database.storedPlaylists).get();
-    final tracksLoadedByLocalId = {
-      for (final row in previous)
-        if (row.tracksLoaded) row.localId: true,
+    final previous = {
+      for (final row in await database.select(database.storedPlaylists).get())
+        row.localId: row,
     };
-    final previousTracks = <String, List<StoredPlaylistTrack>>{};
-    for (final row in previous) {
-      if (tracksLoadedByLocalId[row.localId] != true) continue;
-      previousTracks[row.localId] = await (database.select(
-        database.storedPlaylistTracks,
-      )..where((t) => t.playlistLocalId.equals(row.localId))).get();
-    }
-
-    await database.delete(database.storedPlaylistTracks).go();
-    await database.delete(database.storedPlaylists).go();
+    final remoteIds = playlists.map((playlist) => playlist.localId!).toSet();
 
     for (var index = 0; index < playlists.length; index++) {
       final playlist = playlists[index];
       final localId = playlist.localId!;
-      final keepTracks = tracksLoadedByLocalId[localId] == true;
+      final old = previous[localId];
+      final countChanged = old != null && old.count != playlist.count;
       await database
           .into(database.storedPlaylists)
-          .insert(
+          .insertOnConflictUpdate(
             _playlistCompanion(
-              playlist.copyWith(tracksLoaded: keepTracks),
+              playlist.copyWith(
+                tracksLoaded: old?.tracksLoaded ?? false,
+                trackSnapshotCount: old?.trackSnapshotCount,
+                tracksUpdatedAt: old?.tracksUpdatedAt,
+              ),
               sortOrder: index,
+              tracksLoaded: countChanged ? false : old?.tracksLoaded,
+              tracksUpdatedAt: old?.tracksUpdatedAt,
+              clearTracksUpdatedAt: countChanged,
             ),
           );
-      final tracks = previousTracks[localId];
-      if (keepTracks && tracks != null) {
-        for (final track in tracks) {
-          await database
-              .into(database.storedPlaylistTracks)
-              .insert(
-                StoredPlaylistTracksCompanion.insert(
-                  playlistLocalId: localId,
-                  songId: track.songId,
-                  fileId: Value(track.fileId),
-                  position: Value(track.position),
-                ),
-              );
-        }
-      }
+    }
+
+    for (final removed in previous.keys.where(
+      (localId) => !remoteIds.contains(localId),
+    )) {
+      await (database.delete(
+        database.storedPlaylistTracks,
+      )..where((track) => track.playlistLocalId.equals(removed))).go();
+      await (database.delete(
+        database.storedPlaylists,
+      )..where((playlist) => playlist.localId.equals(removed))).go();
     }
 
     for (final entry in history) {
@@ -238,27 +230,22 @@ class LibraryStore {
             ),
           );
 
-  /// Clear tracks and mark unloaded — first step of progressive page load.
-  /// Keeps [StoredPlaylists.count] so the header does not flash to 0.
-  Future<void> clearPlaylistTracks(String localId) =>
-      database.transaction(() async {
-        await (database.delete(
-          database.storedPlaylistTracks,
-        )..where((row) => row.playlistLocalId.equals(localId))).go();
-        await (database.update(
-          database.storedPlaylists,
-        )..where((row) => row.localId.equals(localId))).write(
-          const StoredPlaylistsCompanion(tracksLoaded: Value(false)),
-        );
-      });
-
-  /// Append one page of tracks at contiguous positions starting at [startPosition].
-  Future<void> appendPlaylistTracks(
+  /// Replace one remote page while preserving cached pages outside its range.
+  Future<void> replacePlaylistTrackPage(
     String localId,
     List<Song> songs, {
     required int startPosition,
+    required int pageSize,
     int? totalCount,
   }) => database.transaction(() async {
+    final endPosition = startPosition + pageSize;
+    await (database.delete(database.storedPlaylistTracks)..where(
+          (row) =>
+              row.playlistLocalId.equals(localId) &
+              row.position.isBiggerOrEqualValue(startPosition) &
+              row.position.isSmallerThanValue(endPosition),
+        ))
+        .go();
     for (var index = 0; index < songs.length; index++) {
       final song = songs[index];
       await _upsertSong(song);
@@ -273,41 +260,101 @@ class LibraryStore {
             ),
           );
     }
-    final count = totalCount ?? (startPosition + songs.length);
     await (database.update(
       database.storedPlaylists,
     )..where((row) => row.localId.equals(localId))).write(
-      StoredPlaylistsCompanion(count: Value(count)),
+      StoredPlaylistsCompanion(
+        count: totalCount == null ? const Value.absent() : Value(totalCount),
+        tracksUpdatedAt: Value(DateTime.now()),
+      ),
     );
   });
 
-  Future<void> markPlaylistTracksLoaded(
+  Future<bool> finishPlaylistSnapshot(
     String localId, {
-    required int count,
-  }) =>
-      (database.update(
+    required int totalCount,
+  }) => database.transaction(() async {
+    await (database.delete(database.storedPlaylistTracks)..where(
+          (row) =>
+              row.playlistLocalId.equals(localId) &
+              row.position.isBiggerOrEqualValue(totalCount),
+        ))
+        .go();
+    final positions =
+        await (database.selectOnly(database.storedPlaylistTracks)
+              ..addColumns([database.storedPlaylistTracks.position])
+              ..where(
+                database.storedPlaylistTracks.playlistLocalId.equals(localId) &
+                    database.storedPlaylistTracks.position.isBiggerOrEqualValue(
+                      0,
+                    ) &
+                    database.storedPlaylistTracks.position.isSmallerThanValue(
+                      totalCount,
+                    ),
+              ))
+            .map((row) => row.read(database.storedPlaylistTracks.position)!)
+            .get();
+    final complete = positions.toSet().length == totalCount;
+    if (complete) {
+      await (database.update(
         database.storedPlaylists,
       )..where((row) => row.localId.equals(localId))).write(
         StoredPlaylistsCompanion(
+          count: Value(totalCount),
           tracksLoaded: const Value(true),
-          count: Value(count),
+          trackSnapshotCount: Value(totalCount),
+          tracksUpdatedAt: Value(DateTime.now()),
         ),
       );
+    }
+    return complete;
+  });
 
-  /// Full replace (tests / one-shot callers). Prefer progressive append for UI.
-  Future<void> replacePlaylistTracks(String localId, List<Song> songs) async {
-    await clearPlaylistTracks(localId);
-    await appendPlaylistTracks(localId, songs, startPosition: 0);
-    await markPlaylistTracksLoaded(localId, count: songs.length);
-  }
+  /// Swap a complete snapshot in one transaction so watchers never see zero.
+  Future<void> replacePlaylistTracksAtomic(
+    String localId,
+    List<Song> songs, {
+    required int totalCount,
+  }) => database.transaction(() async {
+    for (final song in songs) {
+      await _upsertSong(song);
+    }
+    await (database.delete(
+      database.storedPlaylistTracks,
+    )..where((row) => row.playlistLocalId.equals(localId))).go();
+    for (var index = 0; index < songs.length; index++) {
+      final song = songs[index];
+      await database
+          .into(database.storedPlaylistTracks)
+          .insert(
+            StoredPlaylistTracksCompanion.insert(
+              playlistLocalId: localId,
+              songId: song.id,
+              fileId: Value(song.fileId),
+              position: Value(index),
+            ),
+          );
+    }
+    await (database.update(
+      database.storedPlaylists,
+    )..where((row) => row.localId.equals(localId))).write(
+      StoredPlaylistsCompanion(
+        count: Value(totalCount),
+        tracksLoaded: const Value(true),
+        trackSnapshotCount: Value(totalCount),
+        tracksUpdatedAt: Value(DateTime.now()),
+      ),
+    );
+  });
+
+  Future<void> replacePlaylistTracks(String localId, List<Song> songs) =>
+      replacePlaylistTracksAtomic(localId, songs, totalCount: songs.length);
 
   Future<void> upsertPlaylist(Playlist playlist, {int? sortOrder}) async {
     final count = sortOrder ?? await _playlistCount();
     await database
         .into(database.storedPlaylists)
-        .insertOnConflictUpdate(
-          _playlistCompanion(playlist, sortOrder: count),
-        );
+        .insertOnConflictUpdate(_playlistCompanion(playlist, sortOrder: count));
   }
 
   Future<void> updatePlaylistMeta(
@@ -392,11 +439,9 @@ class LibraryStore {
     final nextCount = present
         ? playlistRow.count + 1
         : (playlistRow.count - 1).clamp(0, 1 << 31);
-    await (database.update(
-      database.storedPlaylists,
-    )..where((row) => row.localId.equals(playlistLocalId))).write(
-      StoredPlaylistsCompanion(count: Value(nextCount)),
-    );
+    await (database.update(database.storedPlaylists)
+          ..where((row) => row.localId.equals(playlistLocalId)))
+        .write(StoredPlaylistsCompanion(count: Value(nextCount)));
     return (
       wasPresent: wasPresent,
       fileId: existing?.fileId,
@@ -431,11 +476,9 @@ class LibraryStore {
             ),
           );
     }
-    await (database.update(
-      database.storedPlaylists,
-    )..where((row) => row.localId.equals(playlistLocalId))).write(
-      StoredPlaylistsCompanion(count: Value(count)),
-    );
+    await (database.update(database.storedPlaylists)
+          ..where((row) => row.localId.equals(playlistLocalId)))
+        .write(StoredPlaylistsCompanion(count: Value(count)));
   });
 
   Future<void> markTrackFileId(
@@ -512,6 +555,9 @@ class LibraryStore {
 StoredPlaylistsCompanion _playlistCompanion(
   Playlist playlist, {
   int? sortOrder,
+  bool? tracksLoaded,
+  DateTime? tracksUpdatedAt,
+  bool clearTracksUpdatedAt = false,
 }) => StoredPlaylistsCompanion.insert(
   localId: playlist.localId!,
   remoteListId: Value(playlist.listId),
@@ -526,7 +572,11 @@ StoredPlaylistsCompanion _playlistCompanion(
   isPrivate: Value(playlist.isPrivate),
   isMyFavorite: Value(playlist.isMyFavorite),
   isDefaultCollect: Value(playlist.isDefaultCollect),
-  tracksLoaded: Value(playlist.tracksLoaded),
+  tracksLoaded: Value(tracksLoaded ?? playlist.tracksLoaded),
+  trackSnapshotCount: Value(playlist.trackSnapshotCount),
+  tracksUpdatedAt: clearTracksUpdatedAt
+      ? const Value(null)
+      : Value(tracksUpdatedAt ?? playlist.tracksUpdatedAt),
   tags: Value(playlist.tags),
   sortOrder: Value(sortOrder ?? 0),
 );
@@ -546,6 +596,8 @@ Playlist _playlistFromRow(StoredPlaylist row) => Playlist(
   isMyFavorite: row.isMyFavorite,
   isDefaultCollect: row.isDefaultCollect,
   tracksLoaded: row.tracksLoaded,
+  trackSnapshotCount: row.trackSnapshotCount,
+  tracksUpdatedAt: row.tracksUpdatedAt,
   tags: row.tags,
 );
 

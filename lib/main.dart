@@ -38,7 +38,7 @@ Future<void> main() async {
   final library = LibraryRepository(
     libraryStore,
     libraryRemote,
-    recommendationReporter,
+    recommendationReporter: recommendationReporter,
   );
   final audioCache = await AudioCacheManager.create();
   final musicRepository = MusicRepository(sdk, database);

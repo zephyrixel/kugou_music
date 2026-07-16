@@ -16,7 +16,12 @@ class PagedListController<T> extends ChangeNotifier {
   });
 
   /// Loads a single page. May emit multiple times (cache then network).
-  final Stream<PageSnapshot<T>> Function(int page, int pageSize) fetchPage;
+  final Stream<PageSnapshot<T>> Function(
+    int page,
+    int pageSize,
+    bool forceRefresh,
+  )
+  fetchPage;
 
   /// Stable identity for de-duplication across pages.
   final String Function(T item) itemId;
@@ -56,9 +61,14 @@ class PagedListController<T> extends ChangeNotifier {
   }
 
   /// Drop state and reload page 1 (e.g. new search keyword).
-  Future<void> reset() => loadMore(reset: true);
+  Future<void> reset({bool forceRefresh = false, bool keepItems = false}) =>
+      loadMore(reset: true, forceRefresh: forceRefresh, keepItems: keepItems);
 
-  Future<void> loadMore({bool reset = false}) async {
+  Future<void> loadMore({
+    bool reset = false,
+    bool forceRefresh = false,
+    bool keepItems = false,
+  }) async {
     if (_disposed) return;
     if (!reset && (_initialLoading || _loadingMore || !_hasMore)) return;
     final generation = reset ? ++_generation : _generation;
@@ -66,13 +76,15 @@ class PagedListController<T> extends ChangeNotifier {
 
     _mutate(() {
       if (reset) {
-        _items = const [];
+        if (!keepItems) _items = const [];
+        // Keep the rendered snapshot, but discard page bookkeeping so the
+        // refreshed first page becomes the new pagination anchor.
         _pages.clear();
         _initialError = null;
         _loadMoreError = null;
         _total = null;
         _nextPage = 1;
-        _initialLoading = true;
+        _initialLoading = _items.isEmpty;
         _hasMore = true;
         _started = true;
       } else {
@@ -82,7 +94,11 @@ class PagedListController<T> extends ChangeNotifier {
     });
 
     try {
-      await for (final page in fetchPage(requestedPage, pageSize)) {
+      await for (final page in fetchPage(
+        requestedPage,
+        pageSize,
+        forceRefresh,
+      )) {
         if (_disposed || generation != _generation) return;
         _pages[page.page] = page;
         final merged = <T>[];
@@ -113,7 +129,9 @@ class PagedListController<T> extends ChangeNotifier {
     } catch (error) {
       if (_disposed || generation != _generation) return;
       _mutate(() {
-        if (reset || _items.isEmpty) {
+        if (reset && keepItems && _items.isNotEmpty) {
+          _loadMoreError = error;
+        } else if (reset || _items.isEmpty) {
           _initialError = error;
           _initialLoading = false;
         } else {

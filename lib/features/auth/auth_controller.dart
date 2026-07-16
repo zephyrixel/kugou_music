@@ -230,7 +230,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _resume() async {
     await refreshIfDue();
-    if (authenticated) await _library.syncNow();
+    if (authenticated) await _library.syncIfDue();
   }
 
   void _notify() {

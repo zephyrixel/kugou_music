@@ -54,20 +54,42 @@ void main() {
     ]);
   });
 
-  test('replaceLibrary preserves loaded tracks for matching local ids', () async {
-    await store.replacePlaylistTracks('remote:2', const [songA]);
-    expect((await store.watchFavoriteSongs().first).single.id, songA.id);
+  test(
+    'metadata count changes preserve tracks but mark snapshot stale',
+    () async {
+      await store.replacePlaylistTracks('remote:2', const [songA]);
+      expect((await store.watchFavoriteSongs().first).single.id, songA.id);
 
-    await store.replaceLibrary(
-      userId: 7,
-      playlists: const [_favoritePlaylist],
-      history: const [],
-    );
+      await store.replaceLibrary(
+        userId: 7,
+        playlists: const [_favoritePlaylist],
+        history: const [],
+      );
 
-    final favorite = await store.favoritePlaylist();
-    expect(favorite?.tracksLoaded, isTrue);
-    expect((await store.watchFavoriteSongs().first).single.id, songA.id);
-  });
+      final favorite = await store.favoritePlaylist();
+      expect(favorite?.tracksLoaded, isFalse);
+      expect((await store.watchFavoriteSongs().first).single.id, songA.id);
+    },
+  );
+
+  test(
+    'complete snapshot replacement never exposes an empty favorite list',
+    () async {
+      await store.replacePlaylistTracks('remote:2', const [songA]);
+      final snapshots = <List<String>>[];
+      final subscription = store.watchFavoriteSongs().listen(
+        (songs) => snapshots.add(songs.map((song) => song.id).toList()),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await store.replacePlaylistTracks('remote:2', const [songB, songC]);
+      await Future<void>.delayed(Duration.zero);
+      await subscription.cancel();
+
+      expect(snapshots, isNot(contains(isEmpty)));
+      expect(snapshots.last, [songB.id, songC.id]);
+    },
+  );
 
   test('recordPlayed updates history order', () async {
     await store.recordPlayed(songA, playedAt: DateTime.utc(2026, 7, 1));

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -33,7 +34,7 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
     _pager = PagedListController<Song>(
       pageSize: _pageSize,
       itemId: (song) => song.id,
-      fetchPage: (page, pageSize) {
+      fetchPage: (page, pageSize, forceRefresh) {
         final userId = ref.read(authControllerProvider).snapshot.userId;
         return ref
             .read(musicRepositoryProvider)
@@ -42,6 +43,9 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
               userId: userId,
               page: page,
               pageSize: pageSize,
+              mode: forceRefresh
+                  ? CacheLoadMode.forceRefresh
+                  : CacheLoadMode.normal,
             )
             .map(
               (result) => PageSnapshot(
@@ -89,7 +93,7 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
       loading: _pager.initialLoading,
       error: _pager.initialError,
       scrollController: _scrollController,
-      onRefresh: () => _pager.reset(),
+      onRefresh: () => _pager.reset(forceRefresh: true, keepItems: true),
       onRetry: () => _pager.reset(),
       trailing: OutlinedButton.icon(
         onPressed: widget.playlist.globalCollectionId == null ? null : _collect,

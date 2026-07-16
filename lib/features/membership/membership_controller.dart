@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/features/membership/membership_presenter.dart';
@@ -154,7 +155,13 @@ final membershipControllerProvider = ChangeNotifierProvider.autoDispose
         ref.read(secureStorageProvider),
         userId,
         () => ref.read(authControllerProvider).refreshIfDue(force: true),
-        () async => ref.invalidate(userVipProvider),
+        () async {
+          await ref
+              .read(musicRepositoryProvider)
+              .userVip(userId, mode: CacheLoadMode.forceRefresh)
+              .last;
+          ref.invalidate(userVipProvider);
+        },
       );
       unawaited(controller.initialize());
       return controller;

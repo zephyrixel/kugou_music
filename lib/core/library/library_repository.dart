@@ -5,7 +5,6 @@ import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_store.dart';
 import 'package:kgmusic/core/library/playlist_track_loader.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
-import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
@@ -15,16 +14,21 @@ import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 class LibraryRepository {
   LibraryRepository(
     LibraryStore store,
-    LibraryRemote remote, [
-    RecommendationReporter? reporter,
-  ]) : _store = store,
+    LibraryRemote remote, {
+    RecommendationReporter? recommendationReporter,
+    DateTime Function()? now,
+  }) : _store = store,
        _remote = remote,
-       _reporter = reporter,
-       _trackLoader = PlaylistTrackLoader(store, remote);
+       _reporter = recommendationReporter,
+       _now = now ?? DateTime.now,
+       _trackLoader = PlaylistTrackLoader(store, remote, now: now);
+
+  static const syncCooldown = Duration(minutes: 5);
 
   final LibraryStore _store;
   final LibraryRemote _remote;
   final RecommendationReporter? _reporter;
+  final DateTime Function() _now;
   final PlaylistTrackLoader _trackLoader;
 
   final StreamController<LibrarySyncStatus> _statuses =
@@ -32,6 +36,7 @@ class LibraryRepository {
   LibrarySyncStatus _status = const LibrarySyncStatus.idle();
   int _generation = 0;
   int? _userId;
+  int _membershipVersion = 0;
   Future<void>? _running;
   int? _runningGeneration;
   bool _disposed = false;
@@ -48,50 +53,25 @@ class LibraryRepository {
     required int page,
     int pageSize = LibraryRemote.pageSize,
   }) async {
-    final playlist = await _store.playlist(localId);
-    if (playlist == null) throw StateError('歌单不存在');
-    final local = await _store.playlistTracksPage(
-      localId,
-      page: page,
-      pageSize: pageSize,
-    );
-    final start = (page - 1) * pageSize;
-    final localIsComplete =
-        local.length == pageSize ||
-        playlist.tracksLoaded ||
-        (playlist.count > 0 && start + local.length >= playlist.count);
-    if (localIsComplete) {
-      return SearchPage(
-        songs: local,
-        page: page,
-        pageSize: pageSize,
-        total: playlist.count,
-      );
-    }
+    return loadPlaylistPage(localId, page: page, pageSize: pageSize).first;
+  }
 
-    final remote = await _remote.fetchTracksPage(
-      playlist,
+  Stream<SearchPage> loadPlaylistPage(
+    String localId, {
+    required int page,
+    int pageSize = LibraryRemote.pageSize,
+    bool forceRefresh = false,
+  }) {
+    final generation = _generation;
+    final userId = _userId;
+    if (userId == null) return const Stream.empty();
+    return _trackLoader.page(
+      localId,
       page: page,
       pageSize: pageSize,
+      forceRefresh: forceRefresh,
+      isCurrent: () => _isCurrent(generation, userId),
     );
-    await _store.appendPlaylistTracks(
-      localId,
-      remote.songs,
-      startPosition: start,
-      totalCount: remote.total,
-    );
-    if (!canLoadNextPage(
-      loadedItemCount: start + remote.songs.length,
-      lastPageItemCount: remote.songs.length,
-      pageSize: remote.pageSize,
-      total: remote.total,
-    )) {
-      await _store.markPlaylistTracksLoaded(
-        localId,
-        count: start + remote.songs.length,
-      );
-    }
-    return remote;
   }
 
   Stream<LibrarySyncStatus> get syncStatuses async* {
@@ -114,7 +94,17 @@ class LibraryRepository {
     }
     final needBaseline =
         state?.userId != userId || state?.baselineComplete != true;
-    await _sync(generation, userId, wipe: needBaseline);
+    if (needBaseline || _syncDue(state?.lastSyncedAt)) {
+      await _sync(generation, userId, wipe: needBaseline);
+    } else {
+      _emit(
+        LibrarySyncStatus(
+          phase: LibrarySyncPhase.idle,
+          lastSyncedAt: state?.lastSyncedAt,
+        ),
+      );
+      _scheduleFavoriteIndexRefresh(generation, userId);
+    }
   }
 
   Future<void> deactivate() async {
@@ -130,6 +120,19 @@ class LibraryRepository {
     final userId = _userId;
     if (userId == null) return Future.value();
     return _sync(_generation, userId, wipe: false);
+  }
+
+  Future<void> syncIfDue() async {
+    final userId = _userId;
+    if (userId == null) return;
+    final state = await _store.syncState;
+    if (!_isCurrent(_generation, userId)) return;
+    if (state?.userId == userId &&
+        state?.baselineComplete == true &&
+        !_syncDue(state?.lastSyncedAt)) {
+      return;
+    }
+    await _sync(_generation, userId, wipe: state?.userId != userId);
   }
 
   Future<void> _sync(int generation, int userId, {required bool wipe}) {
@@ -168,9 +171,10 @@ class LibraryRepository {
             _emit(
               LibrarySyncStatus(
                 phase: LibrarySyncPhase.idle,
-                lastSyncedAt: DateTime.now(),
+                lastSyncedAt: _now(),
               ),
             );
+            _scheduleFavoriteIndexRefresh(generation, userId);
           } catch (error) {
             if (!_isCurrent(generation, userId)) return;
             await _store.setSyncResult(userId: userId, error: error.toString());
@@ -195,28 +199,25 @@ class LibraryRepository {
     return tracked;
   }
 
-  /// Load playlist tracks page-by-page into Drift (UI updates via watch after each page).
-  ///
-  /// Coalesces concurrent callers for the same [localId]. When [force], clears
-  /// and restarts even if already loaded.
-  Future<void> ensurePlaylistLoaded(
-    String localId, {
-    bool force = false,
-  }) async {
+  Future<void> refreshPlaylistSnapshot(String localId) async {
     final generation = _generation;
     final userId = _userId;
     if (userId == null) return;
-    await _trackLoader.ensure(
+    final membershipVersion = _membershipVersion;
+    await _trackLoader.refreshAll(
       localId,
-      force: force,
       isCurrent: () => _isCurrent(generation, userId),
+      canCommit: () => membershipVersion == _membershipVersion,
     );
   }
 
-  Future<void> ensureFavoriteLoaded({bool force = false}) async {
+  Future<void> refreshFavoriteIndexIfNeeded() async {
     final favorite = await _store.favoritePlaylist();
     if (favorite?.localId == null) return;
-    await ensurePlaylistLoaded(favorite!.localId!, force: force);
+    final snapshotCurrent =
+        favorite!.tracksLoaded && favorite.trackSnapshotCount == favorite.count;
+    if (snapshotCurrent) return;
+    await refreshPlaylistSnapshot(favorite.localId!);
   }
 
   Future<void> toggleFavorite(Song song) async {
@@ -245,6 +246,7 @@ class LibraryRepository {
     Song song, {
     required bool present,
   }) async {
+    _membershipVersion += 1;
     final localId = playlist.localId!;
     final listId = playlist.listId;
     if (listId == null) {
@@ -421,6 +423,18 @@ class LibraryRepository {
 
   bool _isCurrent(int generation, int userId) =>
       !_disposed && _generation == generation && _userId == userId;
+
+  bool _syncDue(DateTime? lastSyncedAt) =>
+      lastSyncedAt == null || _now().difference(lastSyncedAt) >= syncCooldown;
+
+  void _scheduleFavoriteIndexRefresh(int generation, int userId) {
+    unawaited(
+      Future<void>.delayed(const Duration(seconds: 2), () async {
+        if (!_isCurrent(generation, userId)) return;
+        await refreshFavoriteIndexIfNeeded();
+      }).catchError((_) {}),
+    );
+  }
 
   void _emit(LibrarySyncStatus value) {
     if (_disposed) return;

@@ -15,6 +15,8 @@ class Playlist {
     this.creatorUserId,
     this.creatorName,
     this.tracksLoaded = false,
+    this.trackSnapshotCount,
+    this.tracksUpdatedAt,
     this.tags,
   });
 
@@ -33,6 +35,8 @@ class Playlist {
   final bool isMyFavorite;
   final bool isDefaultCollect;
   final bool tracksLoaded;
+  final int? trackSnapshotCount;
+  final DateTime? tracksUpdatedAt;
   final String? tags;
 
   bool get isCollected => listType == 1;
@@ -54,6 +58,8 @@ class Playlist {
     bool? isMyFavorite,
     bool? isDefaultCollect,
     bool? tracksLoaded,
+    int? trackSnapshotCount,
+    DateTime? tracksUpdatedAt,
     String? tags,
   }) => Playlist(
     localId: localId ?? this.localId,
@@ -70,6 +76,8 @@ class Playlist {
     isMyFavorite: isMyFavorite ?? this.isMyFavorite,
     isDefaultCollect: isDefaultCollect ?? this.isDefaultCollect,
     tracksLoaded: tracksLoaded ?? this.tracksLoaded,
+    trackSnapshotCount: trackSnapshotCount ?? this.trackSnapshotCount,
+    tracksUpdatedAt: tracksUpdatedAt ?? this.tracksUpdatedAt,
     tags: tags ?? this.tags,
   );
 

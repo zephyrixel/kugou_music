@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
@@ -20,7 +21,17 @@ class HomeScreen extends ConsumerWidget {
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
-        onRefresh: () => ref.refresh(dailyRecommendationsProvider.future),
+        onRefresh: () async {
+          final userId = ref.read(authControllerProvider).snapshot.userId;
+          await ref
+              .read(musicRepositoryProvider)
+              .everydayRecommendations(
+                userId: userId,
+                mode: CacheLoadMode.forceRefresh,
+              )
+              .last;
+          ref.invalidate(dailyRecommendationsProvider);
+        },
         child: CustomScrollView(
           slivers: [
             SliverPadding(
