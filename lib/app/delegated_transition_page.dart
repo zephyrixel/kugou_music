@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 
@@ -51,6 +52,10 @@ Widget _buildPlayerTransition(
     curve: Curves.easeOutCubic,
     reverseCurve: Curves.easeInCubic,
   );
+  final transitionChild = _SnapshotDuringTransition(
+    animation: animation,
+    child: child,
+  );
   return FadeTransition(
     opacity: curved,
     child: SlideTransition(
@@ -58,7 +63,7 @@ Widget _buildPlayerTransition(
         begin: const Offset(0, 0.018),
         end: Offset.zero,
       ).animate(curved),
-      child: child,
+      child: transitionChild,
     ),
   );
 }
@@ -72,6 +77,10 @@ Widget? _buildPlayerDelegatedTransition(
 ) {
   if (child == null) return null;
   if (MediaQuery.disableAnimationsOf(context)) return child;
+  final transitionChild = _SnapshotDuringTransition(
+    animation: secondaryAnimation,
+    child: child,
+  );
   final opacity = Tween(begin: 1.0, end: 0.0).animate(
     CurvedAnimation(
       parent: secondaryAnimation,
@@ -79,7 +88,72 @@ Widget? _buildPlayerDelegatedTransition(
       reverseCurve: const Interval(0.14, 1, curve: Curves.easeInCubic),
     ),
   );
-  return FadeTransition(opacity: opacity, child: child);
+  return FadeTransition(opacity: opacity, child: transitionChild);
+}
+
+/// Freezes expensive route layers only while the short page transition runs.
+///
+/// This follows Flutter's Android zoom transition strategy: blur and complex
+/// descendants are rasterized once in memory, animated as a texture, then
+/// replaced by the live widget tree when the transition completes.
+class _SnapshotDuringTransition extends StatefulWidget {
+  const _SnapshotDuringTransition({
+    required this.animation,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final Widget child;
+
+  @override
+  State<_SnapshotDuringTransition> createState() =>
+      _SnapshotDuringTransitionState();
+}
+
+class _SnapshotDuringTransitionState extends State<_SnapshotDuringTransition> {
+  late final SnapshotController _controller = SnapshotController(
+    allowSnapshotting: _shouldSnapshot,
+  );
+
+  bool get _shouldSnapshot =>
+      !kIsWeb &&
+      (widget.animation.status == AnimationStatus.forward ||
+          widget.animation.status == AnimationStatus.reverse);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.animation.addStatusListener(_handleStatus);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SnapshotDuringTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animation != widget.animation) {
+      oldWidget.animation.removeStatusListener(_handleStatus);
+      widget.animation.addStatusListener(_handleStatus);
+      _controller.allowSnapshotting = _shouldSnapshot;
+    }
+  }
+
+  void _handleStatus(AnimationStatus status) {
+    _controller.allowSnapshotting = _shouldSnapshot;
+  }
+
+  @override
+  void dispose() {
+    widget.animation.removeStatusListener(_handleStatus);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SnapshotWidget(
+    controller: _controller,
+    mode: SnapshotMode.permissive,
+    autoresize: true,
+    child: widget.child,
+  );
 }
 
 class _DelegatedCustomTransitionPageRoute<T> extends PageRoute<T> {

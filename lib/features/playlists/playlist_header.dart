@@ -31,6 +31,7 @@ class PlaylistHeader extends StatelessWidget {
         cacheId: cacheId,
         opacity: 0.68,
         scrim: 0.58,
+        blurSigma: 38,
       ),
       const DecoratedBox(
         decoration: BoxDecoration(

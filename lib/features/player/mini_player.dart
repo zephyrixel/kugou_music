@@ -54,6 +54,7 @@ class MiniPlayer extends ConsumerWidget {
                         opacity: 0.3,
                         sourceSize: 48,
                         decodePixelSize: 96,
+                        blurSigma: 24,
                         overlayGradient: LinearGradient(
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,

@@ -103,6 +103,7 @@ class _PlayerBody extends StatelessWidget {
         opacity: 0.54,
         scrim: 0.62,
         decodePixelSize: 320,
+        blurSigma: 42,
       ),
       DecoratedBox(
         decoration: BoxDecoration(

@@ -1,12 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
-/// A soft artwork backdrop built from a deliberately small decoded texture.
-///
-/// Upscaling the texture under a dark scrim preserves the ambient color wash
-/// without paying for a full-screen Gaussian filter on every animated frame.
+/// A soft artwork backdrop isolated as a retained layer for smooth foreground
+/// scrolling. Player route transitions snapshot this layer while animating.
 class ArtworkBackdrop extends StatelessWidget {
   const ArtworkBackdrop({
     super.key,
@@ -17,6 +17,7 @@ class ArtworkBackdrop extends StatelessWidget {
     this.overlayGradient,
     this.sourceSize,
     this.decodePixelSize = 320,
+    this.blurSigma = 34,
   });
 
   final String? url;
@@ -26,6 +27,7 @@ class ArtworkBackdrop extends StatelessWidget {
   final Gradient? overlayGradient;
   final double? sourceSize;
   final int decodePixelSize;
+  final double blurSigma;
 
   @override
   Widget build(BuildContext context) => RepaintBoundary(
@@ -47,16 +49,22 @@ class ArtworkBackdrop extends StatelessWidget {
                     : 1.16 * size / artworkSize;
                 return Opacity(
                   opacity: opacity,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Center(
-                      child: SongArtwork(
-                        url: url,
-                        cacheId: cacheId,
-                        size: artworkSize,
-                        radius: 0,
-                        decodePixelSize: decodePixelSize,
-                        filterQuality: FilterQuality.medium,
+                  child: ImageFiltered(
+                    imageFilter: ui.ImageFilter.blur(
+                      sigmaX: blurSigma,
+                      sigmaY: blurSigma,
+                    ),
+                    child: Transform.scale(
+                      scale: scale,
+                      child: Center(
+                        child: SongArtwork(
+                          url: url,
+                          cacheId: cacheId,
+                          size: artworkSize,
+                          radius: 0,
+                          decodePixelSize: decodePixelSize,
+                          filterQuality: FilterQuality.medium,
+                        ),
                       ),
                     ),
                   ),

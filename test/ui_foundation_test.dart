@@ -138,7 +138,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('氛围背景使用低分辨率纹理而不是全屏运行时模糊', (tester) async {
+  testWidgets('氛围背景保留标准高斯模糊并限制源纹理尺寸', (tester) async {
     await tester.pumpWidget(
       _testApp(
         const SizedBox.expand(
@@ -147,7 +147,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(ImageFiltered), findsNothing);
+    expect(find.byType(ImageFiltered), findsOneWidget);
     expect(
       tester.widget<SongArtwork>(find.byType(SongArtwork)).decodePixelSize,
       320,
@@ -182,6 +182,12 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
     final firstOpacity = _lowestFadeOpacity(tester, homeKey);
+    expect(
+      tester
+          .widgetList<SnapshotWidget>(find.byType(SnapshotWidget))
+          .any((widget) => widget.controller.allowSnapshotting),
+      isTrue,
+    );
     await tester.pump(const Duration(milliseconds: 100));
     final secondOpacity = _lowestFadeOpacity(tester, homeKey);
 
@@ -189,6 +195,12 @@ void main() {
     expect(secondOpacity, lessThan(firstOpacity));
     await tester.pumpAndSettle();
     expect(find.byKey(homeKey), findsNothing);
+    expect(
+      tester
+          .widgetList<SnapshotWidget>(find.byType(SnapshotWidget))
+          .every((widget) => !widget.controller.allowSnapshotting),
+      isTrue,
+    );
     expect(tester.takeException(), isNull);
   });
 
