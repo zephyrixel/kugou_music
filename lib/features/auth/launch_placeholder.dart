@@ -1,26 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/features/auth/auth_controller.dart';
-import 'package:kgmusic/features/auth/login_screen.dart';
 
-class AuthGate extends ConsumerWidget {
-  const AuthGate({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authControllerProvider);
-    if (auth.snapshot.authenticated) return child;
-    if (auth.status == AuthStatus.booting) return const _LaunchPlaceholder();
-    return const LoginScreen();
-  }
-}
-
-class _LaunchPlaceholder extends StatelessWidget {
-  const _LaunchPlaceholder();
+class LaunchPlaceholder extends StatelessWidget {
+  const LaunchPlaceholder({super.key});
 
   @override
   Widget build(BuildContext context) => const Scaffold(

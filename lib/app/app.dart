@@ -15,7 +15,9 @@ import 'package:kgmusic/core/platform/android_display_mode.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/features/account/account_screen.dart';
-import 'package:kgmusic/features/auth/auth_gate.dart';
+import 'package:kgmusic/features/auth/auth_route_policy.dart';
+import 'package:kgmusic/features/auth/launch_placeholder.dart';
+import 'package:kgmusic/features/auth/login_screen.dart';
 import 'package:kgmusic/features/home/home_screen.dart';
 import 'package:kgmusic/features/library/library_screen.dart';
 import 'package:kgmusic/features/library/library_collection_screen.dart';
@@ -33,85 +35,101 @@ class KgMusicApp extends ConsumerStatefulWidget {
 }
 
 class _KgMusicAppState extends ConsumerState<KgMusicApp> {
-  late final GoRouter _router = GoRouter(
-    observers: [KeyboardDismissNavigatorObserver()],
-    routes: [
-      StatefulShellRoute(
-        builder: (context, state, navigationShell) =>
-            _AppShell(navigationShell: navigationShell),
-        navigatorContainerBuilder: (context, navigationShell, children) =>
-            AnimatedBranchContainer(
-              currentIndex: navigationShell.currentIndex,
-              children: children,
-            ),
-        branches: [
-          StatefulShellBranch(
-            observers: [KeyboardDismissNavigatorObserver()],
-            routes: [GoRoute(path: '/', builder: (_, _) => const HomeScreen())],
-          ),
-          StatefulShellBranch(
-            observers: [KeyboardDismissNavigatorObserver()],
-            routes: [
-              GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
-            ],
-          ),
-          StatefulShellBranch(
-            observers: [KeyboardDismissNavigatorObserver()],
-            routes: [
-              GoRoute(
-                path: '/library',
-                builder: (_, _) => const LibraryScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'favorites',
-                    builder: (_, _) => const LibraryCollectionScreen(
-                      kind: LibraryCollectionKind.favorites,
-                    ),
-                  ),
-                  GoRoute(
-                    path: 'history',
-                    builder: (_, _) => const LibraryCollectionScreen(
-                      kind: LibraryCollectionKind.history,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-      GoRoute(
-        path: '/account',
-        pageBuilder: (_, state) =>
-            _fadeThroughPage(state: state, child: const AccountScreen()),
-      ),
-      GoRoute(
-        path: '/account/logs',
-        pageBuilder: (_, state) =>
-            _fadeThroughPage(state: state, child: const LogSettingsScreen()),
-      ),
-      GoRoute(
-        path: '/player',
-        pageBuilder: (_, state) => PlayerTransitionPage<void>(
-          key: state.pageKey,
-          child: const PlayerScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/playlist',
-        pageBuilder: (_, state) => _fadeThroughPage(
-          state: state,
-          child: PlaylistDetailScreen(source: state.extra!),
-        ),
-      ),
-    ],
-  );
+  final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  late final GoRouter _router;
   StreamSubscription<bool>? _notificationClickSubscription;
   late final NotificationNavigationController _notificationNavigationController;
 
   @override
   void initState() {
     super.initState();
+    final auth = ref.read(authControllerProvider);
+    _router = GoRouter(
+      refreshListenable: auth,
+      redirect: (context, state) => authRedirect(
+        status: auth.status,
+        authenticated: auth.authenticated,
+        location: state.matchedLocation,
+      ),
+      observers: [KeyboardDismissNavigatorObserver()],
+      routes: [
+        GoRoute(path: '/launch', builder: (_, _) => const LaunchPlaceholder()),
+        GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+        StatefulShellRoute(
+          builder: (context, state, navigationShell) =>
+              _AppShell(navigationShell: navigationShell),
+          navigatorContainerBuilder: (context, navigationShell, children) =>
+              AnimatedBranchContainer(
+                currentIndex: navigationShell.currentIndex,
+                children: children,
+              ),
+          branches: [
+            StatefulShellBranch(
+              observers: [KeyboardDismissNavigatorObserver()],
+              routes: [
+                GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
+              ],
+            ),
+            StatefulShellBranch(
+              observers: [KeyboardDismissNavigatorObserver()],
+              routes: [
+                GoRoute(
+                  path: '/search',
+                  builder: (_, _) => const SearchScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              observers: [KeyboardDismissNavigatorObserver()],
+              routes: [
+                GoRoute(
+                  path: '/library',
+                  builder: (_, _) => const LibraryScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'favorites',
+                      builder: (_, _) => const LibraryCollectionScreen(
+                        kind: LibraryCollectionKind.favorites,
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'history',
+                      builder: (_, _) => const LibraryCollectionScreen(
+                        kind: LibraryCollectionKind.history,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        GoRoute(
+          path: '/account',
+          pageBuilder: (_, state) =>
+              _fadeThroughPage(state: state, child: const AccountScreen()),
+        ),
+        GoRoute(
+          path: '/account/logs',
+          pageBuilder: (_, state) =>
+              _fadeThroughPage(state: state, child: const LogSettingsScreen()),
+        ),
+        GoRoute(
+          path: '/player',
+          pageBuilder: (_, state) => PlayerTransitionPage<void>(
+            key: state.pageKey,
+            child: const PlayerScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/playlist',
+          pageBuilder: (_, state) => _fadeThroughPage(
+            state: state,
+            child: PlaylistDetailScreen(source: state.extra!),
+          ),
+        ),
+      ],
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(AndroidDisplayMode.preferHighestRefreshRate());
     });
@@ -141,10 +159,12 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     title: 'KGMusic',
     debugShowCheckedModeBanner: false,
     theme: buildKgTheme(),
+    scaffoldMessengerKey: _scaffoldMessengerKey,
     routerConfig: _router,
     builder: (context, child) => AppErrorListener(
       bus: ref.watch(appErrorBusProvider),
-      child: AuthGate(child: child ?? const SizedBox.shrink()),
+      messengerKey: _scaffoldMessengerKey,
+      child: child ?? const SizedBox.shrink(),
     ),
   );
 }

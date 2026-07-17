@@ -191,6 +191,23 @@ void showAppError(BuildContext context, Object error) {
   );
 }
 
+void showAppErrorWithMessenger(
+  GlobalKey<ScaffoldMessengerState> messengerKey,
+  Object error,
+) {
+  final messenger = messengerKey.currentState;
+  final context = messengerKey.currentContext;
+  if (messenger == null || context == null) return;
+  final colors = Theme.of(context).colorScheme;
+  _showSnackBar(
+    messenger,
+    message: error.toString(),
+    icon: Icons.error_outline_rounded,
+    backgroundColor: colors.errorContainer,
+    foregroundColor: colors.onErrorContainer,
+  );
+}
+
 void showAppMessage(BuildContext context, String message) {
   if (!context.mounted) return;
   _showAppSnackBar(
@@ -209,7 +226,23 @@ void _showAppSnackBar(
   required Color backgroundColor,
   required Color foregroundColor,
 }) {
-  ScaffoldMessenger.of(context).showSnackBar(
+  _showSnackBar(
+    ScaffoldMessenger.of(context),
+    message: message,
+    icon: icon,
+    backgroundColor: backgroundColor,
+    foregroundColor: foregroundColor,
+  );
+}
+
+void _showSnackBar(
+  ScaffoldMessengerState messenger, {
+  required String message,
+  required IconData icon,
+  required Color backgroundColor,
+  required Color foregroundColor,
+}) {
+  messenger.showSnackBar(
     SnackBar(
       backgroundColor: backgroundColor,
       content: Row(

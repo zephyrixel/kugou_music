@@ -30,9 +30,15 @@ class AppErrorBus {
 }
 
 class AppErrorListener extends StatefulWidget {
-  const AppErrorListener({super.key, required this.bus, required this.child});
+  const AppErrorListener({
+    super.key,
+    required this.bus,
+    required this.messengerKey,
+    required this.child,
+  });
 
   final AppErrorBus bus;
+  final GlobalKey<ScaffoldMessengerState> messengerKey;
   final Widget child;
 
   @override
@@ -57,7 +63,8 @@ class _AppErrorListenerState extends State<AppErrorListener> {
   void _listen() {
     _subscription?.cancel();
     _subscription = widget.bus.errors.listen((error) {
-      if (mounted) showAppError(context, error);
+      if (!mounted) return;
+      showAppErrorWithMessenger(widget.messengerKey, error);
     });
   }
 

@@ -1,6 +1,9 @@
+// ignore_for_file: experimental_member_use
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
@@ -50,6 +53,38 @@ void main() {
     expect(first.file.path, second.file.path);
     expect(high.file.path, isNot(first.file.path));
     expect(preview.file.path, isNot(first.file.path));
+  });
+
+  test('audio cache accepts repeated Accept-Ranges response headers', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final serverSubscription = server.listen((request) {
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType('audio', 'mpeg')
+        ..headers.add(HttpHeaders.acceptRangesHeader, 'bytes')
+        ..headers.add(HttpHeaders.acceptRangesHeader, 'bytes')
+        ..add(List<int>.generate(64, (index) => index))
+        ..close();
+    });
+    addTearDown(() async {
+      await serverSubscription.cancel();
+      await server.close(force: true);
+    });
+    final directory = await Directory.systemTemp.createTemp(
+      'kgmusic-range-header-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final source = LockCachingAudioSource(
+      Uri.parse('http://${server.address.host}:${server.port}/song.mp3'),
+      cacheFile: File('${directory.path}/song.mp3'),
+    );
+
+    final response = await source.request();
+    final bytes = await response.stream.expand((chunk) => chunk).toList();
+
+    expect(response.rangeRequestsSupported, isTrue);
+    expect(bytes, hasLength(64));
+    await source.downloadProgressStream.firstWhere((progress) => progress == 1);
   });
 
   test('audio cache prunes least recently used completed files', () async {

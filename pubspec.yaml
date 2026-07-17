@@ -38,7 +38,9 @@ dependencies:
   go_router: ^17.3.0
   drift: ^2.34.1
   drift_flutter: ^0.3.1
-  just_audio: ^0.10.6
+  # Local 0.10.6 patch: tolerate repeated Accept-Ranges headers from KuGou CDN.
+  just_audio:
+    path: third_party/just_audio
   audio_service: ^0.18.19
   audio_session: ^0.2.4
   flutter_secure_storage: ^10.3.1

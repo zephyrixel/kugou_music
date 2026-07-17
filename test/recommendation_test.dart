@@ -166,10 +166,13 @@ void main() {
 
   testWidgets('全局错误监听器使用通用错误提示展示 report 失败', (tester) async {
     final errors = AppErrorBus();
+    final messengerKey = GlobalKey<ScaffoldMessengerState>();
     await tester.pumpWidget(
       MaterialApp(
+        scaffoldMessengerKey: messengerKey,
         builder: (context, child) => AppErrorListener(
           bus: errors,
+          messengerKey: messengerKey,
           child: child ?? const SizedBox.shrink(),
         ),
         home: const Scaffold(body: Text('home')),

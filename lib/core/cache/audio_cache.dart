@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:path/path.dart' as p;
@@ -60,6 +61,11 @@ class AudioCacheManager implements AudioCache {
     final file = File(p.join(_directory.path, '$key$extension'));
     final exists = await file.exists();
     if (exists) await file.setLastModified(DateTime.now());
+    AppLog.debug(
+      '音频缓存 ${exists ? '命中' : '未命中'} song=${song.id} '
+      'quality=${resolution.quality.name}',
+      target: 'player.cache',
+    );
 
     final source = LockCachingAudioSource(
       Uri.parse(resolution.url),
