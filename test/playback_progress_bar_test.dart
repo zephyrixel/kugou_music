@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/features/player/playback_progress_bar.dart';
@@ -36,5 +38,46 @@ void main() {
 
     expect(seekCount, 1);
     expect(soughtPosition, const Duration(milliseconds: 7500));
+  });
+
+  testWidgets('uses the current playback snapshot on the first frame', (
+    tester,
+  ) async {
+    final durationController = StreamController<Duration?>();
+    final positionController = StreamController<Duration>();
+    final bufferedController = StreamController<Duration>();
+    addTearDown(() async {
+      await durationController.close();
+      await positionController.close();
+      await bufferedController.close();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PlaybackProgressBar(
+            durationStream: durationController.stream,
+            positionStream: positionController.stream,
+            bufferedPositionStream: bufferedController.stream,
+            initialDuration: const Duration(seconds: 100),
+            initialPosition: const Duration(seconds: 25),
+            initialBufferedPosition: const Duration(seconds: 40),
+            onSeek: (_) async {},
+          ),
+        ),
+      ),
+    );
+
+    final slider = tester.widget<Slider>(find.byType(Slider));
+    expect(slider.max, 100000);
+    expect(slider.value, 25000);
+    expect(slider.onChanged, isNotNull);
+
+    final buffer = tester.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(buffer.value, 0.4);
+    expect(find.text('0:25'), findsOneWidget);
+    expect(find.text('1:40'), findsOneWidget);
   });
 }

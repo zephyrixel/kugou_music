@@ -56,6 +56,10 @@ class PlayerControlDeck extends StatelessWidget {
               durationStream: handler.durationStream,
               positionStream: handler.positionStream,
               bufferedPositionStream: handler.bufferedPositionStream,
+              initialDuration: item.duration,
+              initialPosition: handler.position,
+              initialBufferedPosition:
+                  handler.playbackState.value.bufferedPosition,
               onSeek: handler.seek,
               compact: compact,
             ),

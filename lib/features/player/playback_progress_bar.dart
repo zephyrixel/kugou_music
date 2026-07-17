@@ -10,6 +10,9 @@ class PlaybackProgressBar extends StatefulWidget {
     required this.positionStream,
     required this.onSeek,
     this.bufferedPositionStream,
+    this.initialDuration,
+    this.initialPosition = Duration.zero,
+    this.initialBufferedPosition = Duration.zero,
     this.compact = false,
   });
 
@@ -17,6 +20,9 @@ class PlaybackProgressBar extends StatefulWidget {
   final Stream<Duration> positionStream;
   final Future<void> Function(Duration position) onSeek;
   final Stream<Duration>? bufferedPositionStream;
+  final Duration? initialDuration;
+  final Duration initialPosition;
+  final Duration initialBufferedPosition;
   final bool compact;
 
   @override
@@ -30,10 +36,12 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
   @override
   Widget build(BuildContext context) => StreamBuilder<Duration?>(
     stream: widget.durationStream,
+    initialData: widget.initialDuration,
     builder: (context, durationSnapshot) {
       final duration = durationSnapshot.data ?? Duration.zero;
       return StreamBuilder<Duration>(
         stream: widget.positionStream,
+        initialData: widget.initialPosition,
         builder: (context, positionSnapshot) {
           final position = positionSnapshot.data ?? Duration.zero;
           final max = duration.inMilliseconds
@@ -46,6 +54,7 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
               .toDouble();
           return StreamBuilder<Duration>(
             stream: widget.bufferedPositionStream,
+            initialData: widget.initialBufferedPosition,
             builder: (context, bufferedSnapshot) {
               final buffered = (bufferedSnapshot.data ?? Duration.zero)
                   .inMilliseconds
