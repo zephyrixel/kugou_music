@@ -94,16 +94,20 @@ class LibraryRepository {
     }
     final needBaseline =
         state?.userId != userId || state?.baselineComplete != true;
-    if (needBaseline || _syncDue(state?.lastSyncedAt)) {
-      await _sync(generation, userId, wipe: needBaseline);
-    } else {
-      _emit(
-        LibrarySyncStatus(
-          phase: LibrarySyncPhase.idle,
-          lastSyncedAt: state?.lastSyncedAt,
-        ),
-      );
-      _scheduleFavoriteIndexRefresh(generation, userId);
+    if (needBaseline) {
+      await _sync(generation, userId, wipe: true);
+      return;
+    }
+    final cachedState = state!;
+    _emit(
+      LibrarySyncStatus(
+        phase: LibrarySyncPhase.idle,
+        lastSyncedAt: cachedState.lastSyncedAt,
+      ),
+    );
+    _scheduleFavoriteIndexRefresh(generation, userId);
+    if (_syncDue(cachedState.lastSyncedAt)) {
+      unawaited(_sync(generation, userId, wipe: false).catchError((_) {}));
     }
   }
 

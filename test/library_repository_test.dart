@@ -111,6 +111,28 @@ void main() {
     expect(sdk.cloudPlaylistCalls, greaterThan(firstSyncCalls));
   });
 
+  test(
+    'cached activation does not wait for a stale background refresh',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      now = now.add(const Duration(minutes: 6));
+
+      final gate = Completer<void>();
+      final started = Completer<void>();
+      sdk.nextCloudPlaylistsGate = gate;
+      sdk.nextCloudPlaylistsStarted = started;
+
+      final activation = library.activate(99);
+      await started.future;
+      await activation.timeout(const Duration(milliseconds: 100));
+      expect((await store.watchPlaylists().first).single.name, '我喜欢');
+
+      gate.complete();
+      await library.syncNow();
+    },
+  );
+
   test('complete snapshot refresh swaps into Drift atomically', () async {
     sdk.playlists = const [_favoritePlaylist, _customPlaylist];
     sdk.tracksByListId[4] = [

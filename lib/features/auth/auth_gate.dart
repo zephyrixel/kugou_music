@@ -13,60 +13,43 @@ class AuthGate extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
-    if (auth.authenticated) return child;
-    if (auth.status == AuthStatus.booting ||
-        auth.status == AuthStatus.syncingLibrary) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 18),
-              Text(
-                auth.status == AuthStatus.booting ? '正在恢复登录…' : '正在初始化音乐库…',
-                style: const TextStyle(color: KgColors.textMuted),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    if (auth.snapshot.authenticated) {
-      return Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.cloud_off_rounded,
-                    size: 60,
-                    color: KgColors.warning,
-                  ),
-                  const SizedBox(height: 18),
-                  Text(auth.message ?? '音乐库初始化失败', textAlign: TextAlign.center),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: auth.busy
-                        ? null
-                        : auth.retryLibraryInitialization,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('重试'),
-                  ),
-                  TextButton(
-                    onPressed: auth.busy ? null : auth.logout,
-                    child: const Text('退出登录'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    if (auth.snapshot.authenticated) return child;
+    if (auth.status == AuthStatus.booting) return const _LaunchPlaceholder();
     return const LoginScreen();
   }
+}
+
+class _LaunchPlaceholder extends StatelessWidget {
+  const _LaunchPlaceholder();
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+    body: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(-0.6, -0.7),
+          radius: 1.2,
+          colors: [Color(0xFF242443), KgColors.background],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.graphic_eq_rounded, size: 48, color: KgColors.accent),
+            SizedBox(height: 12),
+            Text(
+              'KGMusic',
+              style: TextStyle(
+                color: KgColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

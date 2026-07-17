@@ -225,11 +225,6 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
   }
 
-  Future<void> retryLibraryInitialization() async {
-    if (!snapshot.authenticated) return;
-    await _initializeLibrary();
-  }
-
   Future<void> _initializeLibrary() async {
     final userId = snapshot.userId;
     if (userId == null) {
