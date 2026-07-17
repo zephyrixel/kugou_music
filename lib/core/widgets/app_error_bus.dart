@@ -11,7 +11,6 @@ class AppErrorBus {
   Stream<Object> get errors => _errors.stream;
 
   void add(Object error) {
-    AppLog.error('应用错误总线收到错误', target: 'app.error_bus', error: error);
     final message = error.toString();
     final now = DateTime.now();
     final previous = _recent[message];
@@ -19,6 +18,7 @@ class AppErrorBus {
         now.difference(previous) < const Duration(seconds: 8)) {
       return;
     }
+    AppLog.error('应用错误总线收到错误', target: 'app.error_bus', error: error);
     _recent[message] = now;
     _recent.removeWhere(
       (_, timestamp) => now.difference(timestamp) > const Duration(minutes: 1),

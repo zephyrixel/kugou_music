@@ -624,12 +624,7 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
       if (persist) await _persistSession();
       return value;
     } on bridge.BridgeError catch (error, stackTrace) {
-      AppLog.error(
-        'Rust bridge 调用失败 kind=${error.kind.name} code=${error.code ?? '-'} retryable=${error.retryable}',
-        target: 'native.sdk',
-        error: error.message,
-        stackTrace: stackTrace,
-      );
+      _logBridgeError(error, stackTrace);
       final exception = MusicSdkException(
         error.message,
         retryable: error.retryable,
@@ -653,6 +648,31 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
   Future<void> _persistSession() async {
     final value = await bridge.exportSession();
     await _sessions.writeIfChanged(value);
+  }
+}
+
+void _logBridgeError(bridge.BridgeError error, StackTrace stackTrace) {
+  final message =
+      'Rust bridge 调用失败 kind=${error.kind.name} code=${error.code ?? '-'} retryable=${error.retryable}';
+  switch (error.kind) {
+    case bridge.BridgeErrorKind.transport:
+    case bridge.BridgeErrorKind.internal:
+      AppLog.error(
+        message,
+        target: 'native.sdk',
+        error: error.message,
+        stackTrace: stackTrace,
+      );
+      return;
+    case bridge.BridgeErrorKind.invalidArgument:
+    case bridge.BridgeErrorKind.sessionInvalid:
+    case bridge.BridgeErrorKind.upstream:
+    case bridge.BridgeErrorKind.authenticationRequired:
+    case bridge.BridgeErrorKind.authenticationExpired:
+    case bridge.BridgeErrorKind.securityChallenge:
+    case bridge.BridgeErrorKind.unsupported:
+      AppLog.warn(message, target: 'native.sdk', error: error.message);
+      return;
   }
 }
 

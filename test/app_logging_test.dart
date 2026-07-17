@@ -81,4 +81,36 @@ void main() {
     final entries = await store.readEntries();
     expect(entries.map((entry) => entry.message), ['newer', 'older']);
   });
+
+  test(
+    'serialized writer keeps concurrent records and can reopen after clear',
+    () async {
+      await Future.wait([
+        for (var index = 0; index < 50; index++)
+          store.append(
+            AppLogEntry(
+              timestamp: DateTime.fromMillisecondsSinceEpoch(index),
+              level: AppLogLevel.debug,
+              source: 'flutter',
+              target: 'test',
+              message: 'entry-$index',
+            ),
+          ),
+      ]);
+      expect(await store.readEntries(), hasLength(50));
+
+      await store.clearFlutterLogs();
+      expect(await store.readEntries(), isEmpty);
+      await store.append(
+        AppLogEntry(
+          timestamp: DateTime.fromMillisecondsSinceEpoch(100),
+          level: AppLogLevel.info,
+          source: 'flutter',
+          target: 'test',
+          message: 'after-clear',
+        ),
+      );
+      expect((await store.readEntries()).single.message, 'after-clear');
+    },
+  );
 }

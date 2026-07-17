@@ -11,7 +11,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     final generation = ++_loadGeneration;
     if (index < 0 || index >= request.songs.length) return;
     final song = request.songs[index];
-    AppLog.info(
+    AppLog.debug(
       '准备播放 song=${song.id} queueIndex=$index queueSize=${request.songs.length}',
       target: 'player.transition',
     );
@@ -36,7 +36,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
         autoPlay: autoPlay,
         recordHistory: recordHistory,
       );
-      AppLog.debug(
+      AppLog.info(
         '播放切换完成 song=${song.id} generation=$generation',
         target: 'player.transition',
       );

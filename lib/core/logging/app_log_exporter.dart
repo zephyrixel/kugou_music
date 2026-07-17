@@ -12,8 +12,7 @@ class AppLogExporter {
   final AppLogStore store;
   final Future<void> Function() flushNative;
 
-  Future<File> buildExport() async {
-    await store.flush();
+  Future<File> _buildExport() async {
     await flushNative();
     final entries = await store.readEntries();
     entries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -25,7 +24,7 @@ class AppLogExporter {
   }
 
   Future<void> share() async {
-    final file = await buildExport();
+    final file = await _buildExport();
     try {
       await SharePlus.instance.share(
         ShareParams(
@@ -40,7 +39,7 @@ class AppLogExporter {
   }
 
   Future<bool> saveAs() async {
-    final file = await buildExport();
+    final file = await _buildExport();
     try {
       final location = await getSaveLocation(
         suggestedName: file.uri.pathSegments.last,

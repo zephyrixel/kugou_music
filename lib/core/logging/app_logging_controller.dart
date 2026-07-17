@@ -16,7 +16,7 @@ class AppLoggingController extends ChangeNotifier {
   static const _levelKey = 'app_log_level';
 
   final AppLogStore store;
-  final SharedPreferences? _preferences;
+  final SharedPreferencesAsync _preferences;
   AppLogLevel _level;
   bool _nativeAvailable = false;
   String? _nativeError;
@@ -24,7 +24,6 @@ class AppLoggingController extends ChangeNotifier {
   AppLogLevel get level => _level;
   bool get nativeAvailable => _nativeAvailable;
   String? get nativeError => _nativeError;
-  bool get traceActive => _level == AppLogLevel.trace;
 
   AppLogExporter get exporter => AppLogExporter(
     store,
@@ -52,13 +51,14 @@ class AppLoggingController extends ChangeNotifier {
     } catch (_) {
       // File logging is best effort and must never prevent application startup.
     }
-    SharedPreferences? preferences;
+    final preferences = SharedPreferencesAsync();
+    String? persistedValue;
     try {
-      preferences = await SharedPreferences.getInstance();
+      persistedValue = await preferences.getString(_levelKey);
     } catch (_) {
       // Keep the default level when platform preferences are unavailable.
     }
-    final persisted = AppLogLevel.parse(preferences?.getString(_levelKey));
+    final persisted = AppLogLevel.parse(persistedValue);
     final startupLevel = persisted == AppLogLevel.trace
         ? AppLogLevel.debug
         : persisted;
@@ -92,25 +92,28 @@ class AppLoggingController extends ChangeNotifier {
   }
 
   Future<void> setLevel(AppLogLevel level) async {
-    _level = level;
-    AppLog.setLevel(level);
-    final persistedLevel = level == AppLogLevel.trace
-        ? AppLogLevel.debug
-        : level;
-    await _preferences?.setString(_levelKey, persistedLevel.name);
-    Object? nativeFailure;
     if (_nativeAvailable) {
       try {
         await bridge.setNativeLogLevel(level: _nativeLevel(level));
         _nativeError = null;
       } catch (error) {
         _nativeError = _bridgeMessage(error);
-        nativeFailure = AppLoggingException(_nativeError!);
+        notifyListeners();
+        throw AppLoggingException(_nativeError!);
       }
+    }
+    _level = level;
+    AppLog.setLevel(level);
+    final persistedLevel = level == AppLogLevel.trace
+        ? AppLogLevel.debug
+        : level;
+    try {
+      await _preferences.setString(_levelKey, persistedLevel.name);
+    } catch (error) {
+      AppLog.warn('保存日志等级失败', target: 'logging', error: error);
     }
     notifyListeners();
     AppLog.info('日志等级已切换为 ${level.label}', target: 'logging');
-    if (nativeFailure != null) throw nativeFailure;
   }
 
   Future<List<AppLogEntry>> loadRecent({int limit = 1000}) =>

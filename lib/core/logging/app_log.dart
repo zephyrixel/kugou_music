@@ -6,10 +6,17 @@ import 'package:kgmusic/core/logging/app_log_level.dart';
 import 'package:kgmusic/core/logging/app_log_store.dart';
 
 abstract final class AppLog {
+  static final _credentialPattern = RegExp(
+    r'(token|signature|vip_token|authorization|cookie|password|passwd)(\s*[=:]\s*)([^\s&,;}]+)',
+    caseSensitive: false,
+  );
+  static final _verificationCodePattern = RegExp(
+    r'(sms[_-]?code|verify[_-]?code|验证码)(\s*[=:：]\s*)(\d{4,8})',
+    caseSensitive: false,
+  );
+  static final _mobilePattern = RegExp(r'(?<!\d)1\d{10}(?!\d)');
   static AppLogStore? _store;
   static AppLogLevel _level = AppLogLevel.info;
-
-  static AppLogLevel get level => _level;
 
   static void initialize(AppLogStore store, AppLogLevel level) {
     _store = store;
@@ -50,9 +57,6 @@ abstract final class AppLog {
   static void debug(String message, {String target = 'app'}) =>
       _write(AppLogLevel.debug, message, target: target);
 
-  static void trace(String message, {String target = 'app'}) =>
-      _write(AppLogLevel.trace, message, target: target);
-
   static void _write(
     AppLogLevel level,
     String message, {
@@ -83,26 +87,28 @@ abstract final class AppLog {
       );
       return;
     }
-    unawaited(store.append(entry).catchError((_) {}));
+    unawaited(
+      store.append(entry).catchError((Object writeError) {
+        developer.log(
+          'Failed to persist application log',
+          name: 'logging',
+          error: writeError,
+        );
+      }),
+    );
   }
 
   static String _redact(String value) {
     var result = value.replaceAllMapped(
-      RegExp(
-        r'(token|signature|vip_token|authorization|cookie|password|passwd)(\s*[=:]\s*)([^\s&,;}]+)',
-        caseSensitive: false,
-      ),
+      _credentialPattern,
       (match) => '${match[1]}${match[2]}***',
     );
     result = result.replaceAllMapped(
-      RegExp(
-        r'(sms[_-]?code|verify[_-]?code|验证码)(\s*[=:：]\s*)(\d{4,8})',
-        caseSensitive: false,
-      ),
+      _verificationCodePattern,
       (match) => '${match[1]}${match[2]}***',
     );
     result = result.replaceAllMapped(
-      RegExp(r'(?<!\d)1\d{10}(?!\d)'),
+      _mobilePattern,
       (match) => '${match[0]!.substring(0, 3)}****${match[0]!.substring(7)}',
     );
     return result;
