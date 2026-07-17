@@ -352,6 +352,7 @@ pub struct PlaylistTracksMutationDto {
 #[derive(Debug, Clone)]
 pub enum BridgeErrorKind {
     InvalidArgument,
+    SessionInvalid,
     Transport,
     Upstream,
     AuthenticationRequired,

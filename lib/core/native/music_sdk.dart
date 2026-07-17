@@ -5,6 +5,7 @@ import 'package:kgmusic/core/models/lyric.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/recommendation.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/native/auth_storage_keys.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
 import 'package:kgmusic/core/native/secure_session_store.dart';
@@ -110,8 +111,8 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
        _deviceProfiles = deviceProfiles ?? AndroidDeviceProfileSource(storage),
        _sessions = SecureSessionStore(storage, key: sessionKey);
 
-  static const sessionKey = 'kugou_sdk_lite_session_v2';
-  static const legacySessionKey = 'kugou_sdk_lite_session_v1';
+  static const sessionKey = AuthStorageKeys.sessionV2;
+  static const legacySessionKey = AuthStorageKeys.legacySessionV1;
   final FlutterSecureStorage _storage;
   final DeviceProfileSource _deviceProfiles;
   final SecureSessionStore _sessions;
@@ -120,6 +121,10 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
   Future<void> initialize() async {
     if (await _storage.read(key: legacySessionKey) != null) {
       await _storage.delete(key: legacySessionKey);
+      await _storage.write(
+        key: AuthStorageKeys.startupNotice,
+        value: AuthStartupNotice.securityUpgrade.name,
+      );
     }
     final deviceProfile = await _deviceProfiles.read();
     final persisted = await _sessions.read();
@@ -128,9 +133,16 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
         deviceProfile: _deviceProfileDto(deviceProfile),
         persistedSession: persisted,
       );
-    } on bridge.BridgeError {
-      if (persisted == null) rethrow;
+    } on bridge.BridgeError catch (error) {
+      if (persisted == null ||
+          error.kind != bridge.BridgeErrorKind.sessionInvalid) {
+        rethrow;
+      }
       await _sessions.delete();
+      await _storage.write(
+        key: AuthStorageKeys.startupNotice,
+        value: AuthStartupNotice.sessionReset.name,
+      );
       await bridge.initializeSdk(
         deviceProfile: _deviceProfileDto(deviceProfile),
       );
@@ -614,8 +626,8 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
       final value = await action();
       if (persist) await _persistSession();
       return value;
-    } on bridge.BridgeError catch (error) {
-      throw MusicSdkException(
+    } on bridge.BridgeError catch (error, stackTrace) {
+      final exception = MusicSdkException(
         error.message,
         retryable: error.retryable,
         expired: error.kind == bridge.BridgeErrorKind.authenticationExpired,
@@ -623,6 +635,15 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
             error.kind == bridge.BridgeErrorKind.authenticationRequired,
         code: error.code,
       );
+      if (persist) {
+        try {
+          await _persistSession();
+        } catch (_) {
+          // Preserve the original SDK failure; the next successful call will
+          // persist the latest in-memory session again.
+        }
+      }
+      Error.throwWithStackTrace(exception, stackTrace);
     }
   }
 

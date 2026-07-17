@@ -29,25 +29,34 @@ internal object DeviceProfileChannel {
     }
 
     private fun collect(context: Context): Map<String, Any?> {
-        val memory = ActivityManager.MemoryInfo().also {
-            (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(it)
-        }
-        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val sensors = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val internalStorage = StatFs(context.filesDir.absolutePath).availableBytes
-        val externalPath = context.getExternalFilesDir(null)?.absolutePath
-        val externalStorage = externalPath?.let { StatFs(it).availableBytes } ?: internalStorage
+        val memory = (context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
+            ?.let { manager ->
+                runCatching {
+                    ActivityManager.MemoryInfo().also(manager::getMemoryInfo).availMem
+                }.getOrNull()
+            }
+        val battery = runCatching {
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }.getOrNull()
+        val sensors = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val internalStorage = availableBytes(context.filesDir.absolutePath)
+        val externalStorage = context.getExternalFilesDir(null)
+            ?.absolutePath
+            ?.let(::availableBytes)
+            ?: internalStorage
 
         return mapOf(
-            "androidId" to Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ANDROID_ID,
-            ),
+            "androidId" to runCatching {
+                Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ANDROID_ID,
+                )
+            }.getOrNull(),
             "brand" to Build.BRAND,
             "model" to Build.MODEL,
             "manufacturer" to Build.MANUFACTURER,
-            "basebandVersion" to Build.getRadioVersion(),
-            "availableRamBytes" to memory.availMem,
+            "basebandVersion" to runCatching { Build.getRadioVersion() }.getOrNull(),
+            "availableRamBytes" to memory,
             "availableInternalStorageBytes" to internalStorage,
             "availableExternalStorageBytes" to externalStorage,
             "batteryLevel" to battery?.batteryPercentage(),
@@ -67,7 +76,10 @@ internal object DeviceProfileChannel {
         )
     }
 
-    private fun SensorManager.has(type: Int): Boolean = getDefaultSensor(type) != null
+    private fun availableBytes(path: String): Long? =
+        runCatching { StatFs(path).availableBytes }.getOrNull()
+
+    private fun SensorManager?.has(type: Int): Boolean = this?.getDefaultSensor(type) != null
 
     private fun Intent.batteryPercentage(): Int? {
         val level = getIntExtra(BatteryManager.EXTRA_LEVEL, -1)

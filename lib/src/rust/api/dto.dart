@@ -111,6 +111,7 @@ class BridgeError implements FrbException {
 
 enum BridgeErrorKind {
   invalidArgument,
+  sessionInvalid,
   transport,
   upstream,
   authenticationRequired,

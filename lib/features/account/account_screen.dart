@@ -42,6 +42,8 @@ class AccountScreen extends ConsumerWidget {
                 profile: profile,
                 vip: vip,
                 fingerprint: auth.snapshot.fingerprintRegistered,
+                registeringDevice: auth.registeringDevice,
+                onRetryDevice: auth.retryDeviceRegistration,
               ),
               if (auth.snapshot.userId case final userId?) ...[
                 const SizedBox(height: KgSpacing.md),
@@ -49,9 +51,17 @@ class AccountScreen extends ConsumerWidget {
               ],
               if (auth.message != null) ...[
                 const SizedBox(height: KgSpacing.sm),
-                Text(
-                  auth.message!,
-                  style: const TextStyle(color: KgColors.warning),
+                KgSurface(
+                  padding: EdgeInsets.zero,
+                  radius: KgRadii.medium,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.info_outline_rounded,
+                      color: KgColors.warning,
+                    ),
+                    title: Text(auth.message!),
+                    textColor: KgColors.warning,
+                  ),
                 ),
               ],
               const SizedBox(height: KgSpacing.md),
@@ -92,11 +102,15 @@ class _ProfileCard extends StatelessWidget {
     required this.profile,
     required this.vip,
     required this.fingerprint,
+    required this.registeringDevice,
+    required this.onRetryDevice,
   });
 
   final AsyncValue<UserProfile> profile;
   final AsyncValue<UserVip> vip;
   final bool fingerprint;
+  final bool registeringDevice;
+  final Future<void> Function() onRetryDevice;
 
   @override
   Widget build(BuildContext context) => KgSurface(
@@ -151,9 +165,27 @@ class _ProfileCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'ID ${user.userId ?? '-'} · ${fingerprint ? '设备已登记' : '设备待登记'}',
+                    'ID ${user.userId ?? '-'} · ${fingerprint ? '设备保护已启用' : '设备登记待完成'}',
                     style: const TextStyle(color: KgColors.textMuted),
                   ),
+                  if (!fingerprint) ...[
+                    const SizedBox(height: 4),
+                    TextButton.icon(
+                      onPressed: registeringDevice ? null : onRetryDevice,
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 36),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: registeringDevice
+                          ? const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.security_update_good_rounded),
+                      label: Text(registeringDevice ? '正在登记设备…' : '重试设备登记'),
+                    ),
+                  ],
                   if (user.signature?.isNotEmpty == true) ...[
                     const SizedBox(height: 7),
                     Text(

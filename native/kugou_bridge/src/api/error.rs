@@ -12,6 +12,24 @@ impl BridgeError {
         }
     }
 
+    pub(super) fn session_invalid(message: impl Into<String>) -> Self {
+        Self {
+            kind: BridgeErrorKind::SessionInvalid,
+            message: message.into(),
+            code: None,
+            retryable: false,
+        }
+    }
+
+    pub(super) fn upstream(message: impl Into<String>, retryable: bool) -> Self {
+        Self {
+            kind: BridgeErrorKind::Upstream,
+            message: message.into(),
+            code: None,
+            retryable,
+        }
+    }
+
     pub(super) fn internal(message: impl Into<String>) -> Self {
         Self {
             kind: BridgeErrorKind::Internal,

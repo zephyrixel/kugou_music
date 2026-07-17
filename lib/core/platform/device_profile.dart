@@ -79,7 +79,7 @@ class AndroidDeviceProfileSource implements DeviceProfileSource {
       }
     }
 
-    final androidId = _string(facts['androidId']);
+    final androidId = normalizeAndroidDeviceId(facts['androidId']);
     final deviceId = androidId ?? await _persistentInstallId();
     return DeviceProfile(
       deviceId: deviceId,
@@ -126,6 +126,17 @@ String? _string(Object? value) {
   final text = value?.toString().trim();
   if (text == null || text.isEmpty || text == 'unknown') return null;
   return text;
+}
+
+String? normalizeAndroidDeviceId(Object? value) {
+  final id = _string(value);
+  final normalized = id?.toLowerCase();
+  if (id == null ||
+      normalized == '9774d56d682e549c' ||
+      RegExp(r'^0+$').hasMatch(normalized!)) {
+    return null;
+  }
+  return id;
 }
 
 int? _integer(Object? value) => switch (value) {

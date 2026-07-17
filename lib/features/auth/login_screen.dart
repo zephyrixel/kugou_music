@@ -5,6 +5,8 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
+import 'package:kgmusic/features/auth/auth_controller.dart';
+import 'package:kgmusic/features/auth/auth_input.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,12 +18,42 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _mobile = TextEditingController();
   final _code = TextEditingController();
+  final _codeFocus = FocusNode();
+  String? _mobileError;
+  String? _codeError;
 
   @override
   void dispose() {
     _mobile.dispose();
     _code.dispose();
+    _codeFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _requestCode() async {
+    final error = validateMobile(_mobile.text);
+    setState(() => _mobileError = error);
+    if (error != null) return;
+    FocusScope.of(context).unfocus();
+    final auth = ref.read(authControllerProvider);
+    await auth.sendCode(_mobile.text.trim());
+    if (mounted && auth.status == AuthStatus.codeSent) {
+      _codeFocus.requestFocus();
+    }
+  }
+
+  Future<void> _submitLogin() async {
+    final mobileError = validateMobile(_mobile.text);
+    final codeError = validateSmsCode(_code.text);
+    setState(() {
+      _mobileError = mobileError;
+      _codeError = codeError;
+    });
+    if (mobileError != null || codeError != null) return;
+    FocusScope.of(context).unfocus();
+    await ref
+        .read(authControllerProvider)
+        .login(_mobile.text.trim(), _code.text.trim());
   }
 
   @override
@@ -76,13 +108,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       TextField(
                         controller: _mobile,
                         keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) => _codeFocus.requestFocus(),
+                        onChanged: (_) {
+                          if (_mobileError != null) {
+                            setState(() => _mobileError = null);
+                          }
+                        },
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
                         ],
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: '手机号',
                           hintText: '13800138000',
-                          prefixIcon: Icon(Icons.phone_android_rounded),
+                          prefixIcon: const Icon(Icons.phone_android_rounded),
+                          errorText: _mobileError,
                         ),
                       ),
                       const SizedBox(height: KgSpacing.sm),
@@ -92,15 +132,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Expanded(
                             child: TextField(
                               controller: _code,
+                              focusNode: _codeFocus,
                               keyboardType: TextInputType.number,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) {
+                                if (!auth.busy) _submitLogin();
+                              },
+                              onChanged: (_) {
+                                if (_codeError != null) {
+                                  setState(() => _codeError = null);
+                                }
+                              },
                               maxLength: 8,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                               ],
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 counterText: '',
                                 labelText: '验证码',
-                                prefixIcon: Icon(Icons.password_rounded),
+                                prefixIcon: const Icon(Icons.password_rounded),
+                                errorText: _codeError,
                               ),
                             ),
                           ),
@@ -110,12 +161,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: OutlinedButton(
                               onPressed: auth.busy || auth.resendSeconds > 0
                                   ? null
-                                  : () => auth.sendCode(_mobile.text.trim()),
-                              child: Text(
-                                auth.resendSeconds > 0
-                                    ? '${auth.resendSeconds}s'
-                                    : '获取验证码',
-                              ),
+                                  : _requestCode,
+                              child: auth.status == AuthStatus.sendingCode
+                                  ? const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox.square(
+                                          dimension: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text('发送中…'),
+                                      ],
+                                    )
+                                  : Text(
+                                      auth.resendSeconds > 0
+                                          ? '${auth.resendSeconds}s'
+                                          : '获取验证码',
+                                    ),
                             ),
                           ),
                         ],
@@ -138,22 +203,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: KgSpacing.lg),
                       FilledButton(
-                        onPressed: auth.busy
-                            ? null
-                            : () => auth.login(
-                                _mobile.text.trim(),
-                                _code.text.trim(),
-                              ),
+                        onPressed: auth.busy ? null : _submitLogin,
                         style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(56),
                         ),
-                        child: auth.busy
-                            ? const SizedBox.square(
-                                dimension: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFF15182A),
-                                ),
+                        child: auth.status == AuthStatus.signingIn
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF15182A),
+                                    ),
+                                  ),
+                                  SizedBox(width: 10),
+                                  Text('正在登录…'),
+                                ],
                               )
                             : const Text('登录'),
                       ),
@@ -162,7 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: KgSpacing.md),
                 const Text(
-                  '登录成功后会自动登记设备指纹。手机号不会写入本地数据库或日志。',
+                  '获取验证码前会先使用本机信息完成设备登记；手机号不会写入本地数据库或日志。',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: KgColors.textMuted, fontSize: 12),
                 ),

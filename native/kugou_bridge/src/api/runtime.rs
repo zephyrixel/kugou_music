@@ -73,16 +73,17 @@ fn restore(
     mut current_device: kugou_sdk::DeviceIdentity,
 ) -> Result<Session, BridgeError> {
     let persisted: PersistedSession = serde_json::from_str(value)
-        .map_err(|error| BridgeError::invalid_argument(error.to_string()))?;
+        .map_err(|error| BridgeError::session_invalid(error.to_string()))?;
     if persisted.schema_version != SESSION_SCHEMA_VERSION || persisted.platform != SESSION_PLATFORM
     {
-        return Err(BridgeError::invalid_argument(
+        return Err(BridgeError::session_invalid(
             "only schema v2 Lite sessions can be imported",
         ));
     }
-    let mut restored = Session::import(&persisted.session_json).map_err(BridgeError::from_sdk)?;
+    let mut restored = Session::import(&persisted.session_json)
+        .map_err(|error| BridgeError::session_invalid(error.to_string()))?;
     if restored.device.mid != current_device.mid || restored.device.guid != current_device.guid {
-        return Err(BridgeError::invalid_argument(
+        return Err(BridgeError::session_invalid(
             "persisted session belongs to a different Android device",
         ));
     }
@@ -96,6 +97,7 @@ fn restore(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::dto::BridgeErrorKind;
     use kugou_sdk::DeviceIdentity;
 
     fn envelope(session: &Session, version: u32) -> String {
@@ -134,7 +136,9 @@ mod tests {
     fn restore_rejects_legacy_or_different_device_sessions() {
         let first = Session::new(DeviceIdentity::builder().device_id("one").build().unwrap());
         let second = DeviceIdentity::builder().device_id("two").build().unwrap();
-        assert!(restore(&envelope(&first, 1), second.clone()).is_err());
-        assert!(restore(&envelope(&first, 2), second).is_err());
+        let legacy = restore(&envelope(&first, 1), second.clone()).unwrap_err();
+        let different = restore(&envelope(&first, 2), second).unwrap_err();
+        assert!(matches!(legacy.kind, BridgeErrorKind::SessionInvalid));
+        assert!(matches!(different.kind, BridgeErrorKind::SessionInvalid));
     }
 }

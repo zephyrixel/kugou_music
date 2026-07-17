@@ -1500,13 +1500,14 @@ impl SseDecode for crate::api::dto::BridgeErrorKind {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::dto::BridgeErrorKind::InvalidArgument,
-            1 => crate::api::dto::BridgeErrorKind::Transport,
-            2 => crate::api::dto::BridgeErrorKind::Upstream,
-            3 => crate::api::dto::BridgeErrorKind::AuthenticationRequired,
-            4 => crate::api::dto::BridgeErrorKind::AuthenticationExpired,
-            5 => crate::api::dto::BridgeErrorKind::SecurityChallenge,
-            6 => crate::api::dto::BridgeErrorKind::Unsupported,
-            7 => crate::api::dto::BridgeErrorKind::Internal,
+            1 => crate::api::dto::BridgeErrorKind::SessionInvalid,
+            2 => crate::api::dto::BridgeErrorKind::Transport,
+            3 => crate::api::dto::BridgeErrorKind::Upstream,
+            4 => crate::api::dto::BridgeErrorKind::AuthenticationRequired,
+            5 => crate::api::dto::BridgeErrorKind::AuthenticationExpired,
+            6 => crate::api::dto::BridgeErrorKind::SecurityChallenge,
+            7 => crate::api::dto::BridgeErrorKind::Unsupported,
+            8 => crate::api::dto::BridgeErrorKind::Internal,
             _ => unreachable!("Invalid variant for BridgeErrorKind: {}", inner),
         };
     }
@@ -2630,13 +2631,14 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::BridgeErrorKind {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::InvalidArgument => 0.into_dart(),
-            Self::Transport => 1.into_dart(),
-            Self::Upstream => 2.into_dart(),
-            Self::AuthenticationRequired => 3.into_dart(),
-            Self::AuthenticationExpired => 4.into_dart(),
-            Self::SecurityChallenge => 5.into_dart(),
-            Self::Unsupported => 6.into_dart(),
-            Self::Internal => 7.into_dart(),
+            Self::SessionInvalid => 1.into_dart(),
+            Self::Transport => 2.into_dart(),
+            Self::Upstream => 3.into_dart(),
+            Self::AuthenticationRequired => 4.into_dart(),
+            Self::AuthenticationExpired => 5.into_dart(),
+            Self::SecurityChallenge => 6.into_dart(),
+            Self::Unsupported => 7.into_dart(),
+            Self::Internal => 8.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -3577,13 +3579,14 @@ impl SseEncode for crate::api::dto::BridgeErrorKind {
         <i32>::sse_encode(
             match self {
                 crate::api::dto::BridgeErrorKind::InvalidArgument => 0,
-                crate::api::dto::BridgeErrorKind::Transport => 1,
-                crate::api::dto::BridgeErrorKind::Upstream => 2,
-                crate::api::dto::BridgeErrorKind::AuthenticationRequired => 3,
-                crate::api::dto::BridgeErrorKind::AuthenticationExpired => 4,
-                crate::api::dto::BridgeErrorKind::SecurityChallenge => 5,
-                crate::api::dto::BridgeErrorKind::Unsupported => 6,
-                crate::api::dto::BridgeErrorKind::Internal => 7,
+                crate::api::dto::BridgeErrorKind::SessionInvalid => 1,
+                crate::api::dto::BridgeErrorKind::Transport => 2,
+                crate::api::dto::BridgeErrorKind::Upstream => 3,
+                crate::api::dto::BridgeErrorKind::AuthenticationRequired => 4,
+                crate::api::dto::BridgeErrorKind::AuthenticationExpired => 5,
+                crate::api::dto::BridgeErrorKind::SecurityChallenge => 6,
+                crate::api::dto::BridgeErrorKind::Unsupported => 7,
+                crate::api::dto::BridgeErrorKind::Internal => 8,
                 _ => {
                     unimplemented!("");
                 }

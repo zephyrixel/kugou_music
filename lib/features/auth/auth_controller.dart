@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/native/auth_storage_keys.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
 enum AuthStatus {
@@ -30,7 +31,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   });
 
   static const refreshInterval = Duration(hours: 12);
-  static const _lastRefreshKey = 'kugou_lite_last_refresh_at';
+  static const fingerprintRetryInterval = Duration(minutes: 15);
 
   final AuthSdk _sdk;
   final FlutterSecureStorage _storage;
@@ -41,6 +42,8 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   Timer? _countdownTimer;
   bool _disposed = false;
   bool _libraryReady = false;
+  bool _registeringDevice = false;
+  DateTime? _lastFingerprintAttempt;
 
   AuthStatus status = AuthStatus.booting;
   AuthSnapshot snapshot = const AuthSnapshot(
@@ -51,32 +54,45 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   int resendSeconds = 0;
 
   bool get authenticated => snapshot.authenticated && _libraryReady;
-  bool get busy => const {
-    AuthStatus.sendingCode,
-    AuthStatus.signingIn,
-    AuthStatus.syncingLibrary,
-    AuthStatus.refreshing,
-  }.contains(status);
+  bool get registeringDevice => _registeringDevice;
+  bool get busy =>
+      _registeringDevice ||
+      const {
+        AuthStatus.sendingCode,
+        AuthStatus.signingIn,
+        AuthStatus.syncingLibrary,
+        AuthStatus.refreshing,
+      }.contains(status);
 
   static bool isRefreshDue(DateTime? lastRefresh, DateTime now) =>
       lastRefresh == null || now.difference(lastRefresh) >= refreshInterval;
+
+  static bool isFingerprintRetryDue(DateTime? lastAttempt, DateTime now) =>
+      lastAttempt == null ||
+      now.difference(lastAttempt) >= fingerprintRetryInterval;
 
   Future<void> initialize() async {
     WidgetsBinding.instance.addObserver(this);
     _refreshTimer = Timer.periodic(refreshInterval, (_) => refreshIfDue());
     try {
       snapshot = await _sdk.authState();
+      final startupNotice = await _takeStartupNotice();
       if (snapshot.authenticated) {
         await _initializeLibrary();
         if (authenticated) await refreshIfDue();
       } else {
         await _library.deactivate();
         status = AuthStatus.guest;
+        message = switch (startupNotice) {
+          AuthStartupNotice.securityUpgrade => '设备安全信息已升级，请重新获取验证码登录。',
+          AuthStartupNotice.sessionReset => '本机登录信息已失效或与当前设备不匹配，请重新登录。',
+          null => null,
+        };
         _notify();
       }
     } catch (error) {
       status = AuthStatus.failure;
-      message = error.toString();
+      message = '恢复登录状态失败：$error';
       _notify();
     }
   }
@@ -91,7 +107,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       _startCountdown();
     } catch (error) {
       status = AuthStatus.failure;
-      message = error.toString();
+      message = '获取验证码失败：$error';
     }
     _notify();
   }
@@ -103,7 +119,12 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final result = await _sdk.loginBySms(mobile, code);
       snapshot = result.auth;
-      message = result.fingerprintWarning == null ? null : '登录成功，设备指纹将在稍后重试注册';
+      if (result.fingerprintWarning != null) {
+        _lastFingerprintAttempt = DateTime.now();
+      }
+      message = result.fingerprintWarning == null
+          ? null
+          : '登录成功，但设备保护尚未完成，可在个人中心重试：${result.fingerprintWarning}';
       await _markRefreshed();
       _countdownTimer?.cancel();
       resendSeconds = 0;
@@ -111,18 +132,24 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       return authenticated;
     } catch (error) {
       status = AuthStatus.failure;
-      message = error.toString();
+      message = '登录失败：$error';
       _notify();
       return false;
     }
   }
 
   Future<void> refreshIfDue({bool force = false}) async {
-    if (!authenticated || status == AuthStatus.refreshing) return;
-    final raw = await _storage.read(key: _lastRefreshKey);
+    if (!authenticated ||
+        status == AuthStatus.refreshing ||
+        _registeringDevice) {
+      return;
+    }
+    final raw = await _storage.read(key: AuthStorageKeys.lastRefreshAt);
     final last = raw == null ? null : DateTime.tryParse(raw);
     if (!force && !isRefreshDue(last, DateTime.now())) {
-      if (!snapshot.fingerprintRegistered) await _retryFingerprint();
+      if (!snapshot.fingerprintRegistered) {
+        await _retryFingerprint(force: false);
+      }
       return;
     }
     status = AuthStatus.refreshing;
@@ -133,11 +160,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       status = AuthStatus.authenticated;
       await _markRefreshed();
       if (!snapshot.fingerprintRegistered) {
-        try {
-          snapshot = await _sdk.ensureDeviceRegistered();
-        } catch (error) {
-          message = '登录已刷新，但设备登记失败：$error';
-        }
+        await _retryFingerprint(force: false);
       }
     } on MusicSdkException catch (error) {
       if (error.expired || error.authenticationRequired) {
@@ -153,12 +176,28 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
   }
 
-  Future<void> _retryFingerprint() async {
+  Future<void> retryDeviceRegistration() => _retryFingerprint(force: true);
+
+  Future<void> _retryFingerprint({required bool force}) async {
+    if (snapshot.fingerprintRegistered || _registeringDevice) return;
+    final now = DateTime.now();
+    if (!force && !isFingerprintRetryDue(_lastFingerprintAttempt, now)) {
+      return;
+    }
+    _lastFingerprintAttempt = now;
+    _registeringDevice = true;
+    _notify();
     try {
       snapshot = await _sdk.ensureDeviceRegistered();
-      _notify();
+      if (message?.startsWith('设备登记失败') == true ||
+          message?.startsWith('登录已刷新，但设备登记失败') == true ||
+          message?.startsWith('登录成功，但设备保护尚未完成') == true) {
+        message = null;
+      }
     } catch (error) {
       message = '设备登记失败，将在稍后重试：$error';
+    } finally {
+      _registeringDevice = false;
       _notify();
     }
   }
@@ -174,10 +213,12 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   }) async {
     await _sdk.logout();
     await onSessionCleared?.call();
-    await _storage.delete(key: _lastRefreshKey);
+    await _storage.delete(key: AuthStorageKeys.lastRefreshAt);
     await _database.clearAccountCache();
     await _library.deactivate();
     _libraryReady = false;
+    _registeringDevice = false;
+    _lastFingerprintAttempt = null;
     snapshot = const AuthSnapshot(
       authenticated: false,
       fingerprintRegistered: false,
@@ -227,9 +268,17 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _markRefreshed() => _storage.write(
-    key: _lastRefreshKey,
+    key: AuthStorageKeys.lastRefreshAt,
     value: DateTime.now().toUtc().toIso8601String(),
   );
+
+  Future<AuthStartupNotice?> _takeStartupNotice() async {
+    final raw = await _storage.read(key: AuthStorageKeys.startupNotice);
+    if (raw != null) {
+      await _storage.delete(key: AuthStorageKeys.startupNotice);
+    }
+    return AuthStartupNotice.parse(raw);
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

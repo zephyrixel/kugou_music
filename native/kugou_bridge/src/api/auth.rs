@@ -1,4 +1,4 @@
-use kugou_sdk::Session;
+use kugou_sdk::{KugouClient, Session};
 
 use super::{
     dto::{AuthStateDto, BridgeError, SmsLoginResultDto},
@@ -22,15 +22,34 @@ pub(crate) async fn register_device() -> Result<AuthStateDto, BridgeError> {
 async fn register(force: bool) -> Result<AuthStateDto, BridgeError> {
     let runtime = runtime::get()?;
     let mut session = runtime.session.lock().await;
+    register_session(&runtime.client, &mut session, force).await?;
+    Ok(snapshot(&session))
+}
+
+async fn register_session(
+    client: &KugouClient,
+    session: &mut Session,
+    force: bool,
+) -> Result<(), BridgeError> {
     if force || !session.has_dfid() {
-        runtime
-            .client
+        client
             .auth()
-            .register_dev(&mut session, None)
+            .register_dev(session, None)
             .await
             .map_err(BridgeError::from_sdk)?;
     }
-    Ok(snapshot(&session))
+    require_dfid(session)
+}
+
+fn require_dfid(session: &Session) -> Result<(), BridgeError> {
+    if session.has_dfid() {
+        Ok(())
+    } else {
+        Err(BridgeError::upstream(
+            "device registration response did not contain a valid dfid",
+            true,
+        ))
+    }
 }
 
 pub(crate) async fn send_sms_code(mobile: String) -> Result<(), BridgeError> {
@@ -70,10 +89,7 @@ pub(crate) async fn login_by_sms(
     let fingerprint_warning = if session.has_dfid() {
         None
     } else {
-        runtime
-            .client
-            .auth()
-            .register_dev(&mut session, None)
+        register_session(&runtime.client, &mut session, false)
             .await
             .err()
             .map(|error| error.to_string())
@@ -110,5 +126,28 @@ fn snapshot(session: &Session) -> AuthStateDto {
         user_id: session.user_id,
         vip_type: session.vip_type,
         fingerprint_registered: session.has_dfid(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::dto::BridgeErrorKind;
+    use kugou_sdk::DeviceIdentity;
+
+    #[test]
+    fn registration_requires_a_real_dfid() {
+        let mut session = Session::new(
+            DeviceIdentity::builder()
+                .device_id("device")
+                .build()
+                .unwrap(),
+        );
+        let error = require_dfid(&session).unwrap_err();
+        assert!(matches!(error.kind, BridgeErrorKind::Upstream));
+        assert!(error.retryable);
+
+        session.set_dfid("dfid-1");
+        assert!(require_dfid(&session).is_ok());
     }
 }
