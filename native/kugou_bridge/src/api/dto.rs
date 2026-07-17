@@ -31,12 +31,6 @@ pub struct AuthStateDto {
 }
 
 #[derive(Debug, Clone)]
-pub struct SmsLoginResultDto {
-    pub auth: AuthStateDto,
-    pub fingerprint_warning: Option<String>,
-}
-
-#[derive(Debug, Clone)]
 pub struct SearchRequestDto {
     pub keyword: String,
     pub page: u32,

@@ -34,7 +34,7 @@ pub async fn send_sms_code(mobile: String) -> Result<(), BridgeError> {
     auth::send_sms_code(mobile).await
 }
 
-pub async fn login_by_sms(mobile: String, code: String) -> Result<SmsLoginResultDto, BridgeError> {
+pub async fn login_by_sms(mobile: String, code: String) -> Result<AuthStateDto, BridgeError> {
     auth::login_by_sms(mobile, code).await
 }
 

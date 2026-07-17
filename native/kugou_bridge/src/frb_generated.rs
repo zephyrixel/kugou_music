@@ -2234,18 +2234,6 @@ impl SseDecode for crate::api::dto::SearchRequestDto {
     }
 }
 
-impl SseDecode for crate::api::dto::SmsLoginResultDto {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_auth = <crate::api::dto::AuthStateDto>::sse_decode(deserializer);
-        let mut var_fingerprintWarning = <Option<String>>::sse_decode(deserializer);
-        return crate::api::dto::SmsLoginResultDto {
-            auth: var_auth,
-            fingerprint_warning: var_fingerprintWarning,
-        };
-    }
-}
-
 impl SseDecode for crate::api::dto::SongDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -3296,27 +3284,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::SearchRequestDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::dto::SmsLoginResultDto {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.auth.into_into_dart().into_dart(),
-            self.fingerprint_warning.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::dto::SmsLoginResultDto
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::SmsLoginResultDto>
-    for crate::api::dto::SmsLoginResultDto
-{
-    fn into_into_dart(self) -> crate::api::dto::SmsLoginResultDto {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::dto::SongDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -4133,14 +4100,6 @@ impl SseEncode for crate::api::dto::SearchRequestDto {
         <String>::sse_encode(self.keyword, serializer);
         <u32>::sse_encode(self.page, serializer);
         <u32>::sse_encode(self.page_size, serializer);
-    }
-}
-
-impl SseEncode for crate::api::dto::SmsLoginResultDto {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::dto::AuthStateDto>::sse_encode(self.auth, serializer);
-        <Option<String>>::sse_encode(self.fingerprint_warning, serializer);
     }
 }
 

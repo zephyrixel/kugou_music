@@ -1,7 +1,7 @@
 use kugou_sdk::{KugouClient, Session};
 
 use super::{
-    dto::{AuthStateDto, BridgeError, SmsLoginResultDto},
+    dto::{AuthStateDto, BridgeError},
     runtime,
 };
 
@@ -72,7 +72,7 @@ pub(crate) async fn send_sms_code(mobile: String) -> Result<(), BridgeError> {
 pub(crate) async fn login_by_sms(
     mobile: String,
     code: String,
-) -> Result<SmsLoginResultDto, BridgeError> {
+) -> Result<AuthStateDto, BridgeError> {
     let runtime = runtime::get()?;
     let mut session = runtime.session.lock().await;
     runtime
@@ -86,18 +86,12 @@ pub(crate) async fn login_by_sms(
             "SMS login returned without an authenticated session",
         ));
     }
-    let fingerprint_warning = if session.has_dfid() {
-        None
-    } else {
-        register_session(&runtime.client, &mut session, false)
-            .await
-            .err()
-            .map(|error| error.to_string())
-    };
-    Ok(SmsLoginResultDto {
-        auth: snapshot(&session),
-        fingerprint_warning,
-    })
+    if !session.has_dfid() {
+        // Login remains valid; the returned snapshot exposes the missing dfid
+        // so the app can retry registration without discarding the account.
+        let _ = register_session(&runtime.client, &mut session, false).await;
+    }
+    Ok(snapshot(&session))
 }
 
 pub(crate) async fn refresh_login() -> Result<AuthStateDto, BridgeError> {

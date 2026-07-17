@@ -158,7 +158,7 @@ abstract class RustLibApi extends BaseApi {
     String? persistedSession,
   });
 
-  Future<SmsLoginResultDto> crateApiSdkLoginBySms({
+  Future<AuthStateDto> crateApiSdkLoginBySms({
     required String mobile,
     required String code,
   });
@@ -925,7 +925,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<SmsLoginResultDto> crateApiSdkLoginBySms({
+  Future<AuthStateDto> crateApiSdkLoginBySms({
     required String mobile,
     required String code,
   }) {
@@ -943,7 +943,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_sms_login_result_dto,
+          decodeSuccessData: sse_decode_auth_state_dto,
           decodeErrorData: sse_decode_bridge_error,
         ),
         constMeta: kCrateApiSdkLoginBySmsConstMeta,
@@ -2032,18 +2032,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SmsLoginResultDto dco_decode_sms_login_result_dto(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SmsLoginResultDto(
-      auth: dco_decode_auth_state_dto(arr[0]),
-      fingerprintWarning: dco_decode_opt_String(arr[1]),
-    );
-  }
-
-  @protected
   SongDto dco_decode_song_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3069,19 +3057,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SmsLoginResultDto sse_decode_sms_login_result_dto(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_auth = sse_decode_auth_state_dto(deserializer);
-    var var_fingerprintWarning = sse_decode_opt_String(deserializer);
-    return SmsLoginResultDto(
-      auth: var_auth,
-      fingerprintWarning: var_fingerprintWarning,
-    );
-  }
-
-  @protected
   SongDto sse_decode_song_dto(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -3995,16 +3970,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.keyword, serializer);
     sse_encode_u_32(self.page, serializer);
     sse_encode_u_32(self.pageSize, serializer);
-  }
-
-  @protected
-  void sse_encode_sms_login_result_dto(
-    SmsLoginResultDto self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_auth_state_dto(self.auth, serializer);
-    sse_encode_opt_String(self.fingerprintWarning, serializer);
   }
 
   @protected

@@ -165,7 +165,7 @@ class _ProfileCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'ID ${user.userId ?? '-'} · ${fingerprint ? '设备保护已启用' : '设备登记待完成'}',
+                    'ID ${user.userId ?? '-'} · ${fingerprint ? '设备已登记' : '设备登记待完成'}',
                     style: const TextStyle(color: KgColors.textMuted),
                   ),
                   if (!fingerprint) ...[

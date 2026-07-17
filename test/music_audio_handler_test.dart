@@ -156,8 +156,7 @@ class _FakePlayerSdk implements PlayerSdk {
   @override
   Future<void> sendSmsCode(String mobile) async {}
   @override
-  Future<SmsLoginResult> loginBySms(String mobile, String code) async =>
-      SmsLoginResult(auth: await authState());
+  Future<AuthSnapshot> loginBySms(String mobile, String code) => authState();
   @override
   Future<AuthSnapshot> refreshLogin() => authState();
   @override

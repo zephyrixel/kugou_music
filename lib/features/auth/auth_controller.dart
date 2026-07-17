@@ -117,18 +117,19 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     message = null;
     _notify();
     try {
-      final result = await _sdk.loginBySms(mobile, code);
-      snapshot = result.auth;
-      if (result.fingerprintWarning != null) {
+      snapshot = await _sdk.loginBySms(mobile, code);
+      final registrationPending = !snapshot.fingerprintRegistered;
+      if (registrationPending) {
         _lastFingerprintAttempt = DateTime.now();
       }
-      message = result.fingerprintWarning == null
-          ? null
-          : '登录成功，但设备保护尚未完成，可在个人中心重试：${result.fingerprintWarning}';
       await _markRefreshed();
       _countdownTimer?.cancel();
       resendSeconds = 0;
       await _initializeLibrary();
+      if (authenticated && registrationPending) {
+        message = '登录成功，但设备登记尚未完成，可在个人中心重试。';
+        _notify();
+      }
       return authenticated;
     } catch (error) {
       status = AuthStatus.failure;
@@ -189,11 +190,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
     try {
       snapshot = await _sdk.ensureDeviceRegistered();
-      if (message?.startsWith('设备登记失败') == true ||
-          message?.startsWith('登录已刷新，但设备登记失败') == true ||
-          message?.startsWith('登录成功，但设备保护尚未完成') == true) {
-        message = null;
-      }
+      message = null;
     } catch (error) {
       message = '设备登记失败，将在稍后重试：$error';
     } finally {
@@ -249,7 +246,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       await _library.activate(userId);
       _libraryReady = true;
       status = AuthStatus.authenticated;
-      if (message?.startsWith('初始化音乐库失败') == true) message = null;
+      message = null;
     } catch (error) {
       status = AuthStatus.failure;
       message = '初始化音乐库失败：$error';

@@ -12,12 +12,6 @@ class AuthSnapshot {
   final bool fingerprintRegistered;
 }
 
-class SmsLoginResult {
-  const SmsLoginResult({required this.auth, this.fingerprintWarning});
-  final AuthSnapshot auth;
-  final String? fingerprintWarning;
-}
-
 class UserProfile {
   const UserProfile({
     required this.displayName,

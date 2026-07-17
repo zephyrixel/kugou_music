@@ -238,9 +238,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SearchRequestDto dco_decode_search_request_dto(dynamic raw);
 
   @protected
-  SmsLoginResultDto dco_decode_sms_login_result_dto(dynamic raw);
-
-  @protected
   SongDto dco_decode_song_dto(dynamic raw);
 
   @protected
@@ -531,11 +528,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SearchRequestDto sse_decode_search_request_dto(SseDeserializer deserializer);
-
-  @protected
-  SmsLoginResultDto sse_decode_sms_login_result_dto(
-    SseDeserializer deserializer,
-  );
 
   @protected
   SongDto sse_decode_song_dto(SseDeserializer deserializer);
@@ -903,12 +895,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_search_request_dto(
     SearchRequestDto self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_sms_login_result_dto(
-    SmsLoginResultDto self,
     SseSerializer serializer,
   );
 

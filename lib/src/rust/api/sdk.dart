@@ -28,7 +28,7 @@ Future<AuthStateDto> ensureDeviceRegistered() =>
 Future<void> sendSmsCode({required String mobile}) =>
     RustLib.instance.api.crateApiSdkSendSmsCode(mobile: mobile);
 
-Future<SmsLoginResultDto> loginBySms({
+Future<AuthStateDto> loginBySms({
   required String mobile,
   required String code,
 }) => RustLib.instance.api.crateApiSdkLoginBySms(mobile: mobile, code: code);

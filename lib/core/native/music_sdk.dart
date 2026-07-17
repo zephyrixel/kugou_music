@@ -16,7 +16,7 @@ abstract interface class AuthSdk {
   Future<void> initialize();
   Future<AuthSnapshot> authState();
   Future<void> sendSmsCode(String mobile);
-  Future<SmsLoginResult> loginBySms(String mobile, String code);
+  Future<AuthSnapshot> loginBySms(String mobile, String code);
   Future<AuthSnapshot> refreshLogin();
   Future<AuthSnapshot> ensureDeviceRegistered();
   Future<AuthSnapshot> registerDevice();
@@ -160,14 +160,10 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
   }
 
   @override
-  Future<SmsLoginResult> loginBySms(String mobile, String code) =>
-      _guard(() async {
-        final value = await bridge.loginBySms(mobile: mobile, code: code);
-        return SmsLoginResult(
-          auth: _auth(value.auth),
-          fingerprintWarning: value.fingerprintWarning,
-        );
-      }, persist: true);
+  Future<AuthSnapshot> loginBySms(String mobile, String code) => _guard(
+    () async => _auth(await bridge.loginBySms(mobile: mobile, code: code)),
+    persist: true,
+  );
 
   @override
   Future<AuthSnapshot> refreshLogin() =>
