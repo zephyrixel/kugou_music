@@ -69,6 +69,8 @@ Future<void> showAddToPlaylist(
     await ref.read(libraryRepositoryProvider).addSong(selected, song);
     if (context.mounted) showAppMessage(context, '已添加到歌单');
   } catch (error) {
-    if (context.mounted) showAppError(context, error);
+    if (context.mounted) {
+      showAppError(context, '未能添加到歌单，请稍后重试', cause: error);
+    }
   }
 }

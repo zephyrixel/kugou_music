@@ -232,7 +232,7 @@ class MusicAudioHandler extends BaseAudioHandler
     unawaited(
       _player.play().catchError((Object error) {
         AppLog.error('播放器启动播放失败', target: 'player.engine', error: error);
-        _messages.add('播放失败：$error');
+        _messages.add('播放未能开始，请稍后重试');
       }),
     );
   }

@@ -8,6 +8,7 @@ List<Widget> loadMoreFooters({
   required bool loading,
   Object? error,
   Future<void> Function()? onRetry,
+  String errorMessage = '更多内容加载失败，请重试',
 }) {
   if (loading) {
     return const [
@@ -20,7 +21,7 @@ List<Widget> loadMoreFooters({
   if (error != null) {
     return [
       KgErrorView(
-        error: error,
+        message: errorMessage,
         onRetry: onRetry ?? () async {},
         compact: true,
       ),
@@ -33,28 +34,33 @@ List<Widget> loadMoreFooterSlivers({
   required bool loading,
   Object? error,
   Future<void> Function()? onRetry,
-}) =>
-    loadMoreFooters(loading: loading, error: error, onRetry: onRetry)
-        .map((child) => SliverToBoxAdapter(child: child))
-        .toList(growable: false);
+  String errorMessage = '更多内容加载失败，请重试',
+}) => loadMoreFooters(
+  loading: loading,
+  error: error,
+  onRetry: onRetry,
+  errorMessage: errorMessage,
+).map((child) => SliverToBoxAdapter(child: child)).toList(growable: false);
 
 /// Convenience for [PagedListController].
 List<Widget> pagedListFooters(
   PagedListController controller, {
   Future<void> Function()? onRetryMore,
-}) =>
-    loadMoreFooters(
-      loading: controller.loadingMore,
-      error: controller.loadMoreError,
-      onRetry: onRetryMore ?? () => controller.loadMore(),
-    );
+  String errorMessage = '更多内容加载失败，请重试',
+}) => loadMoreFooters(
+  loading: controller.loadingMore,
+  error: controller.loadMoreError,
+  onRetry: onRetryMore ?? () => controller.loadMore(),
+  errorMessage: errorMessage,
+);
 
 List<Widget> pagedListFooterSlivers(
   PagedListController controller, {
   Future<void> Function()? onRetryMore,
-}) =>
-    loadMoreFooterSlivers(
-      loading: controller.loadingMore,
-      error: controller.loadMoreError,
-      onRetry: onRetryMore ?? () => controller.loadMore(),
-    );
+  String errorMessage = '更多内容加载失败，请重试',
+}) => loadMoreFooterSlivers(
+  loading: controller.loadingMore,
+  error: controller.loadMoreError,
+  onRetry: onRetryMore ?? () => controller.loadMore(),
+  errorMessage: errorMessage,
+);

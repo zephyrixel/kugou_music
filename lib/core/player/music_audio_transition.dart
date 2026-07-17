@@ -209,7 +209,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       error: error,
     );
     _emitQualityState(PlaybackQualityState(requested: requestedQuality));
-    _messages.add(error.toString());
+    _messages.add('暂时无法播放这首歌曲，请稍后重试');
   }
 
   void _emitQualityState(PlaybackQualityState state) {
@@ -314,7 +314,8 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
         }
       }
     } catch (error) {
-      _messages.add(error.toString());
+      AppLog.error('自动切换下一首失败', target: 'player.transition', error: error);
+      _messages.add('暂时无法切换到下一首，请稍后重试');
     } finally {
       _advancing = false;
     }

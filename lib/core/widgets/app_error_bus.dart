@@ -5,28 +5,32 @@ import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class AppErrorBus {
-  final StreamController<Object> _errors = StreamController.broadcast();
+  final StreamController<String> _messages = StreamController.broadcast();
   final Map<String, DateTime> _recent = {};
 
-  Stream<Object> get errors => _errors.stream;
+  Stream<String> get messages => _messages.stream;
 
-  void add(Object error) {
-    final message = error.toString();
+  void add(String message, {Object? cause, StackTrace? stackTrace}) {
     final now = DateTime.now();
     final previous = _recent[message];
     if (previous != null &&
         now.difference(previous) < const Duration(seconds: 8)) {
       return;
     }
-    AppLog.error('应用错误总线收到错误', target: 'app.error_bus', error: error);
+    AppLog.warn(
+      '应用提示：$message',
+      target: 'app.error_bus',
+      error: cause,
+      stackTrace: stackTrace,
+    );
     _recent[message] = now;
     _recent.removeWhere(
       (_, timestamp) => now.difference(timestamp) > const Duration(minutes: 1),
     );
-    _errors.add(error);
+    _messages.add(message);
   }
 
-  Future<void> dispose() => _errors.close();
+  Future<void> dispose() => _messages.close();
 }
 
 class AppErrorListener extends StatefulWidget {
@@ -46,7 +50,7 @@ class AppErrorListener extends StatefulWidget {
 }
 
 class _AppErrorListenerState extends State<AppErrorListener> {
-  StreamSubscription<Object>? _subscription;
+  StreamSubscription<String>? _subscription;
 
   @override
   void initState() {
@@ -62,9 +66,9 @@ class _AppErrorListenerState extends State<AppErrorListener> {
 
   void _listen() {
     _subscription?.cancel();
-    _subscription = widget.bus.errors.listen((error) {
+    _subscription = widget.bus.messages.listen((message) {
       if (!mounted) return;
-      showAppErrorWithMessenger(widget.messengerKey, error);
+      showAppErrorWithMessenger(widget.messengerKey, message);
     });
   }
 

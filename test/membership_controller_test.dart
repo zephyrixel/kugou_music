@@ -87,7 +87,7 @@ void main() {
 
       expect(result.grantedUnits, 1);
       expect(controller.claimedToday, isTrue);
-      expect(controller.refreshWarning, contains('登录信息刷新失败'));
+      expect(controller.refreshWarning, '权益已生效，会员状态将在稍后自动更新。');
     },
   );
 }

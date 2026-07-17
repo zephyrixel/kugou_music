@@ -7,6 +7,8 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/widgets/account_avatar_button.dart';
+import 'package:kgmusic/core/widgets/kg_layout.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class LibraryHeader extends ConsumerWidget {
   const LibraryHeader({super.key, required this.sync});
@@ -14,40 +16,27 @@ class LibraryHeader extends ConsumerWidget {
   final LibrarySyncStatus? sync;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('音乐库', style: Theme.of(context).textTheme.headlineLarge),
-            const SizedBox(height: 5),
-            AnimatedSwitcher(
-              duration: KgMotion.resolve(context, KgMotion.fast),
-              child: Text(
-                _syncLabel(sync),
-                key: ValueKey(sync?.phase),
-                style: TextStyle(
-                  color: sync?.failed == true
-                      ? KgColors.warning
-                      : KgColors.textMuted,
-                ),
-              ),
-            ),
-          ],
+  Widget build(BuildContext context, WidgetRef ref) => KgPageHeader(
+    title: '音乐库',
+    padding: EdgeInsets.zero,
+    subtitleWidget: AnimatedSwitcher(
+      duration: KgMotion.resolve(context, KgMotion.fast),
+      child: Text(
+        _syncLabel(sync),
+        key: ValueKey(sync?.phase),
+        style: TextStyle(
+          color: sync?.failed == true ? KgColors.warning : KgColors.textMuted,
         ),
       ),
+    ),
+    actions: [
       IconButton(
         tooltip: '立即同步',
         onPressed: sync?.syncing == true
             ? null
             : () => unawaited(ref.read(libraryRepositoryProvider).syncNow()),
         icon: sync?.syncing == true
-            ? const SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+            ? const KgBusyIndicator(size: 20)
             : const Icon(Icons.sync_rounded),
       ),
       const SizedBox(width: KgSpacing.xs),
@@ -56,7 +45,7 @@ class LibraryHeader extends ConsumerWidget {
   );
 
   String _syncLabel(LibrarySyncStatus? status) => switch (status?.phase) {
-    LibrarySyncPhase.syncing => '正在同步歌单元数据…',
+    LibrarySyncPhase.syncing => '正在同步音乐库…',
     LibrarySyncPhase.failed => '同步失败，点击同步按钮重试',
     _ => '收藏、历史与歌单都在这里',
   };

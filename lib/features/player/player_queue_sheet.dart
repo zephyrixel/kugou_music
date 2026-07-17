@@ -3,6 +3,7 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
 Future<void> showPlayerQueueSheet(
@@ -98,10 +99,7 @@ class _PlayerQueueSheet extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: state.loadingMore ? null : handler.loadMoreQueue,
                     icon: state.loadingMore
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const KgBusyIndicator(size: 16)
                         : const Icon(Icons.expand_more_rounded),
                     label: Text(state.loadingMore ? '正在加载' : '加载更多歌曲'),
                   ),
@@ -185,7 +183,7 @@ class _QueueHeader extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              '加载失败：${state.error}',
+              '更多歌曲加载失败，请稍后重试',
               style: const TextStyle(color: KgColors.warning, fontSize: 12),
             ),
           ),

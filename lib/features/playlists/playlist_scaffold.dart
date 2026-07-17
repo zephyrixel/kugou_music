@@ -125,7 +125,7 @@ class PlaylistSongsView extends ConsumerWidget {
           else if (error != null && songs.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: KgErrorView(error: error!, onRetry: onRetry),
+              child: KgErrorView(message: '歌单暂时无法加载，请稍后重试', onRetry: onRetry),
             )
           else if (songs.isEmpty)
             const SliverFillRemaining(

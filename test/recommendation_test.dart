@@ -156,11 +156,11 @@ void main() {
     final sdk = _FakeMusicSdk()..reportError = StateError('network down');
     final errors = AppErrorBus();
     final reporter = RecommendationReporter(sdk, errors);
-    final nextError = errors.errors.first;
+    final nextMessage = errors.messages.first;
 
     reporter.reportPlayed(songA);
 
-    expect(await nextError, contains('推荐历史记录上报失败'));
+    expect(await nextMessage, '推荐反馈暂未同步，不影响继续播放');
     await reporter.flush();
   });
 
@@ -179,10 +179,11 @@ void main() {
       ),
     );
 
-    errors.add('推荐历史记录上报失败：network down');
+    errors.add('推荐反馈暂未同步，不影响继续播放', cause: StateError('network down'));
     await tester.pump();
 
-    expect(find.text('推荐历史记录上报失败：network down'), findsOneWidget);
+    expect(find.text('推荐反馈暂未同步，不影响继续播放'), findsOneWidget);
+    expect(find.textContaining('network down'), findsNothing);
   });
 }
 

@@ -170,7 +170,9 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
             private: result.private,
           );
     } catch (error) {
-      if (mounted) showAppError(context, error);
+      if (mounted) {
+        showAppError(context, '歌单信息保存失败，请稍后重试', cause: error);
+      }
     }
   }
 
@@ -178,7 +180,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     final accepted = await confirmDialog(
       context,
       title: playlist.isCollected ? '取消收藏歌单？' : '删除歌单？',
-      content: '操作会写入本机并同步到云端。',
+      content: playlist.isCollected ? '取消收藏后，这个歌单将从音乐库中移除。' : '删除后将无法恢复，请谨慎操作。',
     );
     if (!accepted) return;
     try {
@@ -187,7 +189,9 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
           .deletePlaylist(playlist.localId!);
       if (mounted) context.pop();
     } catch (error) {
-      if (mounted) showAppError(context, error);
+      if (mounted) {
+        showAppError(context, '歌单删除失败，请稍后重试', cause: error);
+      }
     }
   }
 }

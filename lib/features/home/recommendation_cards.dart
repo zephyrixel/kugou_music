@@ -29,7 +29,9 @@ class _RecommendationCardsState extends ConsumerState<RecommendationCards> {
           .read(audioHandlerProvider)
           .playSong(request.songs.first, queueRequest: request);
     } catch (error) {
-      if (mounted) showAppError(context, error);
+      if (mounted) {
+        showAppError(context, '暂时无法开始推荐播放，请稍后重试', cause: error);
+      }
     } finally {
       if (mounted) setState(() => _loading = null);
     }
@@ -145,10 +147,9 @@ class _RecommendationCard extends StatelessWidget {
                     AnimatedSwitcher(
                       duration: KgMotion.resolve(context, KgMotion.fast),
                       child: loading
-                          ? const SizedBox.square(
+                          ? const KgBusyIndicator(
                               key: ValueKey('loading'),
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              size: 18,
                             )
                           : const Icon(
                               Icons.play_circle_fill_rounded,

@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
+
+class KgBusyIndicator extends StatelessWidget {
+  const KgBusyIndicator({
+    super.key,
+    this.size = 18,
+    this.strokeWidth = 2,
+    this.color,
+  });
+
+  final double size;
+  final double strokeWidth;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CircularProgressIndicator(strokeWidth: strokeWidth, color: color),
+  );
+}
 
 class KgLoadingView extends StatelessWidget {
   const KgLoadingView({super.key, this.label, this.compact = false});
@@ -86,12 +106,12 @@ class _KgSkeletonState extends State<KgSkeleton>
 class KgErrorView extends StatelessWidget {
   const KgErrorView({
     super.key,
-    required this.error,
+    required this.message,
     required this.onRetry,
     this.compact = false,
   });
 
-  final Object error;
+  final String message;
   final Future<void> Function() onRetry;
   final bool compact;
 
@@ -104,7 +124,7 @@ class KgErrorView extends StatelessWidget {
           const Icon(Icons.cloud_off_rounded, size: 42),
           const SizedBox(height: 12),
         ],
-        Text(error.toString(), textAlign: TextAlign.center),
+        Text(message, textAlign: TextAlign.center),
         const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: onRetry,
@@ -118,23 +138,6 @@ class KgErrorView extends StatelessWidget {
       child: Padding(padding: const EdgeInsets.all(24), child: body),
     );
   }
-}
-
-/// Inline list-row error (account playlist list, etc.).
-class KgInlineError extends StatelessWidget {
-  const KgInlineError({super.key, required this.error, required this.onRetry});
-
-  final Object error;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-    title: Text(error.toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-    trailing: IconButton(
-      onPressed: onRetry,
-      icon: const Icon(Icons.refresh_rounded),
-    ),
-  );
 }
 
 /// Empty-state text used by search / library lists.
@@ -179,12 +182,25 @@ class KgEmptyView extends StatelessWidget {
   );
 }
 
-void showAppError(BuildContext context, Object error) {
+void showAppError(
+  BuildContext context,
+  String message, {
+  Object? cause,
+  StackTrace? stackTrace,
+}) {
+  if (cause != null) {
+    AppLog.warn(
+      '用户操作未完成：$message',
+      target: 'ui.feedback',
+      error: cause,
+      stackTrace: stackTrace,
+    );
+  }
   if (!context.mounted) return;
   final colors = Theme.of(context).colorScheme;
   _showAppSnackBar(
     context,
-    message: error.toString(),
+    message: message,
     icon: Icons.error_outline_rounded,
     backgroundColor: colors.errorContainer,
     foregroundColor: colors.onErrorContainer,
@@ -193,7 +209,7 @@ void showAppError(BuildContext context, Object error) {
 
 void showAppErrorWithMessenger(
   GlobalKey<ScaffoldMessengerState> messengerKey,
-  Object error,
+  String message,
 ) {
   final messenger = messengerKey.currentState;
   final context = messengerKey.currentContext;
@@ -201,7 +217,7 @@ void showAppErrorWithMessenger(
   final colors = Theme.of(context).colorScheme;
   _showSnackBar(
     messenger,
-    message: error.toString(),
+    message: message,
     icon: Icons.error_outline_rounded,
     backgroundColor: colors.errorContainer,
     foregroundColor: colors.onErrorContainer,

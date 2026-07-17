@@ -160,7 +160,9 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
       if (mounted) showAppMessage(context, '日志等级已切换为${level.label}');
       await _refresh();
     } catch (error) {
-      if (mounted) showAppError(context, 'Native 日志等级切换失败：$error');
+      if (mounted) {
+        showAppError(context, '日志等级切换失败，请稍后重试', cause: error);
+      }
     }
   }
 
@@ -182,7 +184,7 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
         if (mounted) showAppMessage(context, '日志已保存');
       }
     } catch (error) {
-      if (mounted) showAppError(context, '导出日志失败：$error');
+      if (mounted) showAppError(context, '日志导出失败，请稍后重试', cause: error);
     }
   }
 
@@ -199,7 +201,7 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
       await _refresh();
       if (mounted) showAppMessage(context, '诊断日志已清空');
     } catch (error) {
-      if (mounted) showAppError(context, '清空日志失败：$error');
+      if (mounted) showAppError(context, '日志清理失败，请稍后重试', cause: error);
     }
   }
 }

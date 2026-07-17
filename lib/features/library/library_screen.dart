@@ -87,7 +87,7 @@ class LibraryScreen extends ConsumerWidget {
                       const SizedBox(height: KgSpacing.section),
                       KgSectionHeader(
                         title: '我的歌单',
-                        subtitle: '歌曲会在打开歌单时按需加载',
+                        subtitle: '收藏和创建的歌单都在这里',
                         action: IconButton.filledTonal(
                           tooltip: '创建歌单',
                           onPressed: () => _createPlaylist(context, ref),
@@ -125,7 +125,7 @@ class LibraryScreen extends ConsumerWidget {
     ),
     error: (error, _) => SliverToBoxAdapter(
       child: KgErrorView(
-        error: error,
+        message: '音乐库暂时无法加载，请稍后重试',
         onRetry: () async => ref.invalidate(libraryPlaylistsProvider),
       ),
     ),
@@ -189,6 +189,8 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
         .read(libraryRepositoryProvider)
         .createPlaylist(result.name, private: result.private);
   } catch (error) {
-    if (context.mounted) showAppError(context, error);
+    if (context.mounted) {
+      showAppError(context, '歌单创建失败，请稍后重试', cause: error);
+    }
   }
 }

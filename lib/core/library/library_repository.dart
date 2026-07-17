@@ -191,7 +191,6 @@ class LibraryRepository {
             _emit(
               LibrarySyncStatus(
                 phase: LibrarySyncPhase.failed,
-                message: error.toString(),
                 lastSyncedAt: _status.lastSyncedAt,
               ),
             );

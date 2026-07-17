@@ -95,24 +95,22 @@ class LogActionGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) => KgSettingsGroup(
     children: [
-      ListTile(
-        leading: const Icon(Icons.share_outlined),
-        title: const Text('分享日志'),
-        subtitle: const Text('通过系统分享面板发送诊断文件'),
+      KgSettingsTile(
+        icon: Icons.share_outlined,
+        title: '分享日志',
+        subtitle: '通过系统分享面板发送诊断文件',
         onTap: onShare,
       ),
-      ListTile(
-        leading: const Icon(Icons.save_alt_rounded),
-        title: const Text('另存为'),
-        subtitle: const Text('选择位置保存文本日志'),
+      KgSettingsTile(
+        icon: Icons.save_alt_rounded,
+        title: '另存为',
+        subtitle: '选择位置保存文本日志',
         onTap: onSave,
       ),
-      ListTile(
-        leading: const Icon(
-          Icons.delete_outline_rounded,
-          color: KgColors.warning,
-        ),
-        title: const Text('清空日志'),
+      KgSettingsTile(
+        icon: Icons.delete_outline_rounded,
+        title: '清空日志',
+        destructive: true,
         onTap: onClear,
       ),
     ],

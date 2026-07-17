@@ -61,7 +61,7 @@ class HomeScreen extends ConsumerWidget {
                       const SizedBox(height: KgSpacing.section),
                       const KgSectionHeader(
                         title: '为你而播',
-                        subtitle: '连续播放，反馈会用于改进推荐',
+                        subtitle: '越听越懂你的音乐喜好',
                       ),
                       const SizedBox(height: KgSpacing.md),
                       const SizedBox(height: 184, child: RecommendationCards()),
@@ -119,7 +119,7 @@ class HomeScreen extends ConsumerWidget {
     error: (error, _) => SliverFillRemaining(
       hasScrollBody: false,
       child: KgErrorView(
-        error: error,
+        message: '每日推荐暂时无法加载，请稍后重试',
         onRetry: () async => ref.invalidate(dailyRecommendationsProvider),
       ),
     ),

@@ -5,6 +5,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/features/auth/auth_controller.dart';
 import 'package:kgmusic/features/auth/auth_input.dart';
 
@@ -97,7 +98,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text('欢迎回来', style: Theme.of(context).textTheme.headlineLarge),
                 const SizedBox(height: KgSpacing.xs),
                 const Text(
-                  '使用酷狗短信验证码登录 Lite 账号，继续你的音乐与歌单。',
+                  '使用短信验证码登录，继续你的音乐、收藏与歌单。',
                   style: TextStyle(color: KgColors.textMuted, height: 1.5),
                 ),
                 const SizedBox(height: KgSpacing.xxl),
@@ -166,12 +167,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   ? const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        SizedBox.square(
-                                          dimension: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        ),
+                                        KgBusyIndicator(size: 16),
                                         SizedBox(width: 8),
                                         Text('发送中…'),
                                       ],
@@ -211,12 +207,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ? const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFF15182A),
-                                    ),
+                                  KgBusyIndicator(
+                                    size: 20,
+                                    color: Color(0xFF15182A),
                                   ),
                                   SizedBox(width: 10),
                                   Text('正在登录…'),
@@ -229,7 +222,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: KgSpacing.md),
                 const Text(
-                  '获取验证码前会先使用本机信息完成设备登记；手机号不会写入本地数据库或日志。',
+                  '登录时会验证当前设备以保护账号安全，手机号不会写入应用日志。',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: KgColors.textMuted, fontSize: 12),
                 ),

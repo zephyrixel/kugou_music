@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/features/membership/membership_presenter.dart';
@@ -28,7 +29,7 @@ class MembershipController extends ChangeNotifier {
 
   MembershipAction action = MembershipAction.idle;
   VipMonthRecord? record;
-  String? recordError;
+  bool recordUnavailable = false;
   String? refreshWarning;
   String? _claimedDate;
   String? _upgradedDate;
@@ -56,12 +57,13 @@ class MembershipController extends ChangeNotifier {
   Future<void> loadRecord() async {
     if (action == MembershipAction.loadingRecord || record != null) return;
     action = MembershipAction.loadingRecord;
-    recordError = null;
+    recordUnavailable = false;
     _notify();
     try {
       record = await _sdk.monthVipRecord();
     } catch (error) {
-      recordError = error.toString();
+      AppLog.warn('读取会员领取记录失败', target: 'membership', error: error);
+      recordUnavailable = true;
     } finally {
       action = MembershipAction.idle;
       _notify();
@@ -86,7 +88,8 @@ class MembershipController extends ChangeNotifier {
       try {
         await _storage.write(key: _claimKey, value: _claimedDate);
       } catch (error) {
-        refreshWarning = '本地防重复状态保存失败：$error';
+        AppLog.warn('保存会员领取状态失败', target: 'membership', error: error);
+        refreshWarning = '权益已生效，但本机状态未能更新，请避免重复领取。';
       }
       record = VipMonthRecord(
         claimedDays: record?.claimedDays == null
@@ -114,7 +117,8 @@ class MembershipController extends ChangeNotifier {
       try {
         await _storage.write(key: _upgradeKey, value: _upgradedDate);
       } catch (error) {
-        refreshWarning = '本地防重复状态保存失败：$error';
+        AppLog.warn('保存会员升级状态失败', target: 'membership', error: error);
+        refreshWarning = '权益已生效，但本机状态未能更新，请避免重复升级。';
       }
       await _refreshMembership();
       return result;
@@ -128,12 +132,14 @@ class MembershipController extends ChangeNotifier {
     try {
       await _refreshLogin();
     } catch (error) {
-      refreshWarning = '会员已生效，但登录信息刷新失败：$error';
+      AppLog.warn('刷新会员登录状态失败', target: 'membership', error: error);
+      refreshWarning = '权益已生效，会员状态将在稍后自动更新。';
     }
     try {
       await _onMembershipChanged();
     } catch (error) {
-      refreshWarning ??= '会员已生效，但页面状态刷新失败：$error';
+      AppLog.warn('刷新会员页面状态失败', target: 'membership', error: error);
+      refreshWarning ??= '权益已生效，会员状态将在稍后自动更新。';
     }
   }
 

@@ -132,7 +132,7 @@ class _ProfileCard extends StatelessWidget {
           height: 90,
           child: Center(child: CircularProgressIndicator()),
         ),
-        error: (error, _) => Text(error.toString()),
+        error: (error, _) => const Text('个人资料暂时无法加载，请稍后重试'),
         data: (user) => Row(
           children: [
             SongArtwork(
@@ -167,7 +167,7 @@ class _ProfileCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'ID ${user.userId ?? '-'} · ${fingerprint ? '设备已登记' : '设备登记待完成'}',
+                    '账号 ${user.userId ?? '-'} · ${fingerprint ? '当前设备已验证' : '当前设备待验证'}',
                     style: const TextStyle(color: KgColors.textMuted),
                   ),
                   if (!fingerprint) ...[
@@ -180,12 +180,9 @@ class _ProfileCard extends StatelessWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       icon: registeringDevice
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const KgBusyIndicator(size: 16)
                           : const Icon(Icons.security_update_good_rounded),
-                      label: Text(registeringDevice ? '正在登记设备…' : '重试设备登记'),
+                      label: Text(registeringDevice ? '正在验证设备…' : '重新验证'),
                     ),
                   ],
                   if (user.signature?.isNotEmpty == true) ...[
@@ -214,26 +211,24 @@ class _SettingsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => KgSettingsGroup(
     children: [
-      ListTile(
-        leading: const Icon(Icons.monitor_heart_outlined),
-        title: const Text('诊断与日志'),
-        subtitle: const Text('查看、调整等级或导出应用日志'),
-        trailing: const Icon(Icons.chevron_right_rounded),
+      KgSettingsTile(
+        icon: Icons.monitor_heart_outlined,
+        title: '诊断与日志',
+        subtitle: '查看、调整等级或导出应用日志',
         onTap: () => context.push('/account/logs'),
       ),
-      ListTile(
-        leading: const Icon(Icons.cleaning_services_outlined),
-        title: const Text('清理临时缓存'),
-        subtitle: const Text('歌曲、封面和接口响应缓存'),
-        trailing: const Icon(Icons.chevron_right_rounded),
+      KgSettingsTile(
+        icon: Icons.cleaning_services_outlined,
+        title: '清理临时缓存',
+        subtitle: '释放已下载的歌曲、图片等临时文件',
         onTap: () => _clearCaches(context, ref),
       ),
-      ListTile(
+      KgSettingsTile(
         enabled: !authBusy,
-        leading: const Icon(Icons.logout_rounded),
-        title: const Text('退出登录'),
-        subtitle: const Text('清除本机音乐库和登录状态'),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        icon: Icons.logout_rounded,
+        title: '退出登录',
+        subtitle: '清除本机音乐库和登录状态',
+        destructive: true,
         onTap: () => _confirmLogout(context, ref),
       ),
     ],
@@ -250,8 +245,7 @@ class _SyncCard extends ConsumerWidget {
     final color = status.failed ? KgColors.warning : KgColors.textMuted;
     final text = switch (status.phase) {
       LibrarySyncPhase.syncing => '正在同步音乐库…',
-      LibrarySyncPhase.failed =>
-        status.message == null ? '同步失败' : '同步失败 · ${status.message}',
+      LibrarySyncPhase.failed => '音乐库同步失败，请重试',
       LibrarySyncPhase.idle => '音乐库已同步',
     };
     return KgSurface(
@@ -259,10 +253,7 @@ class _SyncCard extends ConsumerWidget {
       radius: 18,
       child: ListTile(
         leading: status.syncing
-            ? const SizedBox.square(
-                dimension: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
+            ? const KgBusyIndicator(size: 22)
             : Icon(
                 status.failed ? Icons.sync_problem_rounded : Icons.cloud_done,
                 color: color,
@@ -285,7 +276,7 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
   final accepted = await confirmDialog(
     context,
     title: '退出登录？',
-    content: '本机音乐库会被清除；下次登录将从云端重新建立。',
+    content: '本机保存的账号信息和音乐库数据将被清除。',
     confirmLabel: '退出',
   );
   if (accepted) await ref.read(authControllerProvider).logout();
@@ -295,7 +286,7 @@ Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
   final accepted = await confirmDialog(
     context,
     title: '清理临时缓存？',
-    content: '会清理歌曲文件、图片和接口缓存；音乐库与登录状态会保留。',
+    content: '将清理可重新下载的歌曲和图片等临时文件，账号与音乐库不会受到影响。',
     confirmLabel: '清理',
   );
   if (accepted != true) return;
@@ -303,6 +294,8 @@ Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
     await ref.read(cacheCoordinatorProvider).clearTransientCaches();
     if (context.mounted) showAppMessage(context, '临时缓存已清理');
   } catch (error) {
-    if (context.mounted) showAppError(context, '清理缓存失败：$error');
+    if (context.mounted) {
+      showAppError(context, '临时文件清理失败，请稍后重试', cause: error);
+    }
   }
 }

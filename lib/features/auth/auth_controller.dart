@@ -99,7 +99,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     } catch (error) {
       AppLog.error('恢复登录状态失败', target: 'auth', error: error);
       status = AuthStatus.failure;
-      message = '恢复登录状态失败：$error';
+      message = '暂时无法恢复登录状态，请重新打开应用后重试。';
       _notify();
     }
   }
@@ -116,7 +116,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     } catch (error) {
       AppLog.warn('请求短信验证码失败', target: 'auth', error: error);
       status = AuthStatus.failure;
-      message = '获取验证码失败：$error';
+      message = '验证码发送失败，请稍后重试。';
     }
     _notify();
   }
@@ -138,14 +138,14 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       await _initializeLibrary();
       AppLog.info('短信登录成功', target: 'auth');
       if (authenticated && registrationPending) {
-        message = '登录成功，但设备登记尚未完成，可在个人中心重试。';
+        message = '登录成功，当前设备仍需完成安全验证，可在个人中心重试。';
         _notify();
       }
       return authenticated;
     } catch (error) {
       AppLog.warn('短信登录失败', target: 'auth', error: error);
       status = AuthStatus.failure;
-      message = '登录失败：$error';
+      message = '登录失败，请检查手机号和验证码后重试。';
       _notify();
       return false;
     }
@@ -179,15 +179,15 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     } on MusicSdkException catch (error) {
       AppLog.warn('登录信息刷新失败', target: 'auth', error: error);
       if (error.expired || error.authenticationRequired) {
-        await _expire(error.message);
+        await _expire('登录状态已失效，请重新登录。');
         return;
       }
       status = AuthStatus.authenticated;
-      message = '登录信息刷新失败，将在稍后重试：${error.message}';
+      message = '登录状态暂时无法更新，应用稍后会自动重试。';
     } catch (error) {
       AppLog.warn('登录信息刷新失败', target: 'auth', error: error);
       status = AuthStatus.authenticated;
-      message = '登录信息刷新失败，将在稍后重试：$error';
+      message = '登录状态暂时无法更新，应用稍后会自动重试。';
     }
     _notify();
   }
@@ -207,7 +207,8 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       snapshot = await _sdk.ensureDeviceRegistered();
       message = null;
     } catch (error) {
-      message = '设备登记失败，将在稍后重试：$error';
+      AppLog.warn('设备安全验证失败', target: 'auth', error: error);
+      message = '当前设备验证未完成，应用稍后会自动重试。';
     } finally {
       _registeringDevice = false;
       _notify();
@@ -244,7 +245,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     final userId = snapshot.userId;
     if (userId == null) {
       status = AuthStatus.failure;
-      message = '登录响应缺少用户 ID';
+      message = '登录信息不完整，请重新登录。';
       _libraryReady = false;
       _notify();
       return;
@@ -258,8 +259,9 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       status = AuthStatus.authenticated;
       message = null;
     } catch (error) {
+      AppLog.error('初始化音乐库失败', target: 'auth', error: error);
       status = AuthStatus.failure;
-      message = '初始化音乐库失败：$error';
+      message = '音乐库暂时无法准备，请重新打开应用后重试。';
     }
     _notify();
   }

@@ -93,6 +93,7 @@ extension MusicAudioQueueCommands on MusicAudioHandler {
             unawaited(_persistQueue());
           } catch (error) {
             loadError = error;
+            AppLog.warn('播放队列加载更多失败', target: 'player.queue', error: error);
             rethrow;
           } finally {
             _loadingMore = false;

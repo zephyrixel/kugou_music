@@ -29,7 +29,11 @@ void main() {
       ),
     );
 
-    showAppError(context, '网络连接失败');
+    showAppError(
+      context,
+      '网络连接失败',
+      cause: StateError('HTTP 503 upstream unavailable'),
+    );
     await tester.pump();
 
     var snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
@@ -37,6 +41,7 @@ void main() {
     final colors = Theme.of(context).colorScheme;
     expect(snackBar.backgroundColor, colors.errorContainer);
     expect(text.style?.color, colors.onErrorContainer);
+    expect(find.textContaining('HTTP 503'), findsNothing);
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     await tester.pumpAndSettle();

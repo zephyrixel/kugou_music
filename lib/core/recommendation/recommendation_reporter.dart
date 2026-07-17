@@ -76,7 +76,7 @@ class RecommendationReporter {
 
   void reportError(String label, Object error) {
     AppLog.warn('推荐$label上报失败', target: 'recommendation.report', error: error);
-    _errors.add('推荐$label上报失败：$error');
+    _errors.add('推荐反馈暂未同步，不影响继续播放', cause: error);
   }
 
   void _queueHistory(RecommendationHistoryEvent event) {

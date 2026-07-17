@@ -18,6 +18,8 @@ Future<void> playSong(
         .read(audioHandlerProvider)
         .playSong(song, queueSongs: queue, queueRequest: queueRequest);
   } catch (error) {
-    if (context.mounted) showAppError(context, error);
+    if (context.mounted) {
+      showAppError(context, '暂时无法播放这首歌曲，请稍后重试', cause: error);
+    }
   }
 }

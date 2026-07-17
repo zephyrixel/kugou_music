@@ -7,12 +7,14 @@ class KgPageHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
+    this.subtitleWidget,
     this.actions = const [],
     this.padding = const EdgeInsets.fromLTRB(20, 24, 20, 14),
-  });
+  }) : assert(subtitle == null || subtitleWidget == null);
 
   final String title;
   final String? subtitle;
+  final Widget? subtitleWidget;
   final List<Widget> actions;
   final EdgeInsetsGeometry padding;
 
@@ -27,12 +29,13 @@ class KgPageHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: Theme.of(context).textTheme.headlineLarge),
-              if (subtitle != null) ...[
+              if (subtitle != null || subtitleWidget != null) ...[
                 const SizedBox(height: 5),
-                Text(
-                  subtitle!,
-                  style: const TextStyle(color: KgColors.textMuted),
-                ),
+                subtitleWidget ??
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(color: KgColors.textMuted),
+                    ),
               ],
             ],
           ),
@@ -117,38 +120,6 @@ class KgContentWidth extends StatelessWidget {
         maxWidth: maxWidth ?? KgBreakpoints.contentMaxWidth,
       ),
       child: child,
-    ),
-  );
-}
-
-class KgSectionCard extends StatelessWidget {
-  const KgSectionCard({
-    super.key,
-    required this.child,
-    this.onTap,
-    this.padding = const EdgeInsets.all(KgSpacing.lg),
-    this.color = KgColors.elevated,
-  });
-
-  final Widget child;
-  final VoidCallback? onTap;
-  final EdgeInsetsGeometry padding;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: color,
-    borderRadius: BorderRadius.circular(KgRadii.large),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: onTap,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
-          borderRadius: BorderRadius.circular(KgRadii.large),
-        ),
-        child: Padding(padding: padding, child: child),
-      ),
     ),
   );
 }

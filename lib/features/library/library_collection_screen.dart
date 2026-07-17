@@ -95,12 +95,16 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
     return value.when(
       skipLoadingOnRefresh: true,
       loading: () => const KgLoadingView(label: '正在读取收藏'),
-      error: (error, _) =>
-          KgErrorView(error: error, onRetry: () async => _pager?.reset()),
+      error: (error, _) => KgErrorView(
+        message: '收藏歌曲暂时无法加载，请稍后重试',
+        onRetry: () async => _pager?.reset(),
+      ),
       data: (songs) => _SongCollectionView(
         songs: songs,
         emptyMessage: '还没有收藏歌曲',
         label: '${songs.length} 首收藏',
+        queueTitle: '我喜欢',
+        queueKind: PlaybackQueueOriginKind.favorites,
         scrollController: _scrollController,
         pager: _pager,
         onRefresh: () async =>
@@ -137,13 +141,15 @@ class _HistorySongs extends ConsumerWidget {
       skipLoadingOnRefresh: true,
       loading: () => const KgLoadingView(label: '正在读取播放记录'),
       error: (error, _) => KgErrorView(
-        error: error,
+        message: '播放记录暂时无法加载，请稍后重试',
         onRetry: () async => ref.invalidate(historyEntriesProvider),
       ),
       data: (entries) => _SongCollectionView(
         songs: entries.map((entry) => entry.song).toList(growable: false),
         emptyMessage: '播放记录会出现在这里',
         label: '最近 ${entries.length} 首',
+        queueTitle: '最近播放',
+        queueKind: PlaybackQueueOriginKind.history,
       ),
     );
   }
@@ -154,6 +160,8 @@ class _SongCollectionView extends ConsumerWidget {
     required this.songs,
     required this.emptyMessage,
     required this.label,
+    required this.queueTitle,
+    required this.queueKind,
     this.trailingBuilder,
     this.queueRequest,
     this.scrollController,
@@ -164,6 +172,8 @@ class _SongCollectionView extends ConsumerWidget {
   final List<Song> songs;
   final String emptyMessage;
   final String label;
+  final String queueTitle;
+  final PlaybackQueueOriginKind queueKind;
   final Widget Function(Song song)? trailingBuilder;
   final PlaybackQueueRequest Function(List<Song> songs)? queueRequest;
   final ScrollController? scrollController;
@@ -209,11 +219,9 @@ class _SongCollectionView extends ConsumerWidget {
                       queueRequest:
                           queueRequest?.call(songs) ??
                           PlaybackQueueRequest.snapshot(
-                            title: label.contains('收藏') ? '我喜欢' : '最近播放',
+                            title: queueTitle,
                             songs: songs,
-                            kind: label.contains('收藏')
-                                ? PlaybackQueueOriginKind.favorites
-                                : PlaybackQueueOriginKind.history,
+                            kind: queueKind,
                           ),
                     ),
                     icon: const Icon(Icons.play_arrow_rounded),
@@ -235,11 +243,9 @@ class _SongCollectionView extends ConsumerWidget {
               queueRequest:
                   queueRequest?.call(songs) ??
                   PlaybackQueueRequest.snapshot(
-                    title: label.contains('收藏') ? '我喜欢' : '最近播放',
+                    title: queueTitle,
                     songs: songs,
-                    kind: label.contains('收藏')
-                        ? PlaybackQueueOriginKind.favorites
-                        : PlaybackQueueOriginKind.history,
+                    kind: queueKind,
                   ),
             ),
             trailing: trailingBuilder?.call(song),

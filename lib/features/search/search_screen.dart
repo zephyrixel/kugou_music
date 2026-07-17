@@ -2,25 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
-import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/account_avatar_button.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
-import 'package:kgmusic/core/widgets/paged_list_footer.dart';
-import 'package:kgmusic/core/widgets/play_song.dart';
-import 'package:kgmusic/core/widgets/playlist_tile.dart';
-import 'package:kgmusic/core/widgets/song_tile.dart';
-import 'package:kgmusic/core/widgets/song_tile_actions.dart';
-
-enum _SearchKind { songs, playlists }
+import 'package:kgmusic/features/search/search_results.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -33,14 +24,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _debounce;
-  _SearchKind _kind = _SearchKind.songs;
+  SearchKind _kind = SearchKind.songs;
   String _keyword = '';
 
   late final PagedListController<Song> _songPager;
   late final PagedListController<PlaylistSearchHit> _playlistPager;
 
   PagedListController get _activePager =>
-      _kind == _SearchKind.songs ? _songPager : _playlistPager;
+      _kind == SearchKind.songs ? _songPager : _playlistPager;
 
   @override
   void initState() {
@@ -182,15 +173,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   actions: [AccountAvatarButton()],
                 ),
                 const SizedBox(height: KgSpacing.lg),
-                SegmentedButton<_SearchKind>(
+                SegmentedButton<SearchKind>(
                   segments: const [
                     ButtonSegment(
-                      value: _SearchKind.songs,
+                      value: SearchKind.songs,
                       icon: Icon(Icons.music_note_rounded),
                       label: Text('歌曲'),
                     ),
                     ButtonSegment(
-                      value: _SearchKind.playlists,
+                      value: SearchKind.playlists,
                       icon: Icon(Icons.queue_music_rounded),
                       label: Text('歌单'),
                     ),
@@ -215,9 +206,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: _runSearch,
                   decoration: InputDecoration(
-                    hintText: _kind == _SearchKind.songs
-                        ? '歌曲、歌手或专辑'
-                        : '搜索公开歌单',
+                    hintText: _kind == SearchKind.songs ? '歌曲、歌手或专辑' : '搜索公开歌单',
                     prefixIcon: const Icon(Icons.search_rounded),
                     suffixIcon: _controller.text.isEmpty
                         ? null
@@ -241,7 +230,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               duration: KgMotion.resolve(context, KgMotion.medium),
               switchInCurve: KgMotion.standard,
               switchOutCurve: Curves.easeInCubic,
-              child: KeyedSubtree(key: ValueKey(_bodyKey), child: _body()),
+              child: SearchResults(
+                key: ValueKey(_bodyKey),
+                kind: _kind,
+                keyword: _keyword,
+                songPager: _songPager,
+                playlistPager: _playlistPager,
+                scrollController: _scrollController,
+              ),
             ),
           ),
         ],
@@ -260,129 +256,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return 'results-$_kind';
   }
 
-  Widget _body() {
-    if (_keyword.isEmpty) {
-      return const KgEmptyView(
-        '输入歌曲、歌手或歌单名称',
-        icon: Icons.travel_explore_rounded,
-      );
-    }
-    final pager = _activePager;
-    if (pager.initialLoading && pager.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (pager.initialError != null && pager.items.isEmpty) {
-      return KgErrorView(
-        error: pager.initialError!,
-        onRetry: () => pager.reset(),
-      );
-    }
-    if (pager.items.isEmpty) {
-      return const KgEmptyView('没有找到匹配结果', icon: Icons.search_off_rounded);
-    }
-    return _kind == _SearchKind.songs ? _songResults() : _playlistResults();
-  }
-
-  Widget _songResults() {
-    final songs = _songPager.items;
-    final footers = pagedListFooters(_songPager);
-    return ListView.builder(
-      controller: _scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
-      ),
-      itemCount: songs.length + footers.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _ResultsSummary(count: _songPager.total ?? songs.length);
-        }
-        final itemIndex = index - 1;
-        if (itemIndex >= songs.length) {
-          return footers[itemIndex - songs.length];
-        }
-        final song = songs[itemIndex];
-        return SongTile(
-          song: song,
-          variant: SongTileVariant.artwork,
-          onTap: () => playSong(
-            context,
-            ref,
-            song,
-            queueRequest: ref
-                .read(playbackQueueFactoryProvider)
-                .search(
-                  keyword: _keyword,
-                  songs: songs,
-                  nextPage: _songPager.nextPage,
-                  hasMore: _songPager.hasMore,
-                  total: _songPager.total,
-                  userId: ref.read(authControllerProvider).snapshot.userId,
-                  pageSize: _songPager.pageSize,
-                ),
-          ),
-          trailing: SongTileActions(song: song),
-        );
-      },
-    );
-  }
-
-  Widget _playlistResults() {
-    final playlists = _playlistPager.items;
-    final footers = pagedListFooters(_playlistPager);
-    return ListView.builder(
-      controller: _scrollController,
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: EdgeInsets.fromLTRB(
-        12,
-        0,
-        12,
-        MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
-      ),
-      itemCount: playlists.length + footers.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return _ResultsSummary(
-            count: _playlistPager.total ?? playlists.length,
-          );
-        }
-        final itemIndex = index - 1;
-        if (itemIndex >= playlists.length) {
-          return footers[itemIndex - playlists.length];
-        }
-        final playlist = playlists[itemIndex];
-        return PlaylistTile(
-          title: playlist.name,
-          subtitle:
-              '${playlist.creatorName ?? '未知创建者'} · ${playlist.songCount ?? 0} 首',
-          artworkUrl: playlist.artworkUrl,
-          cacheId:
-              'playlist:${playlist.globalCollectionId ?? playlist.specialId}',
-          enabled: playlist.globalCollectionId != null,
-          onTap: () => context.push('/playlist', extra: playlist),
-        );
-      },
-    );
-  }
-
   void _clearSearch() {
     _debounce?.cancel();
     _controller.clear();
     setState(() => _keyword = '');
   }
-}
-
-class _ResultsSummary extends StatelessWidget {
-  const _ResultsSummary({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
-    child: Text(
-      '找到 $count 个结果',
-      style: const TextStyle(color: KgColors.textMuted, fontSize: 13),
-    ),
-  );
 }
