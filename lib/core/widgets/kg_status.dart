@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
-import 'package:kgmusic/core/logging/app_log.dart';
 
 class KgBusyIndicator extends StatelessWidget {
   const KgBusyIndicator({
@@ -182,20 +181,7 @@ class KgEmptyView extends StatelessWidget {
   );
 }
 
-void showAppError(
-  BuildContext context,
-  String message, {
-  Object? cause,
-  StackTrace? stackTrace,
-}) {
-  if (cause != null) {
-    AppLog.warn(
-      '用户操作未完成：$message',
-      target: 'ui.feedback',
-      error: cause,
-      stackTrace: stackTrace,
-    );
-  }
+void showAppError(BuildContext context, String message) {
   if (!context.mounted) return;
   final colors = Theme.of(context).colorScheme;
   _showAppSnackBar(

@@ -179,7 +179,7 @@ void main() {
       ),
     );
 
-    errors.add('推荐反馈暂未同步，不影响继续播放', cause: StateError('network down'));
+    errors.add('推荐反馈暂未同步，不影响继续播放');
     await tester.pump();
 
     expect(find.text('推荐反馈暂未同步，不影响继续播放'), findsOneWidget);

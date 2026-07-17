@@ -91,10 +91,8 @@ class PlayerQualitySelector extends StatelessWidget {
   ) async {
     try {
       await handler.setPlaybackQuality(quality);
-    } catch (error) {
-      if (context.mounted) {
-        showAppError(context, '音质切换失败，请稍后重试', cause: error);
-      }
+    } catch (_) {
+      if (context.mounted) showAppError(context, '音质切换失败，请稍后重试');
     }
   }
 }

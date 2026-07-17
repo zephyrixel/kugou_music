@@ -188,9 +188,7 @@ Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
     await ref
         .read(libraryRepositoryProvider)
         .createPlaylist(result.name, private: result.private);
-  } catch (error) {
-    if (context.mounted) {
-      showAppError(context, '歌单创建失败，请稍后重试', cause: error);
-    }
+  } catch (_) {
+    if (context.mounted) showAppError(context, '歌单创建失败，请稍后重试');
   }
 }

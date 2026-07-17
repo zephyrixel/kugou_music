@@ -28,10 +28,8 @@ class _RecommendationCardsState extends ConsumerState<RecommendationCards> {
       await ref
           .read(audioHandlerProvider)
           .playSong(request.songs.first, queueRequest: request);
-    } catch (error) {
-      if (mounted) {
-        showAppError(context, '暂时无法开始推荐播放，请稍后重试', cause: error);
-      }
+    } catch (_) {
+      if (mounted) showAppError(context, '暂时无法开始推荐播放，请稍后重试');
     } finally {
       if (mounted) setState(() => _loading = null);
     }

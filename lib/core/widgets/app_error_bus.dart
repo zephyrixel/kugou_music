@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class AppErrorBus {
@@ -10,19 +9,13 @@ class AppErrorBus {
 
   Stream<String> get messages => _messages.stream;
 
-  void add(String message, {Object? cause, StackTrace? stackTrace}) {
+  void add(String message) {
     final now = DateTime.now();
     final previous = _recent[message];
     if (previous != null &&
         now.difference(previous) < const Duration(seconds: 8)) {
       return;
     }
-    AppLog.warn(
-      '应用提示：$message',
-      target: 'app.error_bus',
-      error: cause,
-      stackTrace: stackTrace,
-    );
     _recent[message] = now;
     _recent.removeWhere(
       (_, timestamp) => now.difference(timestamp) > const Duration(minutes: 1),

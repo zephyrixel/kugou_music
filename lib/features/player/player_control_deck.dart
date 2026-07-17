@@ -79,10 +79,8 @@ class _DislikeButton extends StatelessWidget {
     onPressed: () async {
       try {
         await handler.dislikeCurrent();
-      } catch (error) {
-        if (context.mounted) {
-          showAppError(context, '暂时无法处理这首歌曲，请稍后重试', cause: error);
-        }
+      } catch (_) {
+        if (context.mounted) showAppError(context, '暂时无法处理这首歌曲，请稍后重试');
       }
     },
     style: TextButton.styleFrom(

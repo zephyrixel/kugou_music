@@ -108,10 +108,8 @@ class _MembershipActionsSheetState
             ? success
             : '$success；${controller.refreshWarning}',
       );
-    } catch (error) {
-      if (context.mounted) {
-        showAppError(context, '会员权益领取失败，请稍后重试', cause: error);
-      }
+    } catch (_) {
+      if (context.mounted) showAppError(context, '会员权益领取失败，请稍后重试');
     }
   }
 
@@ -139,10 +137,8 @@ class _MembershipActionsSheetState
             ? success
             : '$success；${controller.refreshWarning}',
       );
-    } catch (error) {
-      if (context.mounted) {
-        showAppError(context, '畅听权益升级失败，请稍后重试', cause: error);
-      }
+    } catch (_) {
+      if (context.mounted) showAppError(context, '畅听权益升级失败，请稍后重试');
     }
   }
 }

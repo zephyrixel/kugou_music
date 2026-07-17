@@ -89,6 +89,7 @@ class AppLoggingController extends ChangeNotifier {
         _nativeError = null;
       } catch (error) {
         _nativeError = _bridgeMessage(error);
+        AppLog.warn('切换 Native 日志等级失败', target: 'logging', error: error);
         notifyListeners();
         throw AppLoggingException(_nativeError!);
       }
@@ -130,6 +131,7 @@ class AppLoggingController extends ChangeNotifier {
       try {
         await bridge.clearNativeLogs();
       } catch (error) {
+        AppLog.warn('清理 Native 日志失败', target: 'logging', error: error);
         throw AppLoggingException(_bridgeMessage(error));
       }
     }

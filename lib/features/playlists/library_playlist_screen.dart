@@ -169,10 +169,8 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
             tags: result.tags,
             private: result.private,
           );
-    } catch (error) {
-      if (mounted) {
-        showAppError(context, '歌单信息保存失败，请稍后重试', cause: error);
-      }
+    } catch (_) {
+      if (mounted) showAppError(context, '歌单信息保存失败，请稍后重试');
     }
   }
 
@@ -189,9 +187,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
           .deletePlaylist(playlist.localId!);
       if (mounted) context.pop();
     } catch (error) {
-      if (mounted) {
-        showAppError(context, '歌单删除失败，请稍后重试', cause: error);
-      }
+      if (mounted) showAppError(context, '歌单删除失败，请稍后重试');
     }
   }
 }

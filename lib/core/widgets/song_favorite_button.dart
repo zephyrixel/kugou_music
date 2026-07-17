@@ -43,9 +43,7 @@ Future<void> toggleSongFavorite(
 ) async {
   try {
     await ref.read(libraryRepositoryProvider).toggleFavorite(song);
-  } catch (error) {
-    if (context.mounted) {
-      showAppError(context, '未能更新“我喜欢”，请稍后重试', cause: error);
-    }
+  } catch (_) {
+    if (context.mounted) showAppError(context, '未能更新“我喜欢”，请稍后重试');
   }
 }

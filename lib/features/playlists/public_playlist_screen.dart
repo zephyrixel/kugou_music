@@ -130,10 +130,8 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
           .read(libraryRepositoryProvider)
           .collectPlaylist(widget.playlist);
       if (mounted) showAppMessage(context, '已收藏');
-    } catch (error) {
-      if (mounted) {
-        showAppError(context, '歌单收藏失败，请稍后重试', cause: error);
-      }
+    } catch (_) {
+      if (mounted) showAppError(context, '歌单收藏失败，请稍后重试');
     }
   }
 }

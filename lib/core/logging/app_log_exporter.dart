@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/logging/app_log_entry.dart';
 import 'package:kgmusic/core/logging/app_log_store.dart';
 import 'package:path_provider/path_provider.dart';
@@ -23,9 +24,9 @@ class AppLogExporter {
     return file;
   }
 
-  Future<void> share() async {
-    final file = await _buildExport();
-    try {
+  Future<void> share() => _runLogged(
+    '分享诊断日志失败',
+    () => _withExport((file) async {
       await SharePlus.instance.share(
         ShareParams(
           subject: 'KGMusic 诊断日志',
@@ -33,14 +34,12 @@ class AppLogExporter {
           files: [XFile(file.path, mimeType: 'text/plain')],
         ),
       );
-    } finally {
-      await _deleteTemporary(file);
-    }
-  }
+    }),
+  );
 
-  Future<bool> saveAs() async {
-    final file = await _buildExport();
-    try {
+  Future<bool> saveAs() => _runLogged(
+    '保存诊断日志失败',
+    () => _withExport((file) async {
       final location = await getSaveLocation(
         suggestedName: file.uri.pathSegments.last,
         acceptedTypeGroups: const [
@@ -50,8 +49,29 @@ class AppLogExporter {
       if (location == null) return false;
       await file.copy(location.path);
       return true;
+    }),
+  );
+
+  Future<T> _withExport<T>(Future<T> Function(File file) action) async {
+    final file = await _buildExport();
+    try {
+      return await action(file);
     } finally {
       await _deleteTemporary(file);
+    }
+  }
+
+  Future<T> _runLogged<T>(String message, Future<T> Function() action) async {
+    try {
+      return await action();
+    } catch (error, stackTrace) {
+      AppLog.warn(
+        message,
+        target: 'logging.export',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 

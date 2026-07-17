@@ -293,9 +293,7 @@ Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
   try {
     await ref.read(cacheCoordinatorProvider).clearTransientCaches();
     if (context.mounted) showAppMessage(context, '临时缓存已清理');
-  } catch (error) {
-    if (context.mounted) {
-      showAppError(context, '临时文件清理失败，请稍后重试', cause: error);
-    }
+  } catch (_) {
+    if (context.mounted) showAppError(context, '临时文件清理失败，请稍后重试');
   }
 }
