@@ -136,14 +136,11 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
   Future<void> _refresh() async {
     if (mounted) setState(() => _loading = true);
     final logging = ref.read(appLoggingControllerProvider);
-    final values = await Future.wait([
-      logging.loadRecent(),
-      logging.totalBytes(),
-    ]);
+    final snapshot = await logging.loadSnapshot();
     if (!mounted) return;
     setState(() {
-      _entries = values[0] as List<AppLogEntry>;
-      _totalBytes = values[1] as int;
+      _entries = snapshot.entries;
+      _totalBytes = snapshot.totalBytes;
       _loading = false;
     });
   }

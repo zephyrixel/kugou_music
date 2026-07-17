@@ -55,11 +55,11 @@ impl NativeLogger {
     }
 
     fn set_level(&self, level: AppLogLevelDto) {
-        self.level.store(level_value(level), Ordering::Relaxed);
+        self.level.store(level_value(level), Ordering::Release);
     }
 
     fn accepts(&self, level: Level) -> bool {
-        level_value_from_log(level) <= self.level.load(Ordering::Relaxed)
+        level_value_from_log(level) <= self.level.load(Ordering::Acquire)
     }
 
     fn send_record(&self, record: &Record<'_>) {
@@ -205,5 +205,17 @@ mod tests {
         assert!(level_value(AppLogLevelDto::Warn) < level_value(AppLogLevelDto::Debug));
         assert_eq!(level_value_from_log(Level::Error), 1);
         assert_eq!(level_value_from_log(Level::Trace), 5);
+    }
+
+    #[test]
+    fn changed_level_is_visible_to_filter_immediately() {
+        let logger = NativeLogger::new().unwrap();
+        logger.set_level(AppLogLevelDto::Warn);
+        assert!(logger.accepts(Level::Error));
+        assert!(!logger.accepts(Level::Debug));
+
+        logger.set_level(AppLogLevelDto::Trace);
+        assert!(logger.accepts(Level::Debug));
+        assert!(logger.accepts(Level::Trace));
     }
 }

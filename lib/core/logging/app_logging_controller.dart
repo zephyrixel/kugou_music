@@ -25,17 +25,8 @@ class AppLoggingController extends ChangeNotifier {
   bool get nativeAvailable => _nativeAvailable;
   String? get nativeError => _nativeError;
 
-  AppLogExporter get exporter => AppLogExporter(
-    store,
-    flushNative: () async {
-      if (!_nativeAvailable) return;
-      try {
-        await bridge.flushNativeLogs();
-      } catch (error) {
-        throw AppLoggingException(_bridgeMessage(error));
-      }
-    },
-  );
+  AppLogExporter get exporter =>
+      AppLogExporter(store, flushNative: _flushNative);
 
   static Future<AppLoggingController> create() async {
     Directory directory;
@@ -116,10 +107,22 @@ class AppLoggingController extends ChangeNotifier {
     AppLog.info('日志等级已切换为 ${level.label}', target: 'logging');
   }
 
-  Future<List<AppLogEntry>> loadRecent({int limit = 1000}) =>
-      store.readEntries(limit: limit);
-
-  Future<int> totalBytes() => store.totalBytes();
+  Future<({List<AppLogEntry> entries, int totalBytes})> loadSnapshot({
+    int limit = 1000,
+  }) async {
+    final previousNativeError = _nativeError;
+    try {
+      await _flushNative();
+      _nativeError = null;
+    } catch (error) {
+      _nativeError = error.toString();
+    }
+    if (_nativeError != previousNativeError) notifyListeners();
+    return (
+      entries: await store.readEntries(limit: limit),
+      totalBytes: await store.totalBytes(),
+    );
+  }
 
   Future<void> clear() async {
     await store.clearFlutterLogs();
@@ -131,6 +134,15 @@ class AppLoggingController extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  Future<void> _flushNative() async {
+    if (!_nativeAvailable) return;
+    try {
+      await bridge.flushNativeLogs();
+    } catch (error) {
+      throw AppLoggingException(_bridgeMessage(error));
+    }
   }
 
   static String _bridgeMessage(Object error) =>
