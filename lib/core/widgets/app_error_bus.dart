@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
 class AppErrorBus {
@@ -10,6 +11,7 @@ class AppErrorBus {
   Stream<Object> get errors => _errors.stream;
 
   void add(Object error) {
+    AppLog.error('应用错误总线收到错误', target: 'app.error_bus', error: error);
     final message = error.toString();
     final now = DateTime.now();
     final previous = _recent[message];

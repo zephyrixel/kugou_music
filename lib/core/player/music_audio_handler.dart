@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:kgmusic/core/cache/artwork_cache.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/audio_player_port.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
@@ -154,6 +155,10 @@ class MusicAudioHandler extends BaseAudioHandler
     final resumePosition = _player.position;
     final resumePlaying = _player.playing;
     _preferredQuality = quality;
+    AppLog.info(
+      '切换播放音质 ${previousQuality.name} -> ${quality.name}',
+      target: 'player.quality',
+    );
     try {
       await _requestPlayback(
         request:
@@ -169,6 +174,7 @@ class MusicAudioHandler extends BaseAudioHandler
         _preferredQuality = previousQuality;
         _emitQualityState(previousState);
       }
+      AppLog.warn('切换播放音质失败', target: 'player.quality');
       rethrow;
     }
   }
@@ -225,6 +231,7 @@ class MusicAudioHandler extends BaseAudioHandler
     // await it from the serialized transition queue or later switches deadlock.
     unawaited(
       _player.play().catchError((Object error) {
+        AppLog.error('播放器启动播放失败', target: 'player.engine', error: error);
         _messages.add('播放失败：$error');
       }),
     );

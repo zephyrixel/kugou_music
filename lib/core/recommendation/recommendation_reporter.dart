@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:kgmusic/core/models/recommendation.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 
@@ -74,6 +75,7 @@ class RecommendationReporter {
   }
 
   void reportError(String label, Object error) {
+    AppLog.warn('推荐$label上报失败', target: 'recommendation.report', error: error);
     _errors.add('推荐$label上报失败：$error');
   }
 
@@ -117,6 +119,7 @@ class RecommendationReporter {
       if (generation != _sessionGeneration) return;
       try {
         await action();
+        AppLog.debug('推荐$label上报成功', target: 'recommendation.report');
       } catch (error) {
         reportError(label, error);
       }

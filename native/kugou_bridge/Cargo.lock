@@ -803,6 +803,7 @@ version = "0.1.0"
 dependencies = [
  "flutter_rust_bridge",
  "kugou_sdk",
+ "log",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -811,15 +812,16 @@ dependencies = [
 
 [[package]]
 name = "kugou_sdk"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be259e20c0c8e7aa1a5bdf4ed6fa1940f9ed594c9e1b016c579d0b36485cfa4f"
+checksum = "3fd1fa2c3147610c53326b5c2bc45b535636760e24f8e79a3a1112fb719136a8"
 dependencies = [
  "aes",
  "base64",
  "cbc",
  "cipher",
  "flate2",
+ "log",
  "md-5",
  "rand 0.9.5",
  "reqwest",

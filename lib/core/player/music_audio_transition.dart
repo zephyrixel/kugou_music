@@ -11,6 +11,10 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     final generation = ++_loadGeneration;
     if (index < 0 || index >= request.songs.length) return;
     final song = request.songs[index];
+    AppLog.info(
+      '准备播放 song=${song.id} queueIndex=$index queueSize=${request.songs.length}',
+      target: 'player.transition',
+    );
     final requestedQuality = _preferredQuality;
     _messages.add(null);
     _emitQualityState(
@@ -31,6 +35,10 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
         generation: generation,
         autoPlay: autoPlay,
         recordHistory: recordHistory,
+      );
+      AppLog.debug(
+        '播放切换完成 song=${song.id} generation=$generation',
+        target: 'player.transition',
       );
     } on MusicSdkException catch (error) {
       if (!_isCurrentRequest(generation)) return;
@@ -195,6 +203,11 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
   }
 
   void _failPlayback(AudioQuality requestedQuality, Object error) {
+    AppLog.error(
+      '播放切换失败 quality=${requestedQuality.name}',
+      target: 'player.transition',
+      error: error,
+    );
     _emitQualityState(PlaybackQualityState(requested: requestedQuality));
     _messages.add(error.toString());
   }

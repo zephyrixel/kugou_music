@@ -49,11 +49,8 @@ void main() {
     expect(playlists.map((item) => item.name), ['我喜欢']);
     expect(await store.watchFavoriteSongs().first, isEmpty);
     expect(sdk.trackCalls, isEmpty);
-    await library.refreshFavoriteIndexIfNeeded();
-    expect((await store.watchFavoriteSongs().first).single.id, remoteSong.id);
-    expect(sdk.trackCalls, ['gid:2:1']);
     await library.syncNow();
-    expect(sdk.trackCalls, ['gid:2:1']);
+    expect(sdk.trackCalls, isEmpty);
     expect((await store.watchHistory().first).single.playCount, 4);
     expect((await store.syncState)?.userId, 99);
   });

@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/native/auth_storage_keys.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
@@ -72,10 +73,15 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       now.difference(lastAttempt) >= fingerprintRetryInterval;
 
   Future<void> initialize() async {
+    AppLog.info('开始恢复登录状态', target: 'auth');
     WidgetsBinding.instance.addObserver(this);
     _refreshTimer = Timer.periodic(refreshInterval, (_) => refreshIfDue());
     try {
       snapshot = await _sdk.authState();
+      AppLog.info(
+        '登录状态恢复完成 authenticated=${snapshot.authenticated}',
+        target: 'auth',
+      );
       final startupNotice = await _takeStartupNotice();
       if (snapshot.authenticated) {
         await _initializeLibrary();
@@ -91,6 +97,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
         _notify();
       }
     } catch (error) {
+      AppLog.error('恢复登录状态失败', target: 'auth', error: error);
       status = AuthStatus.failure;
       message = '恢复登录状态失败：$error';
       _notify();
@@ -98,6 +105,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> sendCode(String mobile) async {
+    AppLog.info('请求短信验证码', target: 'auth');
     status = AuthStatus.sendingCode;
     message = null;
     _notify();
@@ -106,6 +114,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       status = AuthStatus.codeSent;
       _startCountdown();
     } catch (error) {
+      AppLog.warn('请求短信验证码失败', target: 'auth', error: error);
       status = AuthStatus.failure;
       message = '获取验证码失败：$error';
     }
@@ -113,6 +122,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<bool> login(String mobile, String code) async {
+    AppLog.info('开始短信登录', target: 'auth');
     status = AuthStatus.signingIn;
     message = null;
     _notify();
@@ -126,12 +136,14 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       _countdownTimer?.cancel();
       resendSeconds = 0;
       await _initializeLibrary();
+      AppLog.info('短信登录成功', target: 'auth');
       if (authenticated && registrationPending) {
         message = '登录成功，但设备登记尚未完成，可在个人中心重试。';
         _notify();
       }
       return authenticated;
     } catch (error) {
+      AppLog.warn('短信登录失败', target: 'auth', error: error);
       status = AuthStatus.failure;
       message = '登录失败：$error';
       _notify();
@@ -158,12 +170,14 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
     try {
       snapshot = await _sdk.refreshLogin();
+      AppLog.debug('登录信息刷新成功', target: 'auth');
       status = AuthStatus.authenticated;
       await _markRefreshed();
       if (!snapshot.fingerprintRegistered) {
         await _retryFingerprint(force: false);
       }
     } on MusicSdkException catch (error) {
+      AppLog.warn('登录信息刷新失败', target: 'auth', error: error);
       if (error.expired || error.authenticationRequired) {
         await _expire(error.message);
         return;
@@ -171,6 +185,7 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       status = AuthStatus.authenticated;
       message = '登录信息刷新失败，将在稍后重试：${error.message}';
     } catch (error) {
+      AppLog.warn('登录信息刷新失败', target: 'auth', error: error);
       status = AuthStatus.authenticated;
       message = '登录信息刷新失败，将在稍后重试：$error';
     }

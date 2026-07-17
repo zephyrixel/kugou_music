@@ -31,6 +31,7 @@ pub(crate) fn initialize(
     persisted: Option<String>,
 ) -> Result<(), BridgeError> {
     if RUNTIME.get().is_some() {
+        log::debug!(target: "kugou_bridge::runtime", "Lite SDK runtime already initialized");
         return Ok(());
     }
     let device = build_device(profile)?;
@@ -47,7 +48,9 @@ pub(crate) fn initialize(
             client,
             session: Mutex::new(session),
         })
-        .map_err(|_| BridgeError::internal("Lite SDK runtime was already initialized"))
+        .map_err(|_| BridgeError::internal("Lite SDK runtime was already initialized"))?;
+    log::info!(target: "kugou_bridge::runtime", "Lite SDK runtime initialized");
+    Ok(())
 }
 
 pub(crate) fn get() -> Result<&'static KugouRuntime, BridgeError> {

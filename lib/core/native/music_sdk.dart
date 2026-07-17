@@ -5,6 +5,7 @@ import 'package:kgmusic/core/models/lyric.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/recommendation.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/native/auth_storage_keys.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/native/music_sdk_models.dart';
@@ -623,6 +624,12 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
       if (persist) await _persistSession();
       return value;
     } on bridge.BridgeError catch (error, stackTrace) {
+      AppLog.error(
+        'Rust bridge 调用失败 kind=${error.kind.name} code=${error.code ?? '-'} retryable=${error.retryable}',
+        target: 'native.sdk',
+        error: error.message,
+        stackTrace: stackTrace,
+      );
       final exception = MusicSdkException(
         error.message,
         retryable: error.retryable,

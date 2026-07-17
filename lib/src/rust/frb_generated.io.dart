@@ -29,6 +29,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  AppLogLevelDto dco_decode_app_log_level_dto(dynamic raw);
+
+  @protected
   AudioHashesDto dco_decode_audio_hashes_dto(dynamic raw);
 
   @protected
@@ -281,6 +284,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String sse_decode_String(SseDeserializer deserializer);
+
+  @protected
+  AppLogLevelDto sse_decode_app_log_level_dto(SseDeserializer deserializer);
 
   @protected
   AudioHashesDto sse_decode_audio_hashes_dto(SseDeserializer deserializer);
@@ -579,6 +585,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_String(String self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_app_log_level_dto(
+    AppLogLevelDto self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_audio_hashes_dto(

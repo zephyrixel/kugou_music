@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
@@ -9,6 +10,7 @@ import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
+import 'package:kgmusic/core/widgets/kg_settings_group.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/membership/membership_card.dart';
 import 'package:kgmusic/features/membership/membership_presenter.dart';
@@ -210,28 +212,31 @@ class _SettingsCard extends ConsumerWidget {
   final bool authBusy;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => KgSurface(
-    padding: EdgeInsets.zero,
-    child: Column(
-      children: [
-        ListTile(
-          leading: const Icon(Icons.cleaning_services_outlined),
-          title: const Text('清理临时缓存'),
-          subtitle: const Text('歌曲、封面和接口响应缓存'),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => _clearCaches(context, ref),
-        ),
-        const Divider(indent: 56),
-        ListTile(
-          enabled: !authBusy,
-          leading: const Icon(Icons.logout_rounded),
-          title: const Text('退出登录'),
-          subtitle: const Text('清除本机音乐库和登录状态'),
-          trailing: const Icon(Icons.chevron_right_rounded),
-          onTap: () => _confirmLogout(context, ref),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context, WidgetRef ref) => KgSettingsGroup(
+    children: [
+      ListTile(
+        leading: const Icon(Icons.monitor_heart_outlined),
+        title: const Text('诊断与日志'),
+        subtitle: const Text('查看、调整等级或导出应用日志'),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => context.push('/account/logs'),
+      ),
+      ListTile(
+        leading: const Icon(Icons.cleaning_services_outlined),
+        title: const Text('清理临时缓存'),
+        subtitle: const Text('歌曲、封面和接口响应缓存'),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => _clearCaches(context, ref),
+      ),
+      ListTile(
+        enabled: !authBusy,
+        leading: const Icon(Icons.logout_rounded),
+        title: const Text('退出登录'),
+        subtitle: const Text('清除本机音乐库和登录状态'),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => _confirmLogout(context, ref),
+      ),
+    ],
   );
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,9 @@ import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
 import 'package:kgmusic/core/library/library_store.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
+import 'package:kgmusic/core/logging/app_log_handlers.dart';
+import 'package:kgmusic/core/logging/app_logging_controller.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/audio_service_config.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
@@ -21,8 +26,23 @@ import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/src/rust/frb_generated.dart';
 
 Future<void> main() async {
+  await runZonedGuarded(_bootstrap, (error, stackTrace) {
+    AppLog.error(
+      '应用发生未捕获异常',
+      target: 'bootstrap',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  });
+}
+
+Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final logging = await AppLoggingController.create();
+  installAppLogErrorHandlers();
   await RustLib.init();
+  await logging.initializeNative();
+  AppLog.info('KGMusic 启动', target: 'bootstrap');
 
   final database = AppDatabase();
   final sdk = KugouMusicSdk(const FlutterSecureStorage());
@@ -72,6 +92,7 @@ Future<void> main() async {
         audioCacheProvider.overrideWithValue(audioCache),
         playbackQueueFactoryProvider.overrideWithValue(queueSourceFactory),
         appErrorBusProvider.overrideWithValue(appErrorBus),
+        appLoggingControllerProvider.overrideWith((ref) => logging),
         recommendationReporterProvider.overrideWithValue(
           recommendationReporter,
         ),

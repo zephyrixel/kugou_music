@@ -4,6 +4,7 @@ import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
 import 'package:kgmusic/core/library/library_store.dart';
 import 'package:kgmusic/core/library/playlist_track_loader.dart';
+import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -105,7 +106,6 @@ class LibraryRepository {
         lastSyncedAt: cachedState.lastSyncedAt,
       ),
     );
-    _scheduleFavoriteIndexRefresh(generation, userId);
     if (_syncDue(cachedState.lastSyncedAt)) {
       unawaited(_sync(generation, userId, wipe: false).catchError((_) {}));
     }
@@ -156,6 +156,7 @@ class LibraryRepository {
             ),
           );
           try {
+            AppLog.info('开始同步音乐库 wipe=$wipe', target: 'library.sync');
             final playlists = await _remote.fetchAllPlaylists();
             if (!_isCurrent(generation, userId)) return;
             final history = await _remote.fetchHistory();
@@ -178,8 +179,12 @@ class LibraryRepository {
                 lastSyncedAt: _now(),
               ),
             );
-            _scheduleFavoriteIndexRefresh(generation, userId);
+            AppLog.info(
+              '音乐库同步完成 playlists=${playlists.length} history=${history.length}',
+              target: 'library.sync',
+            );
           } catch (error) {
+            AppLog.warn('音乐库同步失败', target: 'library.sync', error: error);
             if (!_isCurrent(generation, userId)) return;
             await _store.setSyncResult(userId: userId, error: error.toString());
             if (!_isCurrent(generation, userId)) return;
@@ -213,15 +218,6 @@ class LibraryRepository {
       isCurrent: () => _isCurrent(generation, userId),
       canCommit: () => membershipVersion == _membershipVersion,
     );
-  }
-
-  Future<void> refreshFavoriteIndexIfNeeded() async {
-    final favorite = await _store.favoritePlaylist();
-    if (favorite?.localId == null) return;
-    final snapshotCurrent =
-        favorite!.tracksLoaded && favorite.trackSnapshotCount == favorite.count;
-    if (snapshotCurrent) return;
-    await refreshPlaylistSnapshot(favorite.localId!);
   }
 
   Future<void> toggleFavorite(Song song) async {
@@ -430,15 +426,6 @@ class LibraryRepository {
 
   bool _syncDue(DateTime? lastSyncedAt) =>
       lastSyncedAt == null || _now().difference(lastSyncedAt) >= syncCooldown;
-
-  void _scheduleFavoriteIndexRefresh(int generation, int userId) {
-    unawaited(
-      Future<void>.delayed(const Duration(seconds: 2), () async {
-        if (!_isCurrent(generation, userId)) return;
-        await refreshFavoriteIndexIfNeeded();
-      }).catchError((_) {}),
-    );
-  }
 
   void _emit(LibrarySyncStatus value) {
     if (_disposed) return;

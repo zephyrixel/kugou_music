@@ -8,11 +8,33 @@ use kugou_sdk::{
 
 pub use super::dto::*;
 use super::mapping::*;
-use super::{auth, runtime};
+use super::{auth, logging, runtime};
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
-    flutter_rust_bridge::setup_default_user_utils();
+    // FRB's default helper installs android_logger first, which would prevent
+    // the app and kugou_sdk from sharing our file logger.
+    let _ = logging::install();
+    flutter_rust_bridge::setup_backtrace();
+}
+
+pub fn initialize_native_logging(
+    directory: String,
+    level: AppLogLevelDto,
+) -> Result<(), BridgeError> {
+    logging::initialize(directory, level)
+}
+
+pub fn set_native_log_level(level: AppLogLevelDto) -> Result<(), BridgeError> {
+    logging::set_level(level)
+}
+
+pub fn clear_native_logs() -> Result<(), BridgeError> {
+    logging::clear()
+}
+
+pub fn flush_native_logs() -> Result<(), BridgeError> {
+    logging::flush()
 }
 
 pub fn initialize_sdk(

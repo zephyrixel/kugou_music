@@ -10,6 +10,7 @@ import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_repository.dart';
+import 'package:kgmusic/core/logging/app_logging_controller.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/playlist.dart';
@@ -69,6 +70,13 @@ final audioCacheProvider = Provider<AudioCacheManager>(
 final appErrorBusProvider = Provider<AppErrorBus>(
   (ref) => throw UnimplementedError('appErrorBusProvider must be overridden'),
 );
+
+final appLoggingControllerProvider =
+    ChangeNotifierProvider<AppLoggingController>(
+      (ref) => throw UnimplementedError(
+        'appLoggingControllerProvider must be overridden',
+      ),
+    );
 
 final recommendationReporterProvider = Provider<RecommendationReporter>(
   (ref) => throw UnimplementedError(

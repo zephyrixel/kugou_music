@@ -22,6 +22,16 @@ pub struct DeviceProfileDto {
     pub has_ambient_temperature: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppLogLevelDto {
+    Off,
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
 #[derive(Debug, Clone)]
 pub struct AuthStateDto {
     pub authenticated: bool,

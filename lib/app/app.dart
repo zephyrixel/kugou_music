@@ -19,6 +19,7 @@ import 'package:kgmusic/features/auth/auth_gate.dart';
 import 'package:kgmusic/features/home/home_screen.dart';
 import 'package:kgmusic/features/library/library_screen.dart';
 import 'package:kgmusic/features/library/library_collection_screen.dart';
+import 'package:kgmusic/features/logging/log_settings_screen.dart';
 import 'package:kgmusic/features/player/mini_player.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
 import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
@@ -83,6 +84,11 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
         path: '/account',
         pageBuilder: (_, state) =>
             _fadeThroughPage(state: state, child: const AccountScreen()),
+      ),
+      GoRoute(
+        path: '/account/logs',
+        pageBuilder: (_, state) =>
+            _fadeThroughPage(state: state, child: const LogSettingsScreen()),
       ),
       GoRoute(
         path: '/player',
