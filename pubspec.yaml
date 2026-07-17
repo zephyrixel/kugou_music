@@ -65,8 +65,17 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   build_runner: ^2.15.1
   drift_dev: ^2.34.0
+  flutter_launcher_icons: ^0.14.4
   freezed: 3.2.5
   sqlite3: ^3.4.0
+
+flutter_launcher_icons:
+  android: ic_launcher
+  ios: false
+  image_path: assets/branding/app_icon.png
+  adaptive_icon_background: "#020719"
+  adaptive_icon_foreground: assets/branding/app_icon.png
+  adaptive_icon_foreground_inset: 16
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
