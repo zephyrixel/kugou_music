@@ -149,8 +149,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
-  List<RecommendationHistoryItemDto>
-  dco_decode_list_recommendation_history_item_dto(dynamic raw);
+  List<RecommendationProfileItemDto>
+  dco_decode_list_recommendation_profile_item_dto(dynamic raw);
 
   @protected
   List<SongDto> dco_decode_list_song_dto(dynamic raw);
@@ -221,12 +221,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RecommendationBatchDto dco_decode_recommendation_batch_dto(dynamic raw);
 
   @protected
-  RecommendationHistoryActionDto dco_decode_recommendation_history_action_dto(
+  RecommendationProfileActionDto dco_decode_recommendation_profile_action_dto(
     dynamic raw,
   );
 
   @protected
-  RecommendationHistoryItemDto dco_decode_recommendation_history_item_dto(
+  RecommendationProfileItemDto dco_decode_recommendation_profile_item_dto(
     dynamic raw,
   );
 
@@ -429,8 +429,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
-  List<RecommendationHistoryItemDto>
-  sse_decode_list_recommendation_history_item_dto(SseDeserializer deserializer);
+  List<RecommendationProfileItemDto>
+  sse_decode_list_recommendation_profile_item_dto(SseDeserializer deserializer);
 
   @protected
   List<SongDto> sse_decode_list_song_dto(SseDeserializer deserializer);
@@ -519,12 +519,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RecommendationHistoryActionDto sse_decode_recommendation_history_action_dto(
+  RecommendationProfileActionDto sse_decode_recommendation_profile_action_dto(
     SseDeserializer deserializer,
   );
 
   @protected
-  RecommendationHistoryItemDto sse_decode_recommendation_history_item_dto(
+  RecommendationProfileItemDto sse_decode_recommendation_profile_item_dto(
     SseDeserializer deserializer,
   );
 
@@ -782,8 +782,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_recommendation_history_item_dto(
-    List<RecommendationHistoryItemDto> self,
+  void sse_encode_list_recommendation_profile_item_dto(
+    List<RecommendationProfileItemDto> self,
     SseSerializer serializer,
   );
 
@@ -893,14 +893,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_recommendation_history_action_dto(
-    RecommendationHistoryActionDto self,
+  void sse_encode_recommendation_profile_action_dto(
+    RecommendationProfileActionDto self,
     SseSerializer serializer,
   );
 
   @protected
-  void sse_encode_recommendation_history_item_dto(
-    RecommendationHistoryItemDto self,
+  void sse_encode_recommendation_profile_item_dto(
+    RecommendationProfileItemDto self,
     SseSerializer serializer,
   );
 

@@ -87,7 +87,8 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     );
     final songs = tracks.value ?? const <Song>[];
     // Header prefers cloud metadata count while pages are still arriving.
-    final count = playlist.count > songs.length ? playlist.count : songs.length;
+    final available = playlist.availableTrackCount;
+    final count = available > songs.length ? available : songs.length;
 
     return Scaffold(
       body: PlaylistSongsView(

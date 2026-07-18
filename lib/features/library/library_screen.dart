@@ -49,7 +49,8 @@ class LibraryScreen extends ConsumerWidget {
                           final favorites = LibraryCollectionCard(
                             icon: Icons.favorite_rounded,
                             title: '我喜欢',
-                            subtitle: '${favorite?.count ?? 0} 首歌曲',
+                            subtitle:
+                                '${favorite?.availableTrackCount ?? 0} 首歌曲',
                             colors: const [
                               Color(0xFF7C5CFF),
                               Color(0xFFB574FF),
@@ -172,8 +173,10 @@ class LibraryScreen extends ConsumerWidget {
 
   String _playlistSubtitle(Playlist playlist) {
     final creator = playlist.creatorName?.trim();
-    if (creator == null || creator.isEmpty) return '${playlist.count} 首歌曲';
-    return '$creator · ${playlist.count} 首歌曲';
+    if (creator == null || creator.isEmpty) {
+      return '${playlist.availableTrackCount} 首歌曲';
+    }
+    return '$creator · ${playlist.availableTrackCount} 首歌曲';
   }
 }
 

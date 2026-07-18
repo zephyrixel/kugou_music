@@ -47,6 +47,7 @@ class PlaybackQueueStore {
         title: originMap?['title'] as String? ?? '播放队列',
         id: originMap?['id'] as String?,
         totalCount: _asInt(originMap?['totalCount']),
+        sourceBits: _asInt(originMap?['sourceBits']),
       );
       final request = PlaybackQueueRequest(
         origin: origin,
@@ -79,6 +80,7 @@ class PlaybackQueueStore {
         'title': request.origin.title,
         'id': request.origin.id,
         'totalCount': request.origin.totalCount,
+        'sourceBits': request.origin.sourceBits,
       },
       'songs': request.songs.map(SongCodec.encode).toList(growable: false),
       'currentIndex': snapshot.currentIndex,

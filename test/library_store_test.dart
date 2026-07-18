@@ -36,6 +36,7 @@ void main() {
       present: false,
       fileId: null,
       count: snapshot.previousCount,
+      snapshotCount: snapshot.previousSnapshotCount,
     );
     expect(await store.watchFavoriteSongs().first, isEmpty);
   });
@@ -97,6 +98,20 @@ void main() {
 
     final history = await store.watchHistory().first;
     expect(history.map((item) => item.song.id), [songB.id, songA.id]);
+  });
+
+  test('完成分页快照会清理云端缩短后留下的旧行', () async {
+    await store.replacePlaylistTracks('remote:2', const [songA, songB, songC]);
+
+    await store.finishPlaylistSnapshot('remote:2', remoteTotalCount: 2);
+
+    expect(
+      (await store.watchPlaylistTracks('remote:2').first).map(
+        (song) => song.id,
+      ),
+      [songA.id, songB.id],
+    );
+    expect((await store.playlist('remote:2'))?.trackSnapshotCount, 2);
   });
 }
 

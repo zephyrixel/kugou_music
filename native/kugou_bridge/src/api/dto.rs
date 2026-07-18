@@ -128,6 +128,8 @@ pub struct RecommendationBatchDto {
     pub subtitle: Option<String>,
     pub mark_list: Option<String>,
     pub mark: Option<String>,
+    pub sync_need: Option<i64>,
+    pub sync_point: Option<i64>,
     pub songs: Vec<SongDto>,
 }
 
@@ -146,16 +148,21 @@ pub struct RecommendationReportAckDto {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RecommendationHistoryActionDto {
-    Play,
+pub enum RecommendationProfileActionDto {
     Collect,
+    PlayComplete,
+    PlayShort,
     Trash,
 }
 
 #[derive(Debug, Clone)]
-pub struct RecommendationHistoryItemDto {
-    pub action: RecommendationHistoryActionDto,
-    pub song: SongDto,
+pub struct RecommendationProfileItemDto {
+    pub action: RecommendationProfileActionDto,
+    pub standard_hash: Option<String>,
+    pub mix_song_id: Option<u64>,
+    pub event_time_ms: i64,
+    pub count: u32,
+    pub source_bits: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +177,7 @@ pub struct SongDto {
     pub album_id: Option<u64>,
     pub mix_song_id: Option<u64>,
     pub file_id: Option<u64>,
+    pub collect_time_secs: Option<u64>,
     pub hashes: AudioHashesDto,
 }
 

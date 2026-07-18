@@ -17,6 +17,7 @@ abstract final class SongCodec {
     'albumId': value.albumId,
     'mixSongId': value.mixSongId,
     'fileId': value.fileId,
+    'collectTimeSecs': value.collectTimeSecs,
     'hashes': {
       'standard': value.hashes.standard,
       'high': value.hashes.high,
@@ -40,6 +41,7 @@ abstract final class SongCodec {
       albumId: _int(map['albumId']),
       mixSongId: _int(map['mixSongId']),
       fileId: _int(map['fileId']),
+      collectTimeSecs: _int(map['collectTimeSecs']),
       hashes: AudioHashes(
         standard: _string(hashes['standard']),
         high: _string(hashes['high']),

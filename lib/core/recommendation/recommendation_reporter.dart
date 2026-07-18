@@ -1,128 +1,263 @@
 import 'dart:async';
+import 'dart:math';
 
-import 'package:kgmusic/core/models/recommendation.dart';
-import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/logging/app_log.dart';
+import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/recommendation/recommendation_profile_store.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 
 class RecommendationReporter {
-  RecommendationReporter(this._sdk, this._errors);
+  RecommendationReporter(
+    this._sdk,
+    this._store,
+    this._errors, {
+    DateTime Function()? now,
+    int Function()? jitterSeconds,
+  }) : _now = now ?? DateTime.now,
+       _jitterSeconds = jitterSeconds ?? (() => Random().nextInt(61));
 
   final RecommendationSdk _sdk;
+  final RecommendationProfileStore _store;
   final AppErrorBus _errors;
-  Future<void> _tail = Future<void>.value();
-  final List<RecommendationHistoryEvent> _history = [];
-  Timer? _historyTimer;
-  int? _historySyncPoint;
+  final DateTime Function() _now;
+  final int Function() _jitterSeconds;
+
+  Future<void> _feedbackTail = Future<void>.value();
+  Future<void>? _syncInFlight;
+  int? _userId;
   int _sessionGeneration = 0;
+  bool _profileSyncPending = false;
+  bool _profileReadySignalPending = false;
+  int _profileTriggerVersion = 0;
+  int? _profileCutoffMs;
 
-  Future<void> flush() async {
-    await _flushHistory();
-    await _tail;
-  }
-
-  void resetSession() {
+  void activate(int userId) {
+    if (_userId == userId) return;
     _sessionGeneration += 1;
-    _historyTimer?.cancel();
-    _historyTimer = null;
-    _history.clear();
-    _historySyncPoint = null;
+    _userId = userId;
+    _profileSyncPending = false;
+    _profileReadySignalPending = false;
+    _profileCutoffMs = null;
   }
 
-  void reportPlayed(Song song) => _queueHistory(
-    RecommendationHistoryEvent(
-      action: RecommendationHistoryAction.play,
+  Future<void> deactivate({bool clearProfile = true}) async {
+    final userId = _userId;
+    _sessionGeneration += 1;
+    _userId = null;
+    _profileSyncPending = false;
+    _profileReadySignalPending = false;
+    _profileCutoffMs = null;
+    if (clearProfile && userId != null) await _store.clearProfile(userId);
+  }
+
+  Future<void> recordPlayback(
+    Song song, {
+    required Duration listened,
+    required int sourceBits,
+  }) async {
+    final userId = _userId;
+    if (userId == null) return;
+    await _store.recordPlayback(
+      userId: userId,
       song: song,
-    ),
-  );
+      listened: listened,
+      sourceBits: sourceBits,
+      occurredAt: _now(),
+    );
+  }
+
+  Future<void> recordTrash(Song song) async {
+    final userId = _userId;
+    if (userId == null) return;
+    await _store.recordTrash(userId: userId, song: song, occurredAt: _now());
+  }
 
   void reportFavoriteChanged(Song song, {required bool liked}) {
-    if (liked) {
-      _queueHistory(
-        RecommendationHistoryEvent(
-          action: RecommendationHistoryAction.collect,
-          song: song,
-        ),
-      );
-    }
-    if (liked) {
-      _enqueue(
-        '收藏操作',
-        () => _sdk.reportRecommendationFavoriteClick(song),
-        generation: _sessionGeneration,
-      );
-    }
+    if (!liked) return;
+    _enqueueFeedback(
+      '收藏操作',
+      () => _sdk.reportRecommendationFavoriteClick(song),
+    );
   }
-
-  void reportTrash(Song song) => _queueHistory(
-    RecommendationHistoryEvent(
-      action: RecommendationHistoryAction.trash,
-      song: song,
-    ),
-  );
 
   void reportRepeated(List<String> hashes, {required int remainSongCount}) {
     if (hashes.isEmpty) return;
-    _enqueue(
+    _enqueueFeedback(
       '重复歌曲',
       () => _sdk.reportRecommendationRepeated(
         hashes,
         remainSongCount: remainSongCount,
       ),
-      generation: _sessionGeneration,
     );
   }
 
+  void onPersonalFmSuccess({required int? syncNeed, required int? syncPoint}) {
+    if (syncNeed != 1 || _userId == null) return;
+    _profileTriggerVersion += 1;
+    _profileCutoffMs = RecommendationProfilePolicy.profileCutoffMs(syncPoint);
+    _profileSyncPending = true;
+    _startProfileSync();
+  }
+
+  void notifyProfileReady() {
+    if (!_profileSyncPending) return;
+    if (_syncInFlight != null) {
+      _profileReadySignalPending = true;
+      return;
+    }
+    _startProfileSync();
+  }
+
+  Future<void> flush() async {
+    // A completion callback may schedule the next profile packet in a
+    // microtask (for example when the favorite snapshot became ready while a
+    // report was in flight). Drain until both tails remain stable.
+    while (true) {
+      final feedback = _feedbackTail;
+      await feedback;
+      final sync = _syncInFlight;
+      if (sync != null) {
+        await sync;
+        continue;
+      }
+      await Future<void>.delayed(Duration.zero);
+      if (identical(_feedbackTail, feedback) &&
+          _syncInFlight == null &&
+          !_profileReadySignalPending) {
+        return;
+      }
+    }
+  }
+
   void reportError(String label, Object error) {
-    AppLog.warn('推荐$label上报失败', target: 'recommendation.report', error: error);
+    AppLog.warn('推荐$label失败', target: 'recommendation.report', error: error);
     _errors.add('推荐反馈暂未同步，不影响继续播放');
   }
 
-  void _queueHistory(RecommendationHistoryEvent event) {
-    _history.add(event);
-    if (_history.length >= 20) {
-      unawaited(_flushHistory());
+  void _startProfileSync() {
+    if (_syncInFlight != null) return;
+    final generation = _sessionGeneration;
+    final triggerVersion = _profileTriggerVersion;
+    final cutoffMs = _profileCutoffMs;
+    late final Future<void> tracked;
+    tracked = _syncProfile(generation, sinceMs: cutoffMs)
+        .catchError((Object error) {
+          if (generation == _sessionGeneration) {
+            reportError('画像同步', error);
+          }
+        })
+        .whenComplete(() {
+          if (!identical(_syncInFlight, tracked)) return;
+          _syncInFlight = null;
+          // If the account changed while the old request was in flight, the
+          // new account may already have queued a profile sync. The old
+          // request cannot be cancelled, so hand the slot to the new session
+          // as soon as it releases.
+          final retry =
+              _profileSyncPending &&
+              (_profileReadySignalPending ||
+                  generation != _sessionGeneration ||
+                  triggerVersion != _profileTriggerVersion);
+          _profileReadySignalPending = false;
+          if (retry) scheduleMicrotask(_startProfileSync);
+        });
+    _syncInFlight = tracked;
+  }
+
+  Future<void> _syncProfile(int generation, {required int? sinceMs}) async {
+    final userId = _userId;
+    if (userId == null || generation != _sessionGeneration) return;
+    final snapshot = await _store.snapshot(userId, sinceMs: sinceMs);
+    if (generation != _sessionGeneration || _userId != userId) return;
+    if (!snapshot.ready) return;
+    _profileSyncPending = false;
+    if (snapshot.items.isEmpty) return;
+
+    final now = _now();
+    final dayKey = _dayKey(now);
+    final policy = await _store.syncPolicy(userId, dayKey);
+    if (generation != _sessionGeneration || _userId != userId) return;
+    if (policy.successCount >= RecommendationProfilePolicy.dailySyncLimit) {
       return;
     }
-    _historyTimer ??= Timer(const Duration(milliseconds: 500), () {
-      _historyTimer = null;
-      unawaited(_flushHistory());
-    });
-  }
+    final nextAllowedAt = policy.nextAllowedAt;
+    if (nextAllowedAt != null && now.isBefore(nextAllowedAt)) return;
 
-  Future<void> _flushHistory() async {
-    _historyTimer?.cancel();
-    _historyTimer = null;
-    if (_history.isEmpty) return;
-    final batch = List<RecommendationHistoryEvent>.of(_history);
-    _history.clear();
-    final generation = _sessionGeneration;
-    _enqueue('历史记录', () async {
-      final ack = await _sdk.reportRecommendationHistory(
-        batch,
-        previousSyncPoint: _historySyncPoint,
+    final items = [...snapshot.items]
+      ..sort((left, right) {
+        final byTime = right.eventTimeMs.compareTo(left.eventTimeMs);
+        if (byTime != 0) return byTime;
+        final byAction = left.action.wireValue.compareTo(
+          right.action.wireValue,
+        );
+        if (byAction != 0) return byAction;
+        return (left.standardHash ?? '').compareTo(right.standardHash ?? '');
+      });
+
+    var previousSyncPoint = 0;
+    String? lastUploadHash;
+    for (
+      var offset = 0;
+      offset < items.length;
+      offset += RecommendationProfilePolicy.historyLimit
+    ) {
+      final end = min(
+        offset + RecommendationProfilePolicy.historyLimit,
+        items.length,
       );
-      if (generation == _sessionGeneration && ack.syncPoint != null) {
-        _historySyncPoint = ack.syncPoint;
-      }
-    }, generation: generation);
-    await _tail;
+      final slice = items.sublist(offset, end);
+      final wireItems = slice.reversed.toList(growable: false);
+      final nextSyncPoint = slice.last.eventTimeMs;
+      await _sdk.reportRecommendationHistory(
+        wireItems,
+        complete: end == items.length,
+        previousSyncPoint: previousSyncPoint,
+        nextSyncPoint: nextSyncPoint,
+        lastUploadHash: lastUploadHash,
+      );
+      if (generation != _sessionGeneration || _userId != userId) return;
+      previousSyncPoint = nextSyncPoint;
+      final hash = wireItems.last.standardHash?.trim();
+      lastUploadHash = hash?.isNotEmpty == true ? hash : null;
+    }
+
+    final successCount = policy.successCount + 1;
+    final jitter = _jitterSeconds().clamp(0, 60);
+    await _store.saveSyncPolicy(
+      userId,
+      RecommendationSyncPolicyState(
+        dayKey: dayKey,
+        successCount: successCount,
+        // The native cooldown uses the number of successful syncs *before*
+        // this attempt.  Thus the first upload is eligible immediately (plus
+        // jitter), while the second waits five minutes, and so on.
+        nextAllowedAt: now.add(
+          Duration(minutes: policy.successCount * 5, seconds: jitter),
+        ),
+      ),
+    );
+    AppLog.debug(
+      '推荐画像同步完成 rows=${items.length} count=$successCount',
+      target: 'recommendation.report',
+    );
   }
 
-  void _enqueue(
-    String label,
-    Future<void> Function() action, {
-    required int generation,
-  }) {
-    _tail = _tail.catchError((_) {}).then((_) async {
-      if (generation != _sessionGeneration) return;
+  void _enqueueFeedback(String label, Future<void> Function() action) {
+    final generation = _sessionGeneration;
+    _feedbackTail = _feedbackTail.catchError((_) {}).then((_) async {
+      if (generation != _sessionGeneration || _userId == null) return;
       try {
         await action();
         AppLog.debug('推荐$label上报成功', target: 'recommendation.report');
       } catch (error) {
-        reportError(label, error);
+        reportError('$label上报', error);
       }
     });
   }
 }
+
+String _dayKey(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-'
+    '${value.month.toString().padLeft(2, '0')}-'
+    '${value.day.toString().padLeft(2, '0')}';

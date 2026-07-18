@@ -41,12 +41,16 @@ class RecommendationBatch {
     this.subtitle,
     this.markList,
     this.mark,
+    this.syncNeed,
+    this.syncPoint,
   });
 
   final String title;
   final String? subtitle;
   final String? markList;
   final String? mark;
+  final int? syncNeed;
+  final int? syncPoint;
   final List<Song> songs;
 }
 
@@ -57,11 +61,33 @@ class RecommendationReportAck {
   final bool? isClean;
 }
 
-enum RecommendationHistoryAction { play, collect, trash }
+enum RecommendationProfileAction {
+  collect(1),
+  playComplete(3),
+  playShort(4),
+  trash(5);
 
-class RecommendationHistoryEvent {
-  const RecommendationHistoryEvent({required this.action, required this.song});
+  const RecommendationProfileAction(this.wireValue);
+  final int wireValue;
+}
 
-  final RecommendationHistoryAction action;
-  final Song song;
+class RecommendationProfileItem {
+  const RecommendationProfileItem({
+    required this.action,
+    required this.eventTimeMs,
+    required this.count,
+    required this.sourceBits,
+    this.standardHash,
+    this.mixSongId,
+  });
+
+  final RecommendationProfileAction action;
+  final String? standardHash;
+  final int? mixSongId;
+  final int eventTimeMs;
+  final int count;
+  final int sourceBits;
+
+  bool get hasIdentity =>
+      standardHash?.trim().isNotEmpty == true || mixSongId != null;
 }

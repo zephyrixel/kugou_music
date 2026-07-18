@@ -214,6 +214,8 @@ pub async fn get_personal_fm(
         subtitle: response.data.mark.clone(),
         mark_list: response.data.mark_list,
         mark: response.data.mark,
+        sync_need: recommendation_extra_i64(&response.data.extra, &["sync_need", "syncNeed"]),
+        sync_point: recommendation_sync_point(&response.data.extra),
         songs,
     })
 }
@@ -239,13 +241,18 @@ pub async fn get_heart_radio(
         subtitle: response.data.intro,
         mark_list: None,
         mark: None,
+        sync_need: None,
+        sync_point: None,
         songs,
     })
 }
 
 pub async fn report_recommendation_history(
-    items: Vec<RecommendationHistoryItemDto>,
-    previous_sync_point: Option<i64>,
+    items: Vec<RecommendationProfileItemDto>,
+    complete: bool,
+    previous_sync_point: i64,
+    next_sync_point: i64,
+    last_upload_hash: Option<String>,
 ) -> Result<RecommendationReportAckDto, BridgeError> {
     if items.is_empty() {
         return Err(BridgeError::invalid_argument(
@@ -254,11 +261,15 @@ pub async fn report_recommendation_history(
     }
     let rows = items
         .iter()
-        .map(recommendation_history_item_to_sdk)
+        .map(recommendation_profile_item_to_sdk)
         .collect();
-    let mut request = ReportHistoryRequest::new(rows).map_err(BridgeError::from_sdk)?;
-    if let Some(sync_point) = previous_sync_point {
-        request = request.prev_sync_point(sync_point);
+    let mut request = ReportHistoryRequest::new(rows)
+        .map_err(BridgeError::from_sdk)?
+        .complete(complete)
+        .prev_sync_point(previous_sync_point)
+        .next_sync_point(next_sync_point);
+    if let Some(hash) = last_upload_hash.filter(|value| !value.is_empty()) {
+        request = request.last_upload_hash(hash);
     }
     let runtime = runtime()?;
     let mut session = runtime.session.lock().await;
@@ -269,6 +280,26 @@ pub async fn report_recommendation_history(
         .await
         .map_err(BridgeError::from_sdk)?;
     Ok(recommendation_report_ack_to_dto(&response.data))
+}
+
+fn recommendation_sync_point(
+    extra: &std::collections::BTreeMap<String, serde_json::Value>,
+) -> Option<i64> {
+    recommendation_extra_i64(extra, &["sync_point", "syncPoint"])
+}
+
+fn recommendation_extra_i64(
+    extra: &std::collections::BTreeMap<String, serde_json::Value>,
+    keys: &[&str],
+) -> Option<i64> {
+    keys.iter().find_map(|key| {
+        let value = extra.get(*key)?;
+        value
+            .as_i64()
+            .or_else(|| value.as_u64().and_then(|number| i64::try_from(number).ok()))
+            .or_else(|| value.as_bool().map(i64::from))
+            .or_else(|| value.as_str()?.trim().parse().ok())
+    })
 }
 
 pub async fn report_recommendation_repeated(
@@ -854,6 +885,7 @@ mod tests {
             album_id: None,
             mix_song_id: Some(42),
             file_id: None,
+            collect_time_secs: None,
             hashes: AudioHashesDto {
                 standard: Some("STANDARD".into()),
                 high: Some("HIGH".into()),
@@ -888,6 +920,7 @@ mod tests {
             album_id: None,
             mix_song_id: Some(42),
             file_id: None,
+            collect_time_secs: None,
             hashes: AudioHashesDto {
                 standard: Some("STANDARD".into()),
                 high: Some("HIGH".into()),
@@ -896,13 +929,66 @@ mod tests {
                 super_hash: None,
             },
         };
-        let row = recommendation_history_item_to_sdk(&RecommendationHistoryItemDto {
-            action: RecommendationHistoryActionDto::Collect,
-            song,
+        let row = recommendation_profile_item_to_sdk(&RecommendationProfileItemDto {
+            action: RecommendationProfileActionDto::Collect,
+            standard_hash: song.hashes.standard.clone(),
+            mix_song_id: song.mix_song_id,
+            event_time_ms: 1_700_000_000_000,
+            count: 2,
+            source_bits: 32,
         });
         assert_eq!(row.action, ClientPlaylistItem::ACTION_COLLECT);
         assert_eq!(row.hash.as_deref(), Some("STANDARD"));
         assert_eq!(row.mix_song_id, Some(42));
+        assert_eq!(row.time, Some(307));
+        assert_eq!(row.count, Some(2));
+        assert_eq!(row.source, Some(32));
+    }
+
+    #[test]
+    fn recommendation_report_time_uses_the_official_week_bucket() {
+        let before_epoch = recommendation_profile_item_to_sdk(&RecommendationProfileItemDto {
+            action: RecommendationProfileActionDto::Trash,
+            standard_hash: Some("HASH".into()),
+            mix_song_id: None,
+            event_time_ms: 1_514_131_200_000,
+            count: 1,
+            source_bits: 0,
+        });
+        assert_eq!(before_epoch.time, Some(0));
+
+        let one_week = recommendation_profile_item_to_sdk(&RecommendationProfileItemDto {
+            action: RecommendationProfileActionDto::Trash,
+            standard_hash: Some("HASH".into()),
+            mix_song_id: None,
+            event_time_ms: 1_514_131_200_001 + 604_800_000,
+            count: 1,
+            source_bits: 0,
+        });
+        assert_eq!(one_week.time, Some(1));
+    }
+
+    #[test]
+    fn personal_fm_sync_point_accepts_number_and_string() {
+        let numeric = BTreeMap::from([("sync_point".to_owned(), serde_json::json!(0))]);
+        let string = BTreeMap::from([("syncPoint".to_owned(), serde_json::json!("42"))]);
+
+        assert_eq!(recommendation_sync_point(&numeric), Some(0));
+        assert_eq!(recommendation_sync_point(&string), Some(42));
+    }
+
+    #[test]
+    fn personal_fm_sync_need_accepts_number_string_and_bool() {
+        let numeric = BTreeMap::from([("sync_need".to_owned(), serde_json::json!(1))]);
+        let string = BTreeMap::from([("syncNeed".to_owned(), serde_json::json!("0"))]);
+        let boolean = BTreeMap::from([("sync_need".to_owned(), serde_json::json!(true))]);
+
+        assert_eq!(recommendation_extra_i64(&numeric, &["sync_need"]), Some(1));
+        assert_eq!(
+            recommendation_extra_i64(&string, &["sync_need", "syncNeed"]),
+            Some(0)
+        );
+        assert_eq!(recommendation_extra_i64(&boolean, &["sync_need"]), Some(1));
     }
 
     #[test]

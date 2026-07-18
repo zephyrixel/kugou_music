@@ -116,9 +116,11 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
                   .libraryPlaylist(
                     playlist: favorite!,
                     songs: items,
-                    count: favorite.count,
+                    count: favorite.availableTrackCount,
                     nextPage: ((items.length + 99) ~/ 100) + 1,
-                    hasMore: items.length < favorite.count,
+                    hasMore:
+                        !favorite.tracksLoaded ||
+                        items.length < favorite.availableTrackCount,
                   ),
         trailingBuilder: (song) => IconButton(
           tooltip: '取消喜欢',

@@ -757,6 +757,8 @@ class RecommendationBatchDto {
   final String? subtitle;
   final String? markList;
   final String? mark;
+  final int? syncNeed;
+  final int? syncPoint;
   final List<SongDto> songs;
 
   const RecommendationBatchDto({
@@ -764,6 +766,8 @@ class RecommendationBatchDto {
     this.subtitle,
     this.markList,
     this.mark,
+    this.syncNeed,
+    this.syncPoint,
     required this.songs,
   });
 
@@ -773,6 +777,8 @@ class RecommendationBatchDto {
       subtitle.hashCode ^
       markList.hashCode ^
       mark.hashCode ^
+      syncNeed.hashCode ^
+      syncPoint.hashCode ^
       songs.hashCode;
 
   @override
@@ -784,30 +790,50 @@ class RecommendationBatchDto {
           subtitle == other.subtitle &&
           markList == other.markList &&
           mark == other.mark &&
+          syncNeed == other.syncNeed &&
+          syncPoint == other.syncPoint &&
           songs == other.songs;
 }
 
-enum RecommendationHistoryActionDto { play, collect, trash }
+enum RecommendationProfileActionDto { collect, playComplete, playShort, trash }
 
-class RecommendationHistoryItemDto {
-  final RecommendationHistoryActionDto action;
-  final SongDto song;
+class RecommendationProfileItemDto {
+  final RecommendationProfileActionDto action;
+  final String? standardHash;
+  final int? mixSongId;
+  final int eventTimeMs;
+  final int count;
+  final int sourceBits;
 
-  const RecommendationHistoryItemDto({
+  const RecommendationProfileItemDto({
     required this.action,
-    required this.song,
+    this.standardHash,
+    this.mixSongId,
+    required this.eventTimeMs,
+    required this.count,
+    required this.sourceBits,
   });
 
   @override
-  int get hashCode => action.hashCode ^ song.hashCode;
+  int get hashCode =>
+      action.hashCode ^
+      standardHash.hashCode ^
+      mixSongId.hashCode ^
+      eventTimeMs.hashCode ^
+      count.hashCode ^
+      sourceBits.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is RecommendationHistoryItemDto &&
+      other is RecommendationProfileItemDto &&
           runtimeType == other.runtimeType &&
           action == other.action &&
-          song == other.song;
+          standardHash == other.standardHash &&
+          mixSongId == other.mixSongId &&
+          eventTimeMs == other.eventTimeMs &&
+          count == other.count &&
+          sourceBits == other.sourceBits;
 }
 
 class RecommendationReportAckDto {
@@ -887,6 +913,7 @@ class SongDto {
   final int? albumId;
   final int? mixSongId;
   final int? fileId;
+  final int? collectTimeSecs;
   final AudioHashesDto hashes;
 
   const SongDto({
@@ -900,6 +927,7 @@ class SongDto {
     this.albumId,
     this.mixSongId,
     this.fileId,
+    this.collectTimeSecs,
     required this.hashes,
   });
 
@@ -915,6 +943,7 @@ class SongDto {
       albumId.hashCode ^
       mixSongId.hashCode ^
       fileId.hashCode ^
+      collectTimeSecs.hashCode ^
       hashes.hashCode;
 
   @override
@@ -932,6 +961,7 @@ class SongDto {
           albumId == other.albumId &&
           mixSongId == other.mixSongId &&
           fileId == other.fileId &&
+          collectTimeSecs == other.collectTimeSecs &&
           hashes == other.hashes;
 }
 

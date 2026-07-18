@@ -40,6 +40,7 @@ class StoredPlaylists extends Table {
   BoolColumn get tracksLoaded => boolean().withDefault(const Constant(false))();
   IntColumn get trackSnapshotCount => integer().nullable()();
   DateTimeColumn get tracksUpdatedAt => dateTime().nullable()();
+  DateTimeColumn get fullSnapshotUpdatedAt => dateTime().nullable()();
   TextColumn get tags => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
@@ -51,10 +52,35 @@ class StoredPlaylistTracks extends Table {
   TextColumn get playlistLocalId => text()();
   TextColumn get songId => text()();
   IntColumn get fileId => integer().nullable()();
+  IntColumn get collectTimeSecs => integer().nullable()();
   IntColumn get position => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column<Object>> get primaryKey => {playlistLocalId, songId};
+}
+
+class StoredRecommendationProfiles extends Table {
+  IntColumn get userId => integer()();
+  TextColumn get songKey => text()();
+  IntColumn get action => integer()();
+  TextColumn get standardHash => text().nullable()();
+  IntColumn get mixSongId => integer().nullable()();
+  IntColumn get eventTimeMs => integer()();
+  IntColumn get count => integer().withDefault(const Constant(1))();
+  IntColumn get sourceBits => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId, songKey, action};
+}
+
+class RecommendationSyncStates extends Table {
+  IntColumn get userId => integer()();
+  TextColumn get dayKey => text()();
+  IntColumn get successCount => integer().withDefault(const Constant(0))();
+  DateTimeColumn get nextAllowedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId};
 }
 
 class LibrarySyncStates extends Table {

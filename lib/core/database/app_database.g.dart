@@ -1114,6 +1114,17 @@ class $StoredPlaylistsTable extends StoredPlaylists
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _fullSnapshotUpdatedAtMeta =
+      const VerificationMeta('fullSnapshotUpdatedAt');
+  @override
+  late final GeneratedColumn<DateTime> fullSnapshotUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'full_snapshot_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
   @override
   late final GeneratedColumn<String> tags = GeneratedColumn<String>(
@@ -1153,6 +1164,7 @@ class $StoredPlaylistsTable extends StoredPlaylists
     tracksLoaded,
     trackSnapshotCount,
     tracksUpdatedAt,
+    fullSnapshotUpdatedAt,
     tags,
     sortOrder,
   ];
@@ -1295,6 +1307,15 @@ class $StoredPlaylistsTable extends StoredPlaylists
         ),
       );
     }
+    if (data.containsKey('full_snapshot_updated_at')) {
+      context.handle(
+        _fullSnapshotUpdatedAtMeta,
+        fullSnapshotUpdatedAt.isAcceptableOrUnknown(
+          data['full_snapshot_updated_at']!,
+          _fullSnapshotUpdatedAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('tags')) {
       context.handle(
         _tagsMeta,
@@ -1380,6 +1401,10 @@ class $StoredPlaylistsTable extends StoredPlaylists
         DriftSqlType.dateTime,
         data['${effectivePrefix}tracks_updated_at'],
       ),
+      fullSnapshotUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}full_snapshot_updated_at'],
+      ),
       tags: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}tags'],
@@ -1414,6 +1439,7 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
   final bool tracksLoaded;
   final int? trackSnapshotCount;
   final DateTime? tracksUpdatedAt;
+  final DateTime? fullSnapshotUpdatedAt;
   final String? tags;
   final int sortOrder;
   const StoredPlaylist({
@@ -1433,6 +1459,7 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     required this.tracksLoaded,
     this.trackSnapshotCount,
     this.tracksUpdatedAt,
+    this.fullSnapshotUpdatedAt,
     this.tags,
     required this.sortOrder,
   });
@@ -1472,6 +1499,11 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     }
     if (!nullToAbsent || tracksUpdatedAt != null) {
       map['tracks_updated_at'] = Variable<DateTime>(tracksUpdatedAt);
+    }
+    if (!nullToAbsent || fullSnapshotUpdatedAt != null) {
+      map['full_snapshot_updated_at'] = Variable<DateTime>(
+        fullSnapshotUpdatedAt,
+      );
     }
     if (!nullToAbsent || tags != null) {
       map['tags'] = Variable<String>(tags);
@@ -1516,6 +1548,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       tracksUpdatedAt: tracksUpdatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(tracksUpdatedAt),
+      fullSnapshotUpdatedAt: fullSnapshotUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fullSnapshotUpdatedAt),
       tags: tags == null && nullToAbsent ? const Value.absent() : Value(tags),
       sortOrder: Value(sortOrder),
     );
@@ -1545,6 +1580,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       tracksLoaded: serializer.fromJson<bool>(json['tracksLoaded']),
       trackSnapshotCount: serializer.fromJson<int?>(json['trackSnapshotCount']),
       tracksUpdatedAt: serializer.fromJson<DateTime?>(json['tracksUpdatedAt']),
+      fullSnapshotUpdatedAt: serializer.fromJson<DateTime?>(
+        json['fullSnapshotUpdatedAt'],
+      ),
       tags: serializer.fromJson<String?>(json['tags']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
@@ -1569,6 +1607,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       'tracksLoaded': serializer.toJson<bool>(tracksLoaded),
       'trackSnapshotCount': serializer.toJson<int?>(trackSnapshotCount),
       'tracksUpdatedAt': serializer.toJson<DateTime?>(tracksUpdatedAt),
+      'fullSnapshotUpdatedAt': serializer.toJson<DateTime?>(
+        fullSnapshotUpdatedAt,
+      ),
       'tags': serializer.toJson<String?>(tags),
       'sortOrder': serializer.toJson<int>(sortOrder),
     };
@@ -1591,6 +1632,7 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     bool? tracksLoaded,
     Value<int?> trackSnapshotCount = const Value.absent(),
     Value<DateTime?> tracksUpdatedAt = const Value.absent(),
+    Value<DateTime?> fullSnapshotUpdatedAt = const Value.absent(),
     Value<String?> tags = const Value.absent(),
     int? sortOrder,
   }) => StoredPlaylist(
@@ -1618,6 +1660,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     tracksUpdatedAt: tracksUpdatedAt.present
         ? tracksUpdatedAt.value
         : this.tracksUpdatedAt,
+    fullSnapshotUpdatedAt: fullSnapshotUpdatedAt.present
+        ? fullSnapshotUpdatedAt.value
+        : this.fullSnapshotUpdatedAt,
     tags: tags.present ? tags.value : this.tags,
     sortOrder: sortOrder ?? this.sortOrder,
   );
@@ -1659,6 +1704,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       tracksUpdatedAt: data.tracksUpdatedAt.present
           ? data.tracksUpdatedAt.value
           : this.tracksUpdatedAt,
+      fullSnapshotUpdatedAt: data.fullSnapshotUpdatedAt.present
+          ? data.fullSnapshotUpdatedAt.value
+          : this.fullSnapshotUpdatedAt,
       tags: data.tags.present ? data.tags.value : this.tags,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
@@ -1683,6 +1731,7 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           ..write('tracksLoaded: $tracksLoaded, ')
           ..write('trackSnapshotCount: $trackSnapshotCount, ')
           ..write('tracksUpdatedAt: $tracksUpdatedAt, ')
+          ..write('fullSnapshotUpdatedAt: $fullSnapshotUpdatedAt, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder')
           ..write(')'))
@@ -1707,6 +1756,7 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     tracksLoaded,
     trackSnapshotCount,
     tracksUpdatedAt,
+    fullSnapshotUpdatedAt,
     tags,
     sortOrder,
   );
@@ -1730,6 +1780,7 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           other.tracksLoaded == this.tracksLoaded &&
           other.trackSnapshotCount == this.trackSnapshotCount &&
           other.tracksUpdatedAt == this.tracksUpdatedAt &&
+          other.fullSnapshotUpdatedAt == this.fullSnapshotUpdatedAt &&
           other.tags == this.tags &&
           other.sortOrder == this.sortOrder);
 }
@@ -1751,6 +1802,7 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
   final Value<bool> tracksLoaded;
   final Value<int?> trackSnapshotCount;
   final Value<DateTime?> tracksUpdatedAt;
+  final Value<DateTime?> fullSnapshotUpdatedAt;
   final Value<String?> tags;
   final Value<int> sortOrder;
   final Value<int> rowid;
@@ -1771,6 +1823,7 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.tracksLoaded = const Value.absent(),
     this.trackSnapshotCount = const Value.absent(),
     this.tracksUpdatedAt = const Value.absent(),
+    this.fullSnapshotUpdatedAt = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1792,6 +1845,7 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.tracksLoaded = const Value.absent(),
     this.trackSnapshotCount = const Value.absent(),
     this.tracksUpdatedAt = const Value.absent(),
+    this.fullSnapshotUpdatedAt = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1814,6 +1868,7 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Expression<bool>? tracksLoaded,
     Expression<int>? trackSnapshotCount,
     Expression<DateTime>? tracksUpdatedAt,
+    Expression<DateTime>? fullSnapshotUpdatedAt,
     Expression<String>? tags,
     Expression<int>? sortOrder,
     Expression<int>? rowid,
@@ -1837,6 +1892,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
       if (trackSnapshotCount != null)
         'track_snapshot_count': trackSnapshotCount,
       if (tracksUpdatedAt != null) 'tracks_updated_at': tracksUpdatedAt,
+      if (fullSnapshotUpdatedAt != null)
+        'full_snapshot_updated_at': fullSnapshotUpdatedAt,
       if (tags != null) 'tags': tags,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
@@ -1860,6 +1917,7 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Value<bool>? tracksLoaded,
     Value<int?>? trackSnapshotCount,
     Value<DateTime?>? tracksUpdatedAt,
+    Value<DateTime?>? fullSnapshotUpdatedAt,
     Value<String?>? tags,
     Value<int>? sortOrder,
     Value<int>? rowid,
@@ -1881,6 +1939,8 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
       tracksLoaded: tracksLoaded ?? this.tracksLoaded,
       trackSnapshotCount: trackSnapshotCount ?? this.trackSnapshotCount,
       tracksUpdatedAt: tracksUpdatedAt ?? this.tracksUpdatedAt,
+      fullSnapshotUpdatedAt:
+          fullSnapshotUpdatedAt ?? this.fullSnapshotUpdatedAt,
       tags: tags ?? this.tags,
       sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
@@ -1938,6 +1998,11 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     if (tracksUpdatedAt.present) {
       map['tracks_updated_at'] = Variable<DateTime>(tracksUpdatedAt.value);
     }
+    if (fullSnapshotUpdatedAt.present) {
+      map['full_snapshot_updated_at'] = Variable<DateTime>(
+        fullSnapshotUpdatedAt.value,
+      );
+    }
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
@@ -1969,6 +2034,7 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
           ..write('tracksLoaded: $tracksLoaded, ')
           ..write('trackSnapshotCount: $trackSnapshotCount, ')
           ..write('tracksUpdatedAt: $tracksUpdatedAt, ')
+          ..write('fullSnapshotUpdatedAt: $fullSnapshotUpdatedAt, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
@@ -2012,6 +2078,17 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _collectTimeSecsMeta = const VerificationMeta(
+    'collectTimeSecs',
+  );
+  @override
+  late final GeneratedColumn<int> collectTimeSecs = GeneratedColumn<int>(
+    'collect_time_secs',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _positionMeta = const VerificationMeta(
     'position',
   );
@@ -2029,6 +2106,7 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
     playlistLocalId,
     songId,
     fileId,
+    collectTimeSecs,
     position,
   ];
   @override
@@ -2068,6 +2146,15 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
         fileId.isAcceptableOrUnknown(data['file_id']!, _fileIdMeta),
       );
     }
+    if (data.containsKey('collect_time_secs')) {
+      context.handle(
+        _collectTimeSecsMeta,
+        collectTimeSecs.isAcceptableOrUnknown(
+          data['collect_time_secs']!,
+          _collectTimeSecsMeta,
+        ),
+      );
+    }
     if (data.containsKey('position')) {
       context.handle(
         _positionMeta,
@@ -2095,6 +2182,10 @@ class $StoredPlaylistTracksTable extends StoredPlaylistTracks
         DriftSqlType.int,
         data['${effectivePrefix}file_id'],
       ),
+      collectTimeSecs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}collect_time_secs'],
+      ),
       position: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}position'],
@@ -2113,11 +2204,13 @@ class StoredPlaylistTrack extends DataClass
   final String playlistLocalId;
   final String songId;
   final int? fileId;
+  final int? collectTimeSecs;
   final int position;
   const StoredPlaylistTrack({
     required this.playlistLocalId,
     required this.songId,
     this.fileId,
+    this.collectTimeSecs,
     required this.position,
   });
   @override
@@ -2127,6 +2220,9 @@ class StoredPlaylistTrack extends DataClass
     map['song_id'] = Variable<String>(songId);
     if (!nullToAbsent || fileId != null) {
       map['file_id'] = Variable<int>(fileId);
+    }
+    if (!nullToAbsent || collectTimeSecs != null) {
+      map['collect_time_secs'] = Variable<int>(collectTimeSecs);
     }
     map['position'] = Variable<int>(position);
     return map;
@@ -2139,6 +2235,9 @@ class StoredPlaylistTrack extends DataClass
       fileId: fileId == null && nullToAbsent
           ? const Value.absent()
           : Value(fileId),
+      collectTimeSecs: collectTimeSecs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(collectTimeSecs),
       position: Value(position),
     );
   }
@@ -2152,6 +2251,7 @@ class StoredPlaylistTrack extends DataClass
       playlistLocalId: serializer.fromJson<String>(json['playlistLocalId']),
       songId: serializer.fromJson<String>(json['songId']),
       fileId: serializer.fromJson<int?>(json['fileId']),
+      collectTimeSecs: serializer.fromJson<int?>(json['collectTimeSecs']),
       position: serializer.fromJson<int>(json['position']),
     );
   }
@@ -2162,6 +2262,7 @@ class StoredPlaylistTrack extends DataClass
       'playlistLocalId': serializer.toJson<String>(playlistLocalId),
       'songId': serializer.toJson<String>(songId),
       'fileId': serializer.toJson<int?>(fileId),
+      'collectTimeSecs': serializer.toJson<int?>(collectTimeSecs),
       'position': serializer.toJson<int>(position),
     };
   }
@@ -2170,11 +2271,15 @@ class StoredPlaylistTrack extends DataClass
     String? playlistLocalId,
     String? songId,
     Value<int?> fileId = const Value.absent(),
+    Value<int?> collectTimeSecs = const Value.absent(),
     int? position,
   }) => StoredPlaylistTrack(
     playlistLocalId: playlistLocalId ?? this.playlistLocalId,
     songId: songId ?? this.songId,
     fileId: fileId.present ? fileId.value : this.fileId,
+    collectTimeSecs: collectTimeSecs.present
+        ? collectTimeSecs.value
+        : this.collectTimeSecs,
     position: position ?? this.position,
   );
   StoredPlaylistTrack copyWithCompanion(StoredPlaylistTracksCompanion data) {
@@ -2184,6 +2289,9 @@ class StoredPlaylistTrack extends DataClass
           : this.playlistLocalId,
       songId: data.songId.present ? data.songId.value : this.songId,
       fileId: data.fileId.present ? data.fileId.value : this.fileId,
+      collectTimeSecs: data.collectTimeSecs.present
+          ? data.collectTimeSecs.value
+          : this.collectTimeSecs,
       position: data.position.present ? data.position.value : this.position,
     );
   }
@@ -2194,13 +2302,15 @@ class StoredPlaylistTrack extends DataClass
           ..write('playlistLocalId: $playlistLocalId, ')
           ..write('songId: $songId, ')
           ..write('fileId: $fileId, ')
+          ..write('collectTimeSecs: $collectTimeSecs, ')
           ..write('position: $position')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(playlistLocalId, songId, fileId, position);
+  int get hashCode =>
+      Object.hash(playlistLocalId, songId, fileId, collectTimeSecs, position);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2208,6 +2318,7 @@ class StoredPlaylistTrack extends DataClass
           other.playlistLocalId == this.playlistLocalId &&
           other.songId == this.songId &&
           other.fileId == this.fileId &&
+          other.collectTimeSecs == this.collectTimeSecs &&
           other.position == this.position);
 }
 
@@ -2216,12 +2327,14 @@ class StoredPlaylistTracksCompanion
   final Value<String> playlistLocalId;
   final Value<String> songId;
   final Value<int?> fileId;
+  final Value<int?> collectTimeSecs;
   final Value<int> position;
   final Value<int> rowid;
   const StoredPlaylistTracksCompanion({
     this.playlistLocalId = const Value.absent(),
     this.songId = const Value.absent(),
     this.fileId = const Value.absent(),
+    this.collectTimeSecs = const Value.absent(),
     this.position = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -2229,6 +2342,7 @@ class StoredPlaylistTracksCompanion
     required String playlistLocalId,
     required String songId,
     this.fileId = const Value.absent(),
+    this.collectTimeSecs = const Value.absent(),
     this.position = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : playlistLocalId = Value(playlistLocalId),
@@ -2237,6 +2351,7 @@ class StoredPlaylistTracksCompanion
     Expression<String>? playlistLocalId,
     Expression<String>? songId,
     Expression<int>? fileId,
+    Expression<int>? collectTimeSecs,
     Expression<int>? position,
     Expression<int>? rowid,
   }) {
@@ -2244,6 +2359,7 @@ class StoredPlaylistTracksCompanion
       if (playlistLocalId != null) 'playlist_local_id': playlistLocalId,
       if (songId != null) 'song_id': songId,
       if (fileId != null) 'file_id': fileId,
+      if (collectTimeSecs != null) 'collect_time_secs': collectTimeSecs,
       if (position != null) 'position': position,
       if (rowid != null) 'rowid': rowid,
     });
@@ -2253,6 +2369,7 @@ class StoredPlaylistTracksCompanion
     Value<String>? playlistLocalId,
     Value<String>? songId,
     Value<int?>? fileId,
+    Value<int?>? collectTimeSecs,
     Value<int>? position,
     Value<int>? rowid,
   }) {
@@ -2260,6 +2377,7 @@ class StoredPlaylistTracksCompanion
       playlistLocalId: playlistLocalId ?? this.playlistLocalId,
       songId: songId ?? this.songId,
       fileId: fileId ?? this.fileId,
+      collectTimeSecs: collectTimeSecs ?? this.collectTimeSecs,
       position: position ?? this.position,
       rowid: rowid ?? this.rowid,
     );
@@ -2277,6 +2395,9 @@ class StoredPlaylistTracksCompanion
     if (fileId.present) {
       map['file_id'] = Variable<int>(fileId.value);
     }
+    if (collectTimeSecs.present) {
+      map['collect_time_secs'] = Variable<int>(collectTimeSecs.value);
+    }
     if (position.present) {
       map['position'] = Variable<int>(position.value);
     }
@@ -2292,6 +2413,7 @@ class StoredPlaylistTracksCompanion
           ..write('playlistLocalId: $playlistLocalId, ')
           ..write('songId: $songId, ')
           ..write('fileId: $fileId, ')
+          ..write('collectTimeSecs: $collectTimeSecs, ')
           ..write('position: $position, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2671,6 +2793,859 @@ class LibrarySyncStatesCompanion extends UpdateCompanion<LibrarySyncState> {
           ..write('baselineComplete: $baselineComplete, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('lastError: $lastError')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $StoredRecommendationProfilesTable extends StoredRecommendationProfiles
+    with
+        TableInfo<
+          $StoredRecommendationProfilesTable,
+          StoredRecommendationProfile
+        > {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StoredRecommendationProfilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _songKeyMeta = const VerificationMeta(
+    'songKey',
+  );
+  @override
+  late final GeneratedColumn<String> songKey = GeneratedColumn<String>(
+    'song_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<int> action = GeneratedColumn<int>(
+    'action',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _standardHashMeta = const VerificationMeta(
+    'standardHash',
+  );
+  @override
+  late final GeneratedColumn<String> standardHash = GeneratedColumn<String>(
+    'standard_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mixSongIdMeta = const VerificationMeta(
+    'mixSongId',
+  );
+  @override
+  late final GeneratedColumn<int> mixSongId = GeneratedColumn<int>(
+    'mix_song_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _eventTimeMsMeta = const VerificationMeta(
+    'eventTimeMs',
+  );
+  @override
+  late final GeneratedColumn<int> eventTimeMs = GeneratedColumn<int>(
+    'event_time_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _countMeta = const VerificationMeta('count');
+  @override
+  late final GeneratedColumn<int> count = GeneratedColumn<int>(
+    'count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _sourceBitsMeta = const VerificationMeta(
+    'sourceBits',
+  );
+  @override
+  late final GeneratedColumn<int> sourceBits = GeneratedColumn<int>(
+    'source_bits',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    songKey,
+    action,
+    standardHash,
+    mixSongId,
+    eventTimeMs,
+    count,
+    sourceBits,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stored_recommendation_profiles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StoredRecommendationProfile> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('song_key')) {
+      context.handle(
+        _songKeyMeta,
+        songKey.isAcceptableOrUnknown(data['song_key']!, _songKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_songKeyMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('standard_hash')) {
+      context.handle(
+        _standardHashMeta,
+        standardHash.isAcceptableOrUnknown(
+          data['standard_hash']!,
+          _standardHashMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mix_song_id')) {
+      context.handle(
+        _mixSongIdMeta,
+        mixSongId.isAcceptableOrUnknown(data['mix_song_id']!, _mixSongIdMeta),
+      );
+    }
+    if (data.containsKey('event_time_ms')) {
+      context.handle(
+        _eventTimeMsMeta,
+        eventTimeMs.isAcceptableOrUnknown(
+          data['event_time_ms']!,
+          _eventTimeMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_eventTimeMsMeta);
+    }
+    if (data.containsKey('count')) {
+      context.handle(
+        _countMeta,
+        count.isAcceptableOrUnknown(data['count']!, _countMeta),
+      );
+    }
+    if (data.containsKey('source_bits')) {
+      context.handle(
+        _sourceBitsMeta,
+        sourceBits.isAcceptableOrUnknown(data['source_bits']!, _sourceBitsMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId, songKey, action};
+  @override
+  StoredRecommendationProfile map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StoredRecommendationProfile(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}user_id'],
+      )!,
+      songKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}song_key'],
+      )!,
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}action'],
+      )!,
+      standardHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}standard_hash'],
+      ),
+      mixSongId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}mix_song_id'],
+      ),
+      eventTimeMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}event_time_ms'],
+      )!,
+      count: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}count'],
+      )!,
+      sourceBits: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}source_bits'],
+      )!,
+    );
+  }
+
+  @override
+  $StoredRecommendationProfilesTable createAlias(String alias) {
+    return $StoredRecommendationProfilesTable(attachedDatabase, alias);
+  }
+}
+
+class StoredRecommendationProfile extends DataClass
+    implements Insertable<StoredRecommendationProfile> {
+  final int userId;
+  final String songKey;
+  final int action;
+  final String? standardHash;
+  final int? mixSongId;
+  final int eventTimeMs;
+  final int count;
+  final int sourceBits;
+  const StoredRecommendationProfile({
+    required this.userId,
+    required this.songKey,
+    required this.action,
+    this.standardHash,
+    this.mixSongId,
+    required this.eventTimeMs,
+    required this.count,
+    required this.sourceBits,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<int>(userId);
+    map['song_key'] = Variable<String>(songKey);
+    map['action'] = Variable<int>(action);
+    if (!nullToAbsent || standardHash != null) {
+      map['standard_hash'] = Variable<String>(standardHash);
+    }
+    if (!nullToAbsent || mixSongId != null) {
+      map['mix_song_id'] = Variable<int>(mixSongId);
+    }
+    map['event_time_ms'] = Variable<int>(eventTimeMs);
+    map['count'] = Variable<int>(count);
+    map['source_bits'] = Variable<int>(sourceBits);
+    return map;
+  }
+
+  StoredRecommendationProfilesCompanion toCompanion(bool nullToAbsent) {
+    return StoredRecommendationProfilesCompanion(
+      userId: Value(userId),
+      songKey: Value(songKey),
+      action: Value(action),
+      standardHash: standardHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(standardHash),
+      mixSongId: mixSongId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mixSongId),
+      eventTimeMs: Value(eventTimeMs),
+      count: Value(count),
+      sourceBits: Value(sourceBits),
+    );
+  }
+
+  factory StoredRecommendationProfile.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StoredRecommendationProfile(
+      userId: serializer.fromJson<int>(json['userId']),
+      songKey: serializer.fromJson<String>(json['songKey']),
+      action: serializer.fromJson<int>(json['action']),
+      standardHash: serializer.fromJson<String?>(json['standardHash']),
+      mixSongId: serializer.fromJson<int?>(json['mixSongId']),
+      eventTimeMs: serializer.fromJson<int>(json['eventTimeMs']),
+      count: serializer.fromJson<int>(json['count']),
+      sourceBits: serializer.fromJson<int>(json['sourceBits']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<int>(userId),
+      'songKey': serializer.toJson<String>(songKey),
+      'action': serializer.toJson<int>(action),
+      'standardHash': serializer.toJson<String?>(standardHash),
+      'mixSongId': serializer.toJson<int?>(mixSongId),
+      'eventTimeMs': serializer.toJson<int>(eventTimeMs),
+      'count': serializer.toJson<int>(count),
+      'sourceBits': serializer.toJson<int>(sourceBits),
+    };
+  }
+
+  StoredRecommendationProfile copyWith({
+    int? userId,
+    String? songKey,
+    int? action,
+    Value<String?> standardHash = const Value.absent(),
+    Value<int?> mixSongId = const Value.absent(),
+    int? eventTimeMs,
+    int? count,
+    int? sourceBits,
+  }) => StoredRecommendationProfile(
+    userId: userId ?? this.userId,
+    songKey: songKey ?? this.songKey,
+    action: action ?? this.action,
+    standardHash: standardHash.present ? standardHash.value : this.standardHash,
+    mixSongId: mixSongId.present ? mixSongId.value : this.mixSongId,
+    eventTimeMs: eventTimeMs ?? this.eventTimeMs,
+    count: count ?? this.count,
+    sourceBits: sourceBits ?? this.sourceBits,
+  );
+  StoredRecommendationProfile copyWithCompanion(
+    StoredRecommendationProfilesCompanion data,
+  ) {
+    return StoredRecommendationProfile(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      songKey: data.songKey.present ? data.songKey.value : this.songKey,
+      action: data.action.present ? data.action.value : this.action,
+      standardHash: data.standardHash.present
+          ? data.standardHash.value
+          : this.standardHash,
+      mixSongId: data.mixSongId.present ? data.mixSongId.value : this.mixSongId,
+      eventTimeMs: data.eventTimeMs.present
+          ? data.eventTimeMs.value
+          : this.eventTimeMs,
+      count: data.count.present ? data.count.value : this.count,
+      sourceBits: data.sourceBits.present
+          ? data.sourceBits.value
+          : this.sourceBits,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoredRecommendationProfile(')
+          ..write('userId: $userId, ')
+          ..write('songKey: $songKey, ')
+          ..write('action: $action, ')
+          ..write('standardHash: $standardHash, ')
+          ..write('mixSongId: $mixSongId, ')
+          ..write('eventTimeMs: $eventTimeMs, ')
+          ..write('count: $count, ')
+          ..write('sourceBits: $sourceBits')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    userId,
+    songKey,
+    action,
+    standardHash,
+    mixSongId,
+    eventTimeMs,
+    count,
+    sourceBits,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StoredRecommendationProfile &&
+          other.userId == this.userId &&
+          other.songKey == this.songKey &&
+          other.action == this.action &&
+          other.standardHash == this.standardHash &&
+          other.mixSongId == this.mixSongId &&
+          other.eventTimeMs == this.eventTimeMs &&
+          other.count == this.count &&
+          other.sourceBits == this.sourceBits);
+}
+
+class StoredRecommendationProfilesCompanion
+    extends UpdateCompanion<StoredRecommendationProfile> {
+  final Value<int> userId;
+  final Value<String> songKey;
+  final Value<int> action;
+  final Value<String?> standardHash;
+  final Value<int?> mixSongId;
+  final Value<int> eventTimeMs;
+  final Value<int> count;
+  final Value<int> sourceBits;
+  final Value<int> rowid;
+  const StoredRecommendationProfilesCompanion({
+    this.userId = const Value.absent(),
+    this.songKey = const Value.absent(),
+    this.action = const Value.absent(),
+    this.standardHash = const Value.absent(),
+    this.mixSongId = const Value.absent(),
+    this.eventTimeMs = const Value.absent(),
+    this.count = const Value.absent(),
+    this.sourceBits = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  StoredRecommendationProfilesCompanion.insert({
+    required int userId,
+    required String songKey,
+    required int action,
+    this.standardHash = const Value.absent(),
+    this.mixSongId = const Value.absent(),
+    required int eventTimeMs,
+    this.count = const Value.absent(),
+    this.sourceBits = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       songKey = Value(songKey),
+       action = Value(action),
+       eventTimeMs = Value(eventTimeMs);
+  static Insertable<StoredRecommendationProfile> custom({
+    Expression<int>? userId,
+    Expression<String>? songKey,
+    Expression<int>? action,
+    Expression<String>? standardHash,
+    Expression<int>? mixSongId,
+    Expression<int>? eventTimeMs,
+    Expression<int>? count,
+    Expression<int>? sourceBits,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (songKey != null) 'song_key': songKey,
+      if (action != null) 'action': action,
+      if (standardHash != null) 'standard_hash': standardHash,
+      if (mixSongId != null) 'mix_song_id': mixSongId,
+      if (eventTimeMs != null) 'event_time_ms': eventTimeMs,
+      if (count != null) 'count': count,
+      if (sourceBits != null) 'source_bits': sourceBits,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  StoredRecommendationProfilesCompanion copyWith({
+    Value<int>? userId,
+    Value<String>? songKey,
+    Value<int>? action,
+    Value<String?>? standardHash,
+    Value<int?>? mixSongId,
+    Value<int>? eventTimeMs,
+    Value<int>? count,
+    Value<int>? sourceBits,
+    Value<int>? rowid,
+  }) {
+    return StoredRecommendationProfilesCompanion(
+      userId: userId ?? this.userId,
+      songKey: songKey ?? this.songKey,
+      action: action ?? this.action,
+      standardHash: standardHash ?? this.standardHash,
+      mixSongId: mixSongId ?? this.mixSongId,
+      eventTimeMs: eventTimeMs ?? this.eventTimeMs,
+      count: count ?? this.count,
+      sourceBits: sourceBits ?? this.sourceBits,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<int>(userId.value);
+    }
+    if (songKey.present) {
+      map['song_key'] = Variable<String>(songKey.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<int>(action.value);
+    }
+    if (standardHash.present) {
+      map['standard_hash'] = Variable<String>(standardHash.value);
+    }
+    if (mixSongId.present) {
+      map['mix_song_id'] = Variable<int>(mixSongId.value);
+    }
+    if (eventTimeMs.present) {
+      map['event_time_ms'] = Variable<int>(eventTimeMs.value);
+    }
+    if (count.present) {
+      map['count'] = Variable<int>(count.value);
+    }
+    if (sourceBits.present) {
+      map['source_bits'] = Variable<int>(sourceBits.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoredRecommendationProfilesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('songKey: $songKey, ')
+          ..write('action: $action, ')
+          ..write('standardHash: $standardHash, ')
+          ..write('mixSongId: $mixSongId, ')
+          ..write('eventTimeMs: $eventTimeMs, ')
+          ..write('count: $count, ')
+          ..write('sourceBits: $sourceBits, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RecommendationSyncStatesTable extends RecommendationSyncStates
+    with TableInfo<$RecommendationSyncStatesTable, RecommendationSyncState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecommendationSyncStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dayKeyMeta = const VerificationMeta('dayKey');
+  @override
+  late final GeneratedColumn<String> dayKey = GeneratedColumn<String>(
+    'day_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _successCountMeta = const VerificationMeta(
+    'successCount',
+  );
+  @override
+  late final GeneratedColumn<int> successCount = GeneratedColumn<int>(
+    'success_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _nextAllowedAtMeta = const VerificationMeta(
+    'nextAllowedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextAllowedAt =
+      GeneratedColumn<DateTime>(
+        'next_allowed_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    dayKey,
+    successCount,
+    nextAllowedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recommendation_sync_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecommendationSyncState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('day_key')) {
+      context.handle(
+        _dayKeyMeta,
+        dayKey.isAcceptableOrUnknown(data['day_key']!, _dayKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dayKeyMeta);
+    }
+    if (data.containsKey('success_count')) {
+      context.handle(
+        _successCountMeta,
+        successCount.isAcceptableOrUnknown(
+          data['success_count']!,
+          _successCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_allowed_at')) {
+      context.handle(
+        _nextAllowedAtMeta,
+        nextAllowedAt.isAcceptableOrUnknown(
+          data['next_allowed_at']!,
+          _nextAllowedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId};
+  @override
+  RecommendationSyncState map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecommendationSyncState(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}user_id'],
+      )!,
+      dayKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}day_key'],
+      )!,
+      successCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}success_count'],
+      )!,
+      nextAllowedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_allowed_at'],
+      ),
+    );
+  }
+
+  @override
+  $RecommendationSyncStatesTable createAlias(String alias) {
+    return $RecommendationSyncStatesTable(attachedDatabase, alias);
+  }
+}
+
+class RecommendationSyncState extends DataClass
+    implements Insertable<RecommendationSyncState> {
+  final int userId;
+  final String dayKey;
+  final int successCount;
+  final DateTime? nextAllowedAt;
+  const RecommendationSyncState({
+    required this.userId,
+    required this.dayKey,
+    required this.successCount,
+    this.nextAllowedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<int>(userId);
+    map['day_key'] = Variable<String>(dayKey);
+    map['success_count'] = Variable<int>(successCount);
+    if (!nullToAbsent || nextAllowedAt != null) {
+      map['next_allowed_at'] = Variable<DateTime>(nextAllowedAt);
+    }
+    return map;
+  }
+
+  RecommendationSyncStatesCompanion toCompanion(bool nullToAbsent) {
+    return RecommendationSyncStatesCompanion(
+      userId: Value(userId),
+      dayKey: Value(dayKey),
+      successCount: Value(successCount),
+      nextAllowedAt: nextAllowedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAllowedAt),
+    );
+  }
+
+  factory RecommendationSyncState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecommendationSyncState(
+      userId: serializer.fromJson<int>(json['userId']),
+      dayKey: serializer.fromJson<String>(json['dayKey']),
+      successCount: serializer.fromJson<int>(json['successCount']),
+      nextAllowedAt: serializer.fromJson<DateTime?>(json['nextAllowedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<int>(userId),
+      'dayKey': serializer.toJson<String>(dayKey),
+      'successCount': serializer.toJson<int>(successCount),
+      'nextAllowedAt': serializer.toJson<DateTime?>(nextAllowedAt),
+    };
+  }
+
+  RecommendationSyncState copyWith({
+    int? userId,
+    String? dayKey,
+    int? successCount,
+    Value<DateTime?> nextAllowedAt = const Value.absent(),
+  }) => RecommendationSyncState(
+    userId: userId ?? this.userId,
+    dayKey: dayKey ?? this.dayKey,
+    successCount: successCount ?? this.successCount,
+    nextAllowedAt: nextAllowedAt.present
+        ? nextAllowedAt.value
+        : this.nextAllowedAt,
+  );
+  RecommendationSyncState copyWithCompanion(
+    RecommendationSyncStatesCompanion data,
+  ) {
+    return RecommendationSyncState(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      dayKey: data.dayKey.present ? data.dayKey.value : this.dayKey,
+      successCount: data.successCount.present
+          ? data.successCount.value
+          : this.successCount,
+      nextAllowedAt: data.nextAllowedAt.present
+          ? data.nextAllowedAt.value
+          : this.nextAllowedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecommendationSyncState(')
+          ..write('userId: $userId, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('successCount: $successCount, ')
+          ..write('nextAllowedAt: $nextAllowedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(userId, dayKey, successCount, nextAllowedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecommendationSyncState &&
+          other.userId == this.userId &&
+          other.dayKey == this.dayKey &&
+          other.successCount == this.successCount &&
+          other.nextAllowedAt == this.nextAllowedAt);
+}
+
+class RecommendationSyncStatesCompanion
+    extends UpdateCompanion<RecommendationSyncState> {
+  final Value<int> userId;
+  final Value<String> dayKey;
+  final Value<int> successCount;
+  final Value<DateTime?> nextAllowedAt;
+  const RecommendationSyncStatesCompanion({
+    this.userId = const Value.absent(),
+    this.dayKey = const Value.absent(),
+    this.successCount = const Value.absent(),
+    this.nextAllowedAt = const Value.absent(),
+  });
+  RecommendationSyncStatesCompanion.insert({
+    this.userId = const Value.absent(),
+    required String dayKey,
+    this.successCount = const Value.absent(),
+    this.nextAllowedAt = const Value.absent(),
+  }) : dayKey = Value(dayKey);
+  static Insertable<RecommendationSyncState> custom({
+    Expression<int>? userId,
+    Expression<String>? dayKey,
+    Expression<int>? successCount,
+    Expression<DateTime>? nextAllowedAt,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (dayKey != null) 'day_key': dayKey,
+      if (successCount != null) 'success_count': successCount,
+      if (nextAllowedAt != null) 'next_allowed_at': nextAllowedAt,
+    });
+  }
+
+  RecommendationSyncStatesCompanion copyWith({
+    Value<int>? userId,
+    Value<String>? dayKey,
+    Value<int>? successCount,
+    Value<DateTime?>? nextAllowedAt,
+  }) {
+    return RecommendationSyncStatesCompanion(
+      userId: userId ?? this.userId,
+      dayKey: dayKey ?? this.dayKey,
+      successCount: successCount ?? this.successCount,
+      nextAllowedAt: nextAllowedAt ?? this.nextAllowedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<int>(userId.value);
+    }
+    if (dayKey.present) {
+      map['day_key'] = Variable<String>(dayKey.value);
+    }
+    if (successCount.present) {
+      map['success_count'] = Variable<int>(successCount.value);
+    }
+    if (nextAllowedAt.present) {
+      map['next_allowed_at'] = Variable<DateTime>(nextAllowedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecommendationSyncStatesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('dayKey: $dayKey, ')
+          ..write('successCount: $successCount, ')
+          ..write('nextAllowedAt: $nextAllowedAt')
           ..write(')'))
         .toString();
   }
@@ -3127,6 +4102,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $StoredPlaylistTracksTable(this);
   late final $LibrarySyncStatesTable librarySyncStates =
       $LibrarySyncStatesTable(this);
+  late final $StoredRecommendationProfilesTable storedRecommendationProfiles =
+      $StoredRecommendationProfilesTable(this);
+  late final $RecommendationSyncStatesTable recommendationSyncStates =
+      $RecommendationSyncStatesTable(this);
   late final $CachedResponsesTable cachedResponses = $CachedResponsesTable(
     this,
   );
@@ -3139,6 +4118,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     storedPlaylists,
     storedPlaylistTracks,
     librarySyncStates,
+    storedRecommendationProfiles,
+    recommendationSyncStates,
     cachedResponses,
   ];
 }
@@ -3578,6 +4559,7 @@ typedef $$StoredPlaylistsTableCreateCompanionBuilder =
       Value<bool> tracksLoaded,
       Value<int?> trackSnapshotCount,
       Value<DateTime?> tracksUpdatedAt,
+      Value<DateTime?> fullSnapshotUpdatedAt,
       Value<String?> tags,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -3600,6 +4582,7 @@ typedef $$StoredPlaylistsTableUpdateCompanionBuilder =
       Value<bool> tracksLoaded,
       Value<int?> trackSnapshotCount,
       Value<DateTime?> tracksUpdatedAt,
+      Value<DateTime?> fullSnapshotUpdatedAt,
       Value<String?> tags,
       Value<int> sortOrder,
       Value<int> rowid,
@@ -3691,6 +4674,11 @@ class $$StoredPlaylistsTableFilterComposer
 
   ColumnFilters<DateTime> get tracksUpdatedAt => $composableBuilder(
     column: $table.tracksUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get fullSnapshotUpdatedAt => $composableBuilder(
+    column: $table.fullSnapshotUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3794,6 +4782,11 @@ class $$StoredPlaylistsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get fullSnapshotUpdatedAt => $composableBuilder(
+    column: $table.fullSnapshotUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get tags => $composableBuilder(
     column: $table.tags,
     builder: (column) => ColumnOrderings(column),
@@ -3882,6 +4875,11 @@ class $$StoredPlaylistsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get fullSnapshotUpdatedAt => $composableBuilder(
+    column: $table.fullSnapshotUpdatedAt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
 
@@ -3942,6 +4940,7 @@ class $$StoredPlaylistsTableTableManager
                 Value<bool> tracksLoaded = const Value.absent(),
                 Value<int?> trackSnapshotCount = const Value.absent(),
                 Value<DateTime?> tracksUpdatedAt = const Value.absent(),
+                Value<DateTime?> fullSnapshotUpdatedAt = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3962,6 +4961,7 @@ class $$StoredPlaylistsTableTableManager
                 tracksLoaded: tracksLoaded,
                 trackSnapshotCount: trackSnapshotCount,
                 tracksUpdatedAt: tracksUpdatedAt,
+                fullSnapshotUpdatedAt: fullSnapshotUpdatedAt,
                 tags: tags,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -3984,6 +4984,7 @@ class $$StoredPlaylistsTableTableManager
                 Value<bool> tracksLoaded = const Value.absent(),
                 Value<int?> trackSnapshotCount = const Value.absent(),
                 Value<DateTime?> tracksUpdatedAt = const Value.absent(),
+                Value<DateTime?> fullSnapshotUpdatedAt = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4004,6 +5005,7 @@ class $$StoredPlaylistsTableTableManager
                 tracksLoaded: tracksLoaded,
                 trackSnapshotCount: trackSnapshotCount,
                 tracksUpdatedAt: tracksUpdatedAt,
+                fullSnapshotUpdatedAt: fullSnapshotUpdatedAt,
                 tags: tags,
                 sortOrder: sortOrder,
                 rowid: rowid,
@@ -4038,6 +5040,7 @@ typedef $$StoredPlaylistTracksTableCreateCompanionBuilder =
       required String playlistLocalId,
       required String songId,
       Value<int?> fileId,
+      Value<int?> collectTimeSecs,
       Value<int> position,
       Value<int> rowid,
     });
@@ -4046,6 +5049,7 @@ typedef $$StoredPlaylistTracksTableUpdateCompanionBuilder =
       Value<String> playlistLocalId,
       Value<String> songId,
       Value<int?> fileId,
+      Value<int?> collectTimeSecs,
       Value<int> position,
       Value<int> rowid,
     });
@@ -4071,6 +5075,11 @@ class $$StoredPlaylistTracksTableFilterComposer
 
   ColumnFilters<int> get fileId => $composableBuilder(
     column: $table.fileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get collectTimeSecs => $composableBuilder(
+    column: $table.collectTimeSecs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4104,6 +5113,11 @@ class $$StoredPlaylistTracksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get collectTimeSecs => $composableBuilder(
+    column: $table.collectTimeSecs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get position => $composableBuilder(
     column: $table.position,
     builder: (column) => ColumnOrderings(column),
@@ -4129,6 +5143,11 @@ class $$StoredPlaylistTracksTableAnnotationComposer
 
   GeneratedColumn<int> get fileId =>
       $composableBuilder(column: $table.fileId, builder: (column) => column);
+
+  GeneratedColumn<int> get collectTimeSecs => $composableBuilder(
+    column: $table.collectTimeSecs,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get position =>
       $composableBuilder(column: $table.position, builder: (column) => column);
@@ -4180,12 +5199,14 @@ class $$StoredPlaylistTracksTableTableManager
                 Value<String> playlistLocalId = const Value.absent(),
                 Value<String> songId = const Value.absent(),
                 Value<int?> fileId = const Value.absent(),
+                Value<int?> collectTimeSecs = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StoredPlaylistTracksCompanion(
                 playlistLocalId: playlistLocalId,
                 songId: songId,
                 fileId: fileId,
+                collectTimeSecs: collectTimeSecs,
                 position: position,
                 rowid: rowid,
               ),
@@ -4194,12 +5215,14 @@ class $$StoredPlaylistTracksTableTableManager
                 required String playlistLocalId,
                 required String songId,
                 Value<int?> fileId = const Value.absent(),
+                Value<int?> collectTimeSecs = const Value.absent(),
                 Value<int> position = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StoredPlaylistTracksCompanion.insert(
                 playlistLocalId: playlistLocalId,
                 songId: songId,
                 fileId: fileId,
+                collectTimeSecs: collectTimeSecs,
                 position: position,
                 rowid: rowid,
               ),
@@ -4445,6 +5468,486 @@ typedef $$LibrarySyncStatesTableProcessedTableManager =
       LibrarySyncState,
       PrefetchHooks Function()
     >;
+typedef $$StoredRecommendationProfilesTableCreateCompanionBuilder =
+    StoredRecommendationProfilesCompanion Function({
+      required int userId,
+      required String songKey,
+      required int action,
+      Value<String?> standardHash,
+      Value<int?> mixSongId,
+      required int eventTimeMs,
+      Value<int> count,
+      Value<int> sourceBits,
+      Value<int> rowid,
+    });
+typedef $$StoredRecommendationProfilesTableUpdateCompanionBuilder =
+    StoredRecommendationProfilesCompanion Function({
+      Value<int> userId,
+      Value<String> songKey,
+      Value<int> action,
+      Value<String?> standardHash,
+      Value<int?> mixSongId,
+      Value<int> eventTimeMs,
+      Value<int> count,
+      Value<int> sourceBits,
+      Value<int> rowid,
+    });
+
+class $$StoredRecommendationProfilesTableFilterComposer
+    extends Composer<_$AppDatabase, $StoredRecommendationProfilesTable> {
+  $$StoredRecommendationProfilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get songKey => $composableBuilder(
+    column: $table.songKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get standardHash => $composableBuilder(
+    column: $table.standardHash,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get mixSongId => $composableBuilder(
+    column: $table.mixSongId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get eventTimeMs => $composableBuilder(
+    column: $table.eventTimeMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sourceBits => $composableBuilder(
+    column: $table.sourceBits,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StoredRecommendationProfilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StoredRecommendationProfilesTable> {
+  $$StoredRecommendationProfilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get songKey => $composableBuilder(
+    column: $table.songKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get standardHash => $composableBuilder(
+    column: $table.standardHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get mixSongId => $composableBuilder(
+    column: $table.mixSongId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get eventTimeMs => $composableBuilder(
+    column: $table.eventTimeMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get count => $composableBuilder(
+    column: $table.count,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sourceBits => $composableBuilder(
+    column: $table.sourceBits,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StoredRecommendationProfilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StoredRecommendationProfilesTable> {
+  $$StoredRecommendationProfilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get songKey =>
+      $composableBuilder(column: $table.songKey, builder: (column) => column);
+
+  GeneratedColumn<int> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<String> get standardHash => $composableBuilder(
+    column: $table.standardHash,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get mixSongId =>
+      $composableBuilder(column: $table.mixSongId, builder: (column) => column);
+
+  GeneratedColumn<int> get eventTimeMs => $composableBuilder(
+    column: $table.eventTimeMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get count =>
+      $composableBuilder(column: $table.count, builder: (column) => column);
+
+  GeneratedColumn<int> get sourceBits => $composableBuilder(
+    column: $table.sourceBits,
+    builder: (column) => column,
+  );
+}
+
+class $$StoredRecommendationProfilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StoredRecommendationProfilesTable,
+          StoredRecommendationProfile,
+          $$StoredRecommendationProfilesTableFilterComposer,
+          $$StoredRecommendationProfilesTableOrderingComposer,
+          $$StoredRecommendationProfilesTableAnnotationComposer,
+          $$StoredRecommendationProfilesTableCreateCompanionBuilder,
+          $$StoredRecommendationProfilesTableUpdateCompanionBuilder,
+          (
+            StoredRecommendationProfile,
+            BaseReferences<
+              _$AppDatabase,
+              $StoredRecommendationProfilesTable,
+              StoredRecommendationProfile
+            >,
+          ),
+          StoredRecommendationProfile,
+          PrefetchHooks Function()
+        > {
+  $$StoredRecommendationProfilesTableTableManager(
+    _$AppDatabase db,
+    $StoredRecommendationProfilesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StoredRecommendationProfilesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$StoredRecommendationProfilesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$StoredRecommendationProfilesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> userId = const Value.absent(),
+                Value<String> songKey = const Value.absent(),
+                Value<int> action = const Value.absent(),
+                Value<String?> standardHash = const Value.absent(),
+                Value<int?> mixSongId = const Value.absent(),
+                Value<int> eventTimeMs = const Value.absent(),
+                Value<int> count = const Value.absent(),
+                Value<int> sourceBits = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StoredRecommendationProfilesCompanion(
+                userId: userId,
+                songKey: songKey,
+                action: action,
+                standardHash: standardHash,
+                mixSongId: mixSongId,
+                eventTimeMs: eventTimeMs,
+                count: count,
+                sourceBits: sourceBits,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int userId,
+                required String songKey,
+                required int action,
+                Value<String?> standardHash = const Value.absent(),
+                Value<int?> mixSongId = const Value.absent(),
+                required int eventTimeMs,
+                Value<int> count = const Value.absent(),
+                Value<int> sourceBits = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => StoredRecommendationProfilesCompanion.insert(
+                userId: userId,
+                songKey: songKey,
+                action: action,
+                standardHash: standardHash,
+                mixSongId: mixSongId,
+                eventTimeMs: eventTimeMs,
+                count: count,
+                sourceBits: sourceBits,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StoredRecommendationProfilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StoredRecommendationProfilesTable,
+      StoredRecommendationProfile,
+      $$StoredRecommendationProfilesTableFilterComposer,
+      $$StoredRecommendationProfilesTableOrderingComposer,
+      $$StoredRecommendationProfilesTableAnnotationComposer,
+      $$StoredRecommendationProfilesTableCreateCompanionBuilder,
+      $$StoredRecommendationProfilesTableUpdateCompanionBuilder,
+      (
+        StoredRecommendationProfile,
+        BaseReferences<
+          _$AppDatabase,
+          $StoredRecommendationProfilesTable,
+          StoredRecommendationProfile
+        >,
+      ),
+      StoredRecommendationProfile,
+      PrefetchHooks Function()
+    >;
+typedef $$RecommendationSyncStatesTableCreateCompanionBuilder =
+    RecommendationSyncStatesCompanion Function({
+      Value<int> userId,
+      required String dayKey,
+      Value<int> successCount,
+      Value<DateTime?> nextAllowedAt,
+    });
+typedef $$RecommendationSyncStatesTableUpdateCompanionBuilder =
+    RecommendationSyncStatesCompanion Function({
+      Value<int> userId,
+      Value<String> dayKey,
+      Value<int> successCount,
+      Value<DateTime?> nextAllowedAt,
+    });
+
+class $$RecommendationSyncStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecommendationSyncStatesTable> {
+  $$RecommendationSyncStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get successCount => $composableBuilder(
+    column: $table.successCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextAllowedAt => $composableBuilder(
+    column: $table.nextAllowedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RecommendationSyncStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecommendationSyncStatesTable> {
+  $$RecommendationSyncStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dayKey => $composableBuilder(
+    column: $table.dayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get successCount => $composableBuilder(
+    column: $table.successCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextAllowedAt => $composableBuilder(
+    column: $table.nextAllowedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecommendationSyncStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecommendationSyncStatesTable> {
+  $$RecommendationSyncStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get dayKey =>
+      $composableBuilder(column: $table.dayKey, builder: (column) => column);
+
+  GeneratedColumn<int> get successCount => $composableBuilder(
+    column: $table.successCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextAllowedAt => $composableBuilder(
+    column: $table.nextAllowedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$RecommendationSyncStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecommendationSyncStatesTable,
+          RecommendationSyncState,
+          $$RecommendationSyncStatesTableFilterComposer,
+          $$RecommendationSyncStatesTableOrderingComposer,
+          $$RecommendationSyncStatesTableAnnotationComposer,
+          $$RecommendationSyncStatesTableCreateCompanionBuilder,
+          $$RecommendationSyncStatesTableUpdateCompanionBuilder,
+          (
+            RecommendationSyncState,
+            BaseReferences<
+              _$AppDatabase,
+              $RecommendationSyncStatesTable,
+              RecommendationSyncState
+            >,
+          ),
+          RecommendationSyncState,
+          PrefetchHooks Function()
+        > {
+  $$RecommendationSyncStatesTableTableManager(
+    _$AppDatabase db,
+    $RecommendationSyncStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecommendationSyncStatesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$RecommendationSyncStatesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$RecommendationSyncStatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> userId = const Value.absent(),
+                Value<String> dayKey = const Value.absent(),
+                Value<int> successCount = const Value.absent(),
+                Value<DateTime?> nextAllowedAt = const Value.absent(),
+              }) => RecommendationSyncStatesCompanion(
+                userId: userId,
+                dayKey: dayKey,
+                successCount: successCount,
+                nextAllowedAt: nextAllowedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> userId = const Value.absent(),
+                required String dayKey,
+                Value<int> successCount = const Value.absent(),
+                Value<DateTime?> nextAllowedAt = const Value.absent(),
+              }) => RecommendationSyncStatesCompanion.insert(
+                userId: userId,
+                dayKey: dayKey,
+                successCount: successCount,
+                nextAllowedAt: nextAllowedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecommendationSyncStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecommendationSyncStatesTable,
+      RecommendationSyncState,
+      $$RecommendationSyncStatesTableFilterComposer,
+      $$RecommendationSyncStatesTableOrderingComposer,
+      $$RecommendationSyncStatesTableAnnotationComposer,
+      $$RecommendationSyncStatesTableCreateCompanionBuilder,
+      $$RecommendationSyncStatesTableUpdateCompanionBuilder,
+      (
+        RecommendationSyncState,
+        BaseReferences<
+          _$AppDatabase,
+          $RecommendationSyncStatesTable,
+          RecommendationSyncState
+        >,
+      ),
+      RecommendationSyncState,
+      PrefetchHooks Function()
+    >;
 typedef $$CachedResponsesTableCreateCompanionBuilder =
     CachedResponsesCompanion Function({
       required String cacheKey,
@@ -4688,6 +6191,17 @@ class $AppDatabaseManager {
       $$StoredPlaylistTracksTableTableManager(_db, _db.storedPlaylistTracks);
   $$LibrarySyncStatesTableTableManager get librarySyncStates =>
       $$LibrarySyncStatesTableTableManager(_db, _db.librarySyncStates);
+  $$StoredRecommendationProfilesTableTableManager
+  get storedRecommendationProfiles =>
+      $$StoredRecommendationProfilesTableTableManager(
+        _db,
+        _db.storedRecommendationProfiles,
+      );
+  $$RecommendationSyncStatesTableTableManager get recommendationSyncStates =>
+      $$RecommendationSyncStatesTableTableManager(
+        _db,
+        _db.recommendationSyncStates,
+      );
   $$CachedResponsesTableTableManager get cachedResponses =>
       $$CachedResponsesTableTableManager(_db, _db.cachedResponses);
 }

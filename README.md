@@ -1,7 +1,7 @@
 # KGMusic
 
 KGMusic 是一个 Android-first 的 Flutter 音乐客户端，使用 Rust
-`kugou_sdk = 0.2.4` 访问酷狗 Lite（概念版）接口。项目不会回退到 Standard
+`kugou_sdk = 0.2.8` 访问酷狗 Lite（概念版）接口。项目不会回退到 Standard
 后端。
 
 ## 当前首轮能力

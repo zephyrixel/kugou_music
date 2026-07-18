@@ -11,6 +11,7 @@ class Song {
     this.albumId,
     this.mixSongId,
     this.fileId,
+    this.collectTimeSecs,
   });
 
   final String id;
@@ -23,6 +24,7 @@ class Song {
   final int? albumId;
   final int? mixSongId;
   final int? fileId;
+  final int? collectTimeSecs;
   final AudioHashes hashes;
 
   String get artistLabel =>
@@ -39,6 +41,7 @@ class Song {
     albumId: albumId,
     mixSongId: mixSongId,
     fileId: fileId,
+    collectTimeSecs: collectTimeSecs,
     hashes: hashes,
   );
 }

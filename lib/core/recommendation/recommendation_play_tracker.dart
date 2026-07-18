@@ -1,54 +1,68 @@
-import 'dart:async';
-
 import 'package:kgmusic/core/models/song.dart';
 
-/// Reports a song after meaningful playback time instead of on resource load.
+typedef PlaybackProfileRecorder =
+    Future<void> Function(
+      Song song, {
+      required Duration listened,
+      required int sourceBits,
+    });
+
+/// Tracks wall-clock listening time for one playback session.
 class RecommendationPlayTracker {
-  RecommendationPlayTracker(this._onQualifiedPlay);
+  RecommendationPlayTracker(this._record, {Duration Function()? elapsedNow})
+    : _elapsedNow = elapsedNow ?? _defaultElapsedNow;
 
-  final Future<void> Function(Song song) _onQualifiedPlay;
+  static final Stopwatch _clock = Stopwatch()..start();
+
+  final PlaybackProfileRecorder _record;
+  final Duration Function() _elapsedNow;
   Song? _song;
-  Duration? _duration;
-  bool _reported = false;
+  int _sourceBits = 0;
+  Duration _listened = Duration.zero;
+  Duration? _playingSince;
 
-  void activate(Song song, {Duration? duration, bool newPlayback = true}) {
+  void activate(Song song, {required int sourceBits, bool newPlayback = true}) {
     if (!newPlayback && _song?.id == song.id) {
       _song = song;
-      _duration = duration ?? _duration;
+      _sourceBits |= sourceBits;
       return;
     }
     _song = song;
-    _duration = duration;
-    _reported = false;
+    _sourceBits = sourceBits;
+    _listened = Duration.zero;
+    _playingSince = null;
   }
 
-  void update({
-    required Duration position,
-    required bool playing,
-    Duration? duration,
-  }) {
-    if (!playing || _reported || _song == null) return;
-    _duration = duration ?? _duration;
-    if (position < _threshold) return;
-    _reported = true;
-    unawaited(_onQualifiedPlay(_song!));
+  void update({required bool playing}) {
+    if (_song == null) return;
+    final now = _elapsedNow();
+    if (playing) {
+      _playingSince ??= now;
+      return;
+    }
+    final startedAt = _playingSince;
+    if (startedAt != null && now > startedAt) {
+      _listened += now - startedAt;
+    }
+    _playingSince = null;
+  }
+
+  Future<void> finish() async {
+    update(playing: false);
+    final song = _song;
+    final listened = _listened;
+    final sourceBits = _sourceBits;
+    reset();
+    if (song == null || listened <= Duration.zero) return;
+    await _record(song, listened: listened, sourceBits: sourceBits);
   }
 
   void reset() {
     _song = null;
-    _duration = null;
-    _reported = false;
+    _sourceBits = 0;
+    _listened = Duration.zero;
+    _playingSince = null;
   }
 
-  Duration get _threshold {
-    final duration = _duration;
-    if (duration == null || duration <= Duration.zero) {
-      return const Duration(seconds: 30);
-    }
-    final half = duration ~/ 2;
-    if (half <= Duration.zero) return const Duration(seconds: 1);
-    return half < const Duration(seconds: 30)
-        ? half
-        : const Duration(seconds: 30);
-  }
+  static Duration _defaultElapsedNow() => _clock.elapsed;
 }

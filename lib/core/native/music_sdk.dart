@@ -49,8 +49,11 @@ abstract interface class RecommendationSdk {
     List<int> currentMixSongIds = const [],
   });
   Future<RecommendationReportAck> reportRecommendationHistory(
-    List<RecommendationHistoryEvent> items, {
-    int? previousSyncPoint,
+    List<RecommendationProfileItem> items, {
+    required bool complete,
+    required int previousSyncPoint,
+    required int nextSyncPoint,
+    String? lastUploadHash,
   });
   Future<void> reportRecommendationRepeated(
     List<String> hashes, {
@@ -244,26 +247,38 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
 
   @override
   Future<RecommendationReportAck> reportRecommendationHistory(
-    List<RecommendationHistoryEvent> items, {
-    int? previousSyncPoint,
+    List<RecommendationProfileItem> items, {
+    required bool complete,
+    required int previousSyncPoint,
+    required int nextSyncPoint,
+    String? lastUploadHash,
   }) => _guard(() async {
     final value = await bridge.reportRecommendationHistory(
       items: items
           .map(
-            (item) => bridge.RecommendationHistoryItemDto(
+            (item) => bridge.RecommendationProfileItemDto(
               action: switch (item.action) {
-                RecommendationHistoryAction.play =>
-                  bridge.RecommendationHistoryActionDto.play,
-                RecommendationHistoryAction.collect =>
-                  bridge.RecommendationHistoryActionDto.collect,
-                RecommendationHistoryAction.trash =>
-                  bridge.RecommendationHistoryActionDto.trash,
+                RecommendationProfileAction.collect =>
+                  bridge.RecommendationProfileActionDto.collect,
+                RecommendationProfileAction.playComplete =>
+                  bridge.RecommendationProfileActionDto.playComplete,
+                RecommendationProfileAction.playShort =>
+                  bridge.RecommendationProfileActionDto.playShort,
+                RecommendationProfileAction.trash =>
+                  bridge.RecommendationProfileActionDto.trash,
               },
-              song: _songToDto(item.song),
+              standardHash: item.standardHash,
+              mixSongId: item.mixSongId,
+              eventTimeMs: item.eventTimeMs,
+              count: item.count,
+              sourceBits: item.sourceBits,
             ),
           )
           .toList(growable: false),
       previousSyncPoint: previousSyncPoint,
+      nextSyncPoint: nextSyncPoint,
+      complete: complete,
+      lastUploadHash: lastUploadHash,
     );
     return RecommendationReportAck(
       syncPoint: value.syncPoint,
@@ -752,6 +767,7 @@ Song _songFromDto(bridge.SongDto value) => Song(
   albumId: value.albumId,
   mixSongId: value.mixSongId,
   fileId: value.fileId,
+  collectTimeSecs: value.collectTimeSecs,
   hashes: AudioHashes(
     standard: value.hashes.standard,
     high: value.hashes.high,
@@ -772,6 +788,7 @@ bridge.SongDto _songToDto(Song value) => bridge.SongDto(
   albumId: value.albumId,
   mixSongId: value.mixSongId,
   fileId: value.fileId,
+  collectTimeSecs: value.collectTimeSecs,
   hashes: bridge.AudioHashesDto(
     standard: value.hashes.standard,
     high: value.hashes.high,
@@ -847,6 +864,8 @@ RecommendationBatch _recommendationBatch(bridge.RecommendationBatchDto value) =>
       subtitle: value.subtitle,
       markList: value.markList,
       mark: value.mark,
+      syncNeed: value.syncNeed,
+      syncPoint: value.syncPoint,
       songs: value.songs.map(_songFromDto).toList(growable: false),
     );
 

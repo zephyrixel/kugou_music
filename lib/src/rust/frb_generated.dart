@@ -193,8 +193,11 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<RecommendationReportAckDto> crateApiSdkReportRecommendationHistory({
-    required List<RecommendationHistoryItemDto> items,
-    int? previousSyncPoint,
+    required List<RecommendationProfileItemDto> items,
+    required bool complete,
+    required int previousSyncPoint,
+    required int nextSyncPoint,
+    String? lastUploadHash,
   });
 
   Future<void> crateApiSdkReportRecommendationRepeated({
@@ -1249,15 +1252,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<RecommendationReportAckDto> crateApiSdkReportRecommendationHistory({
-    required List<RecommendationHistoryItemDto> items,
-    int? previousSyncPoint,
+    required List<RecommendationProfileItemDto> items,
+    required bool complete,
+    required int previousSyncPoint,
+    required int nextSyncPoint,
+    String? lastUploadHash,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_list_recommendation_history_item_dto(items, serializer);
-          sse_encode_opt_CastedPrimitive_i_64(previousSyncPoint, serializer);
+          sse_encode_list_recommendation_profile_item_dto(items, serializer);
+          sse_encode_bool(complete, serializer);
+          sse_encode_CastedPrimitive_i_64(previousSyncPoint, serializer);
+          sse_encode_CastedPrimitive_i_64(nextSyncPoint, serializer);
+          sse_encode_opt_String(lastUploadHash, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1270,7 +1279,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_bridge_error,
         ),
         constMeta: kCrateApiSdkReportRecommendationHistoryConstMeta,
-        argValues: [items, previousSyncPoint],
+        argValues: [
+          items,
+          complete,
+          previousSyncPoint,
+          nextSyncPoint,
+          lastUploadHash,
+        ],
         apiImpl: this,
       ),
     );
@@ -1279,7 +1294,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiSdkReportRecommendationHistoryConstMeta =>
       const TaskConstMeta(
         debugName: "report_recommendation_history",
-        argNames: ["items", "previousSyncPoint"],
+        argNames: [
+          "items",
+          "complete",
+          "previousSyncPoint",
+          "nextSyncPoint",
+          "lastUploadHash",
+        ],
       );
 
   @override
@@ -1897,11 +1918,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<RecommendationHistoryItemDto>
-  dco_decode_list_recommendation_history_item_dto(dynamic raw) {
+  List<RecommendationProfileItemDto>
+  dco_decode_list_recommendation_profile_item_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>)
-        .map(dco_decode_recommendation_history_item_dto)
+        .map(dco_decode_recommendation_profile_item_dto)
         .toList();
   }
 
@@ -2147,36 +2168,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RecommendationBatchDto dco_decode_recommendation_batch_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return RecommendationBatchDto(
       title: dco_decode_String(arr[0]),
       subtitle: dco_decode_opt_String(arr[1]),
       markList: dco_decode_opt_String(arr[2]),
       mark: dco_decode_opt_String(arr[3]),
-      songs: dco_decode_list_song_dto(arr[4]),
+      syncNeed: dco_decode_opt_CastedPrimitive_i_64(arr[4]),
+      syncPoint: dco_decode_opt_CastedPrimitive_i_64(arr[5]),
+      songs: dco_decode_list_song_dto(arr[6]),
     );
   }
 
   @protected
-  RecommendationHistoryActionDto dco_decode_recommendation_history_action_dto(
+  RecommendationProfileActionDto dco_decode_recommendation_profile_action_dto(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
-    return RecommendationHistoryActionDto.values[raw as int];
+    return RecommendationProfileActionDto.values[raw as int];
   }
 
   @protected
-  RecommendationHistoryItemDto dco_decode_recommendation_history_item_dto(
+  RecommendationProfileItemDto dco_decode_recommendation_profile_item_dto(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return RecommendationHistoryItemDto(
-      action: dco_decode_recommendation_history_action_dto(arr[0]),
-      song: dco_decode_song_dto(arr[1]),
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return RecommendationProfileItemDto(
+      action: dco_decode_recommendation_profile_action_dto(arr[0]),
+      standardHash: dco_decode_opt_String(arr[1]),
+      mixSongId: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
+      eventTimeMs: dco_decode_CastedPrimitive_i_64(arr[3]),
+      count: dco_decode_u_32(arr[4]),
+      sourceBits: dco_decode_u_32(arr[5]),
     );
   }
 
@@ -2226,8 +2253,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SongDto dco_decode_song_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return SongDto(
       id: dco_decode_String(arr[0]),
       title: dco_decode_String(arr[1]),
@@ -2239,7 +2266,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albumId: dco_decode_opt_CastedPrimitive_u_64(arr[7]),
       mixSongId: dco_decode_opt_CastedPrimitive_u_64(arr[8]),
       fileId: dco_decode_opt_CastedPrimitive_u_64(arr[9]),
-      hashes: dco_decode_audio_hashes_dto(arr[10]),
+      collectTimeSecs: dco_decode_opt_CastedPrimitive_u_64(arr[10]),
+      hashes: dco_decode_audio_hashes_dto(arr[11]),
     );
   }
 
@@ -2846,16 +2874,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<RecommendationHistoryItemDto>
-  sse_decode_list_recommendation_history_item_dto(
+  List<RecommendationProfileItemDto>
+  sse_decode_list_recommendation_profile_item_dto(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <RecommendationHistoryItemDto>[];
+    var ans_ = <RecommendationProfileItemDto>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_recommendation_history_item_dto(deserializer));
+      ans_.add(sse_decode_recommendation_profile_item_dto(deserializer));
     }
     return ans_;
   }
@@ -3199,33 +3227,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_subtitle = sse_decode_opt_String(deserializer);
     var var_markList = sse_decode_opt_String(deserializer);
     var var_mark = sse_decode_opt_String(deserializer);
+    var var_syncNeed = sse_decode_opt_CastedPrimitive_i_64(deserializer);
+    var var_syncPoint = sse_decode_opt_CastedPrimitive_i_64(deserializer);
     var var_songs = sse_decode_list_song_dto(deserializer);
     return RecommendationBatchDto(
       title: var_title,
       subtitle: var_subtitle,
       markList: var_markList,
       mark: var_mark,
+      syncNeed: var_syncNeed,
+      syncPoint: var_syncPoint,
       songs: var_songs,
     );
   }
 
   @protected
-  RecommendationHistoryActionDto sse_decode_recommendation_history_action_dto(
+  RecommendationProfileActionDto sse_decode_recommendation_profile_action_dto(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
-    return RecommendationHistoryActionDto.values[inner];
+    return RecommendationProfileActionDto.values[inner];
   }
 
   @protected
-  RecommendationHistoryItemDto sse_decode_recommendation_history_item_dto(
+  RecommendationProfileItemDto sse_decode_recommendation_profile_item_dto(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_action = sse_decode_recommendation_history_action_dto(deserializer);
-    var var_song = sse_decode_song_dto(deserializer);
-    return RecommendationHistoryItemDto(action: var_action, song: var_song);
+    var var_action = sse_decode_recommendation_profile_action_dto(deserializer);
+    var var_standardHash = sse_decode_opt_String(deserializer);
+    var var_mixSongId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_eventTimeMs = sse_decode_CastedPrimitive_i_64(deserializer);
+    var var_count = sse_decode_u_32(deserializer);
+    var var_sourceBits = sse_decode_u_32(deserializer);
+    return RecommendationProfileItemDto(
+      action: var_action,
+      standardHash: var_standardHash,
+      mixSongId: var_mixSongId,
+      eventTimeMs: var_eventTimeMs,
+      count: var_count,
+      sourceBits: var_sourceBits,
+    );
   }
 
   @protected
@@ -3282,6 +3325,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_albumId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_mixSongId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_fileId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_collectTimeSecs = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_hashes = sse_decode_audio_hashes_dto(deserializer);
     return SongDto(
       id: var_id,
@@ -3294,6 +3338,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       albumId: var_albumId,
       mixSongId: var_mixSongId,
       fileId: var_fileId,
+      collectTimeSecs: var_collectTimeSecs,
       hashes: var_hashes,
     );
   }
@@ -3859,14 +3904,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_recommendation_history_item_dto(
-    List<RecommendationHistoryItemDto> self,
+  void sse_encode_list_recommendation_profile_item_dto(
+    List<RecommendationProfileItemDto> self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
-      sse_encode_recommendation_history_item_dto(item, serializer);
+      sse_encode_recommendation_profile_item_dto(item, serializer);
     }
   }
 
@@ -4152,12 +4197,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.subtitle, serializer);
     sse_encode_opt_String(self.markList, serializer);
     sse_encode_opt_String(self.mark, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.syncNeed, serializer);
+    sse_encode_opt_CastedPrimitive_i_64(self.syncPoint, serializer);
     sse_encode_list_song_dto(self.songs, serializer);
   }
 
   @protected
-  void sse_encode_recommendation_history_action_dto(
-    RecommendationHistoryActionDto self,
+  void sse_encode_recommendation_profile_action_dto(
+    RecommendationProfileActionDto self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -4165,13 +4212,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_recommendation_history_item_dto(
-    RecommendationHistoryItemDto self,
+  void sse_encode_recommendation_profile_item_dto(
+    RecommendationProfileItemDto self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_recommendation_history_action_dto(self.action, serializer);
-    sse_encode_song_dto(self.song, serializer);
+    sse_encode_recommendation_profile_action_dto(self.action, serializer);
+    sse_encode_opt_String(self.standardHash, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.mixSongId, serializer);
+    sse_encode_CastedPrimitive_i_64(self.eventTimeMs, serializer);
+    sse_encode_u_32(self.count, serializer);
+    sse_encode_u_32(self.sourceBits, serializer);
   }
 
   @protected
@@ -4219,6 +4270,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_CastedPrimitive_u_64(self.albumId, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.mixSongId, serializer);
     sse_encode_opt_CastedPrimitive_u_64(self.fileId, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.collectTimeSecs, serializer);
     sse_encode_audio_hashes_dto(self.hashes, serializer);
   }
 

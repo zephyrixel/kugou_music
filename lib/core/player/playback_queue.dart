@@ -37,6 +37,17 @@ extension PlaybackQueueOriginKindInfo on PlaybackQueueOriginKind {
     PlaybackQueueOriginKind.heartRadio => '红心电台',
     PlaybackQueueOriginKind.discovery => '为你发现',
   };
+
+  int get profileSourceBits => switch (this) {
+    PlaybackQueueOriginKind.search => 1,
+    PlaybackQueueOriginKind.history => 8,
+    PlaybackQueueOriginKind.favorites => 16,
+    PlaybackQueueOriginKind.personalFm => 128,
+    PlaybackQueueOriginKind.dailyRecommendations => 256,
+    PlaybackQueueOriginKind.heartRadio => 1024,
+    PlaybackQueueOriginKind.publicPlaylist => 2048,
+    _ => 0,
+  };
 }
 
 class PlaybackQueueOrigin {
@@ -45,12 +56,16 @@ class PlaybackQueueOrigin {
     required this.title,
     this.id,
     this.totalCount,
+    this.sourceBits,
   });
 
   final PlaybackQueueOriginKind kind;
   final String title;
   final String? id;
   final int? totalCount;
+  final int? sourceBits;
+
+  int get profileSourceBits => sourceBits ?? kind.profileSourceBits;
 
   String get displayTitle => title.trim().isEmpty ? kind.label : title;
 
@@ -60,6 +75,7 @@ class PlaybackQueueOrigin {
         title: title ?? this.title,
         id: id,
         totalCount: totalCount ?? this.totalCount,
+        sourceBits: sourceBits,
       );
 }
 

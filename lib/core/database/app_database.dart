@@ -22,6 +22,8 @@ class CachedResponses extends Table {
     StoredPlaylists,
     StoredPlaylistTracks,
     LibrarySyncStates,
+    StoredRecommendationProfiles,
+    RecommendationSyncStates,
     CachedResponses,
   ],
 )
@@ -30,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   DateTime? _lastResponsePruneAt;
   int _responseWritesSincePrune = 0;
@@ -78,6 +80,23 @@ class AppDatabase extends _$AppDatabase {
           storedPlaylists,
           storedPlaylists.tracksUpdatedAt,
         );
+      }
+      if (from < 7) {
+        // Versions before 5 rebuild the library tables from the current
+        // definitions above, so those columns already exist in the rebuilt
+        // tables. Only an existing v5/v6 table needs ALTER TABLE here.
+        if (from >= 5) {
+          await migrator.addColumn(
+            storedPlaylists,
+            storedPlaylists.fullSnapshotUpdatedAt,
+          );
+          await migrator.addColumn(
+            storedPlaylistTracks,
+            storedPlaylistTracks.collectTimeSecs,
+          );
+        }
+        await migrator.createTable(storedRecommendationProfiles);
+        await migrator.createTable(recommendationSyncStates);
       }
     },
   );

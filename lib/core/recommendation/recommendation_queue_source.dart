@@ -93,9 +93,18 @@ class RecommendationQueueSource
 
   @override
   void reportDislike(RecommendationFeedbackContext context) {
-    _reporter.reportTrash(context.song);
-    if (kind != RecommendationKind.personalFm) return;
-    _runFeedback('不感兴趣', PersonalFmAction.garbage, context);
+    unawaited(_recordDislike(context));
+  }
+
+  Future<void> _recordDislike(RecommendationFeedbackContext context) async {
+    try {
+      await _reporter.recordTrash(context.song);
+      if (kind == RecommendationKind.personalFm) {
+        _runFeedback('不感兴趣', PersonalFmAction.garbage, context);
+      }
+    } catch (error) {
+      _reporter.reportError('不感兴趣记录', error);
+    }
   }
 
   void _runFeedback(
@@ -151,6 +160,12 @@ class RecommendationQueueSource
       ),
     };
     final value = await batch;
+    if (kind == RecommendationKind.personalFm) {
+      _reporter.onPersonalFmSuccess(
+        syncNeed: value.syncNeed,
+        syncPoint: value.syncPoint,
+      );
+    }
     if (value.markList?.trim().isNotEmpty == true) {
       _markList = value.markList;
     }

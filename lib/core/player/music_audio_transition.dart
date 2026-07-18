@@ -141,20 +141,11 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       _audioCache.setActive(prepared.audioHandle);
       _currentAudioHandle = prepared.audioHandle;
       _currentMediaDuration = actualDuration;
-      final songDuration =
-          actualDuration ??
-          (prepared.song.durationSecs == null
-              ? null
-              : Duration(seconds: prepared.song.durationSecs!));
-      final recommendationDuration =
-          prepared.previewEnd != null &&
-              (songDuration == null || prepared.previewEnd! < songDuration)
-          ? prepared.previewEnd
-          : songDuration;
+      if (recordHistory) await _finishRecommendationSession();
       _recommendationPlayTracker.activate(
         prepared.song,
+        sourceBits: request.origin.profileSourceBits,
         newPlayback: recordHistory,
-        duration: recommendationDuration,
       );
       _restoredPosition = null;
       _previewEnd = prepared.previewEnd;
@@ -260,7 +251,14 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     if (_advancing) return;
     _advancing = true;
     try {
+      await _finishRecommendationSession();
       if (_order == PlaybackOrder.repeatOne) {
+        if (_index >= 0 && _index < _songs.length) {
+          _recommendationPlayTracker.activate(
+            _songs[_index],
+            sourceBits: _queueRequest?.origin.profileSourceBits ?? 0,
+          );
+        }
         await seek(Duration.zero);
         await play();
         return;

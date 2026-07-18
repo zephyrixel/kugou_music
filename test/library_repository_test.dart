@@ -47,10 +47,11 @@ void main() {
 
     final playlists = await store.watchPlaylists().first;
     expect(playlists.map((item) => item.name), ['我喜欢']);
-    expect(await store.watchFavoriteSongs().first, isEmpty);
-    expect(sdk.trackCalls, isEmpty);
+    await library.ensureFavoriteIndex();
+    expect((await store.watchFavoriteSongs().first).single.id, remoteSong.id);
+    expect(sdk.trackCalls, ['gid:2:1']);
     await library.syncNow();
-    expect(sdk.trackCalls, isEmpty);
+    expect(sdk.trackCalls, ['gid:2:1']);
     expect((await store.watchHistory().first).single.playCount, 4);
     expect((await store.syncState)?.userId, 99);
   });
@@ -80,11 +81,11 @@ void main() {
       sdk.tracksByListId[4] = const [localSong];
       await library.activate(99);
       await library.refreshPlaylistSnapshot('remote:4');
-      expect(sdk.trackCalls, ['gid:4:1']);
+      expect(_callsForList(sdk, 4), ['gid:4:1']);
 
       sdk.playlists = const [_favoritePlaylist, _customPlaylistUpdated];
       await library.syncNow();
-      expect(sdk.trackCalls, ['gid:4:1']);
+      expect(_callsForList(sdk, 4), ['gid:4:1']);
       final playlist = await store.playlist('remote:4');
       expect(playlist?.name, '更新后的歌单');
       expect(playlist?.tracksLoaded, isTrue);
@@ -153,7 +154,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     await sub.cancel();
 
-    expect(sdk.trackCalls, ['gid:4:1', 'gid:4:2', 'gid:4:3']);
+    expect(_callsForList(sdk, 4), ['gid:4:1', 'gid:4:2', 'gid:4:3']);
     expect((await store.watchPlaylistTracks('remote:4').first).length, 5);
     expect((await store.playlist('remote:4'))?.tracksLoaded, isTrue);
     expect(progressive.where((n) => n > 0), everyElement(5));
@@ -188,7 +189,7 @@ void main() {
       second.songs.map((song) => song.id),
       first.songs.map((song) => song.id),
     );
-    expect(sdk.trackCalls, ['gid:4:1']);
+    expect(_callsForList(sdk, 4), ['gid:4:1']);
   });
 
   test('failed favorite rolls back local membership', () async {
@@ -210,6 +211,7 @@ void main() {
       sdk.playlists = [_favoritePlaylist.copyWith(count: 1)];
       sdk.tracksByListId[2] = const [remoteSong];
       await library.activate(99);
+      await library.ensureFavoriteIndex();
 
       final gate = Completer<void>();
       final started = Completer<void>();
@@ -283,7 +285,7 @@ void main() {
     await library.activate(2);
     await library.refreshPlaylistSnapshot('remote:4');
 
-    expect(sdk.trackCalls, ['gid:4:1', 'gid:4:1']);
+    expect(_callsForList(sdk, 4), ['gid:4:1', 'gid:4:1']);
     expect(
       (await store.watchPlaylistTracks('remote:4').first).single.id,
       remoteSong.id,
@@ -301,6 +303,50 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(sdk.historyUploads, isNotEmpty);
     expect(sdk.historyUploads.single.mixSongId, localSong.mixSongId);
+  });
+
+  test('每日收藏索引以终止页完成，允许失效歌曲导致实际数小于云端 count', () async {
+    sdk.playlists = const [
+      Playlist(
+        listId: 2,
+        globalCollectionId: 'gid-fav',
+        name: '我喜欢',
+        isPrivate: false,
+        isMyFavorite: true,
+        isDefaultCollect: false,
+        count: 3,
+      ),
+    ];
+    sdk.tracksByListId[2] = const [remoteSong, localSong];
+    sdk.trackTotalOverride = 3;
+
+    await library.activate(99);
+    await library.ensureFavoriteIndex();
+    final firstCalls = sdk.trackCalls.length;
+    final favorite = await store.favoritePlaylist();
+
+    expect(favorite?.tracksLoaded, isTrue);
+    expect(favorite?.count, 3);
+    expect(favorite?.trackSnapshotCount, 2);
+    expect(favorite?.availableTrackCount, 2);
+
+    await library.ensureFavoriteIndex();
+    expect(sdk.trackCalls, hasLength(firstCalls));
+  });
+
+  test('直接加载歌单末页不会误标记完整快照', () async {
+    sdk.playlists = [_customPlaylist.copyWith(count: 3)];
+    sdk.tracksByListId[4] = const [
+      remoteSong,
+      localSong,
+      Song(id: 'third', title: '第三首', hashes: AudioHashes()),
+    ];
+    sdk.tracksPageSize = 2;
+
+    await library.activate(99);
+    await library.loadPlaylistPage('remote:4', page: 2, pageSize: 2).toList();
+
+    expect((await store.playlist('remote:4'))?.tracksLoaded, isFalse);
   });
 }
 
@@ -360,6 +406,10 @@ HistoryEntry _historyEntry(int mixSongId, DateTime playedAt) => HistoryEntry(
   playCount: 1,
 );
 
+List<String> _callsForList(_FakeMusicSdk sdk, int listId) => sdk.trackCalls
+    .where((call) => call.startsWith('gid:$listId:'))
+    .toList(growable: false);
+
 class _FakeMusicSdk implements LibrarySdk {
   List<Playlist> playlists = const [];
   final Map<int, List<Song>> tracksByListId = {};
@@ -373,6 +423,7 @@ class _FakeMusicSdk implements LibrarySdk {
 
   /// When set, [playlistTracks] slices [tracksByListId] into pages of this size.
   int? tracksPageSize;
+  int? trackTotalOverride;
   Completer<void>? nextCloudPlaylistsGate;
   Completer<void>? nextCloudPlaylistsStarted;
   Completer<void>? nextPlaylistTracksGate;
@@ -456,7 +507,7 @@ class _FakeMusicSdk implements LibrarySdk {
         songs: const [],
         page: page,
         pageSize: size,
-        total: all.length,
+        total: trackTotalOverride ?? all.length,
       );
     }
     final end = (start + size).clamp(0, all.length);
@@ -464,7 +515,7 @@ class _FakeMusicSdk implements LibrarySdk {
       songs: all.sublist(start, end),
       page: page,
       pageSize: size,
-      total: all.length,
+      total: trackTotalOverride ?? all.length,
     );
   }
 

@@ -23,6 +23,7 @@ import 'package:kgmusic/core/player/playback_queue_store.dart';
 import 'package:kgmusic/core/preferences/app_settings.dart';
 import 'package:kgmusic/core/preferences/preference_store.dart';
 import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
+import 'package:kgmusic/core/recommendation/recommendation_profile_store.dart';
 import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/src/rust/frb_generated.dart';
@@ -52,12 +53,17 @@ Future<void> _bootstrap() async {
   final sdk = KugouMusicSdk(const FlutterSecureStorage());
   await sdk.initialize();
   final appErrorBus = AppErrorBus();
-  final recommendationReporter = RecommendationReporter(sdk, appErrorBus);
+  final libraryStore = LibraryStore(database);
+  final recommendationProfileStore = RecommendationProfileStore(database);
+  final recommendationReporter = RecommendationReporter(
+    sdk,
+    recommendationProfileStore,
+    appErrorBus,
+  );
   final recommendationPlayback = RecommendationPlayback(
     sdk,
     recommendationReporter,
   );
-  final libraryStore = LibraryStore(database);
   final libraryRemote = LibraryRemote(sdk);
   final library = LibraryRepository(
     libraryStore,
@@ -80,7 +86,7 @@ Future<void> _bootstrap() async {
       sdk,
       library.recordPlayed,
       audioCache,
-      reportRecommendationPlayed: library.reportRecommendationPlayed,
+      recordRecommendationPlayback: recommendationReporter.recordPlayback,
       queueStore: queueStore,
       queueSourceFactory: queueSourceFactory,
       initialQuality: settings.settings.defaultPlaybackQuality,

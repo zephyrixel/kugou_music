@@ -3,63 +3,88 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/recommendation/recommendation_play_tracker.dart';
 
 void main() {
-  test('长歌曲播放满30秒后只上报一次', () async {
-    final reported = <Song>[];
-    final tracker = RecommendationPlayTracker((song) async {
-      reported.add(song);
-    });
+  test('只累计实际播放的墙钟时长，暂停和 seek 不增加时长', () async {
+    var elapsed = Duration.zero;
+    final observations = <_Observation>[];
+    final tracker = RecommendationPlayTracker((
+      song, {
+      required listened,
+      required sourceBits,
+    }) async {
+      observations.add(_Observation(song, listened, sourceBits));
+    }, elapsedNow: () => elapsed);
 
-    tracker.activate(longSong, duration: const Duration(minutes: 4));
-    tracker.update(position: const Duration(seconds: 29), playing: true);
-    tracker.update(position: const Duration(seconds: 30), playing: true);
-    tracker.update(position: const Duration(minutes: 1), playing: true);
+    tracker.activate(longSong, sourceBits: 1);
+    tracker.update(playing: true);
+    elapsed += const Duration(seconds: 50);
+    tracker.update(playing: false);
+    elapsed += const Duration(minutes: 10);
+    tracker.update(
+      playing: false,
+    ); // seek/pause events do not add elapsed time.
+    tracker.update(playing: true);
+    elapsed += const Duration(seconds: 71);
+    await tracker.finish();
 
-    expect(reported, [longSong]);
+    expect(observations.single.listened, const Duration(seconds: 121));
+    expect(observations.single.sourceBits, 1);
   });
 
-  test('短歌曲播放到一半后上报，暂停状态不触发', () async {
-    final reported = <Song>[];
-    final tracker = RecommendationPlayTracker((song) async {
-      reported.add(song);
-    });
+  test('音质切换保留会话并合并来源位', () async {
+    var elapsed = Duration.zero;
+    final observations = <_Observation>[];
+    final tracker = RecommendationPlayTracker((
+      song, {
+      required listened,
+      required sourceBits,
+    }) async {
+      observations.add(_Observation(song, listened, sourceBits));
+    }, elapsedNow: () => elapsed);
 
-    tracker.activate(shortSong, duration: const Duration(seconds: 20));
-    tracker.update(position: const Duration(seconds: 12), playing: false);
-    expect(reported, isEmpty);
+    tracker.activate(longSong, sourceBits: 1);
+    tracker.update(playing: true);
+    elapsed += const Duration(seconds: 30);
+    tracker.update(playing: false);
+    tracker.activate(longSong, sourceBits: 128, newPlayback: false);
+    tracker.update(playing: true);
+    elapsed += const Duration(seconds: 20);
+    await tracker.finish();
 
-    tracker.update(position: const Duration(seconds: 10), playing: true);
-    expect(reported, [shortSong]);
+    expect(observations.single.listened, const Duration(seconds: 50));
+    expect(observations.single.sourceBits, 129);
   });
 
-  test('音质切换保留状态，新一轮播放会重新计数', () async {
-    final reported = <Song>[];
-    final tracker = RecommendationPlayTracker((song) async {
-      reported.add(song);
-    });
+  test('结束后的重复 finish 不会重复落库', () async {
+    var elapsed = Duration.zero;
+    final observations = <_Observation>[];
+    final tracker = RecommendationPlayTracker((
+      song, {
+      required listened,
+      required sourceBits,
+    }) async {
+      observations.add(_Observation(song, listened, sourceBits));
+    }, elapsedNow: () => elapsed);
 
-    tracker.activate(longSong, duration: const Duration(minutes: 4));
-    tracker.update(position: const Duration(seconds: 20), playing: true);
-    tracker.activate(
-      longSong,
-      duration: const Duration(minutes: 4),
-      newPlayback: false,
-    );
-    tracker.update(position: const Duration(seconds: 30), playing: true);
-    tracker.activate(longSong, duration: const Duration(minutes: 4));
-    tracker.update(position: const Duration(seconds: 30), playing: true);
+    tracker.activate(longSong, sourceBits: 8);
+    tracker.update(playing: true);
+    elapsed += const Duration(seconds: 5);
+    await tracker.finish();
+    await tracker.finish();
 
-    expect(reported, [longSong, longSong]);
+    expect(observations, hasLength(1));
   });
+}
+
+class _Observation {
+  const _Observation(this.song, this.listened, this.sourceBits);
+
+  final Song song;
+  final Duration listened;
+  final int sourceBits;
 }
 
 const longSong = Song(
   id: 'long',
   title: 'Long',
   hashes: AudioHashes(standard: 'long-hash'),
-);
-
-const shortSong = Song(
-  id: 'short',
-  title: 'Short',
-  hashes: AudioHashes(standard: 'short-hash'),
 );

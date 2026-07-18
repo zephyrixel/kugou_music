@@ -94,6 +94,11 @@ class PlaybackQueueSourceFactory {
         title: playlist.name,
         id: localId,
         totalCount: count,
+        sourceBits: playlist.isMyFavorite
+            ? 16
+            : playlist.isCollected
+            ? 64
+            : 32,
       ),
       songs: List.unmodifiable(songs),
       source: LibraryPlaylistPlaybackQueueSource(

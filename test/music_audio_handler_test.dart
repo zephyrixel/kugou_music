@@ -119,32 +119,28 @@ void main() {
     await player.close();
   });
 
-  test(
-    'recommendation play waits for qualified playback and survives quality switch',
-    () async {
-      final sdk = _FakePlayerSdk();
-      final player = _FakeAudioPlayer();
-      final history = <Song>[];
-      final recommendation = <Song>[];
-      final handler = _handler(
-        sdk,
-        player,
-        history,
-        recommendation: recommendation,
-      );
+  test('推荐画像会话跨音质切换保留并在换歌时结束', () async {
+    final sdk = _FakePlayerSdk();
+    final player = _FakeAudioPlayer();
+    final history = <Song>[];
+    final recommendation = <Song>[];
+    final handler = _handler(
+      sdk,
+      player,
+      history,
+      recommendation: recommendation,
+    );
 
-      await handler.playSong(songA);
-      player.emitPosition(const Duration(seconds: 20));
-      await handler.setPlaybackQuality(AudioQuality.high);
-      player.emitPosition(const Duration(seconds: 30));
-      player.emitPosition(const Duration(seconds: 45));
-      await Future<void>.delayed(Duration.zero);
+    await handler.playSong(songA);
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await handler.setPlaybackQuality(AudioQuality.high);
+    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await handler.playSong(songB, queueSongs: const [songA, songB]);
 
-      expect(history, [songA]);
-      expect(recommendation, [songA]);
-      await player.close();
-    },
-  );
+    expect(history, [songA, songB]);
+    expect(recommendation, [songA]);
+    await player.close();
+  });
 }
 
 MusicAudioHandler _handler(
@@ -158,7 +154,9 @@ MusicAudioHandler _handler(
   sdk,
   (song) async => history.add(song),
   _FakeAudioCache(),
-  reportRecommendationPlayed: (song) async => recommendation?.add(song),
+  recordRecommendationPlayback:
+      (song, {required listened, required sourceBits}) async =>
+          recommendation?.add(song),
   player: player,
   configureSession: () async {},
   initialQuality: initialQuality,

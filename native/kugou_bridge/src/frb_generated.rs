@@ -1271,15 +1271,21 @@ fn wire__crate__api__sdk__report_recommendation_history_impl(
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
             let api_items =
-                <Vec<crate::api::dto::RecommendationHistoryItemDto>>::sse_decode(&mut deserializer);
-            let api_previous_sync_point = <Option<i64>>::sse_decode(&mut deserializer);
+                <Vec<crate::api::dto::RecommendationProfileItemDto>>::sse_decode(&mut deserializer);
+            let api_complete = <bool>::sse_decode(&mut deserializer);
+            let api_previous_sync_point = <i64>::sse_decode(&mut deserializer);
+            let api_next_sync_point = <i64>::sse_decode(&mut deserializer);
+            let api_last_upload_hash = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| async move {
                 transform_result_sse::<_, crate::api::dto::BridgeError>(
                     (move || async move {
                         let output_ok = crate::api::sdk::report_recommendation_history(
                             api_items,
+                            api_complete,
                             api_previous_sync_point,
+                            api_next_sync_point,
+                            api_last_upload_hash,
                         )
                         .await?;
                         Ok(output_ok)
@@ -1995,13 +2001,13 @@ impl SseDecode for Vec<u8> {
     }
 }
 
-impl SseDecode for Vec<crate::api::dto::RecommendationHistoryItemDto> {
+impl SseDecode for Vec<crate::api::dto::RecommendationProfileItemDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
-            ans_.push(<crate::api::dto::RecommendationHistoryItemDto>::sse_decode(
+            ans_.push(<crate::api::dto::RecommendationProfileItemDto>::sse_decode(
                 deserializer,
             ));
         }
@@ -2356,42 +2362,55 @@ impl SseDecode for crate::api::dto::RecommendationBatchDto {
         let mut var_subtitle = <Option<String>>::sse_decode(deserializer);
         let mut var_markList = <Option<String>>::sse_decode(deserializer);
         let mut var_mark = <Option<String>>::sse_decode(deserializer);
+        let mut var_syncNeed = <Option<i64>>::sse_decode(deserializer);
+        let mut var_syncPoint = <Option<i64>>::sse_decode(deserializer);
         let mut var_songs = <Vec<crate::api::dto::SongDto>>::sse_decode(deserializer);
         return crate::api::dto::RecommendationBatchDto {
             title: var_title,
             subtitle: var_subtitle,
             mark_list: var_markList,
             mark: var_mark,
+            sync_need: var_syncNeed,
+            sync_point: var_syncPoint,
             songs: var_songs,
         };
     }
 }
 
-impl SseDecode for crate::api::dto::RecommendationHistoryActionDto {
+impl SseDecode for crate::api::dto::RecommendationProfileActionDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::api::dto::RecommendationHistoryActionDto::Play,
-            1 => crate::api::dto::RecommendationHistoryActionDto::Collect,
-            2 => crate::api::dto::RecommendationHistoryActionDto::Trash,
+            0 => crate::api::dto::RecommendationProfileActionDto::Collect,
+            1 => crate::api::dto::RecommendationProfileActionDto::PlayComplete,
+            2 => crate::api::dto::RecommendationProfileActionDto::PlayShort,
+            3 => crate::api::dto::RecommendationProfileActionDto::Trash,
             _ => unreachable!(
-                "Invalid variant for RecommendationHistoryActionDto: {}",
+                "Invalid variant for RecommendationProfileActionDto: {}",
                 inner
             ),
         };
     }
 }
 
-impl SseDecode for crate::api::dto::RecommendationHistoryItemDto {
+impl SseDecode for crate::api::dto::RecommendationProfileItemDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_action =
-            <crate::api::dto::RecommendationHistoryActionDto>::sse_decode(deserializer);
-        let mut var_song = <crate::api::dto::SongDto>::sse_decode(deserializer);
-        return crate::api::dto::RecommendationHistoryItemDto {
+            <crate::api::dto::RecommendationProfileActionDto>::sse_decode(deserializer);
+        let mut var_standardHash = <Option<String>>::sse_decode(deserializer);
+        let mut var_mixSongId = <Option<u64>>::sse_decode(deserializer);
+        let mut var_eventTimeMs = <i64>::sse_decode(deserializer);
+        let mut var_count = <u32>::sse_decode(deserializer);
+        let mut var_sourceBits = <u32>::sse_decode(deserializer);
+        return crate::api::dto::RecommendationProfileItemDto {
             action: var_action,
-            song: var_song,
+            standard_hash: var_standardHash,
+            mix_song_id: var_mixSongId,
+            event_time_ms: var_eventTimeMs,
+            count: var_count,
+            source_bits: var_sourceBits,
         };
     }
 }
@@ -2449,6 +2468,7 @@ impl SseDecode for crate::api::dto::SongDto {
         let mut var_albumId = <Option<u64>>::sse_decode(deserializer);
         let mut var_mixSongId = <Option<u64>>::sse_decode(deserializer);
         let mut var_fileId = <Option<u64>>::sse_decode(deserializer);
+        let mut var_collectTimeSecs = <Option<u64>>::sse_decode(deserializer);
         let mut var_hashes = <crate::api::dto::AudioHashesDto>::sse_decode(deserializer);
         return crate::api::dto::SongDto {
             id: var_id,
@@ -2461,6 +2481,7 @@ impl SseDecode for crate::api::dto::SongDto {
             album_id: var_albumId,
             mix_song_id: var_mixSongId,
             file_id: var_fileId,
+            collect_time_secs: var_collectTimeSecs,
             hashes: var_hashes,
         };
     }
@@ -3416,6 +3437,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::RecommendationBatchDto {
             self.subtitle.into_into_dart().into_dart(),
             self.mark_list.into_into_dart().into_dart(),
             self.mark.into_into_dart().into_dart(),
+            self.sync_need.into_into_dart().into_dart(),
+            self.sync_point.into_into_dart().into_dart(),
             self.songs.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -3433,45 +3456,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::RecommendationBatchDto>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::dto::RecommendationHistoryActionDto {
+impl flutter_rust_bridge::IntoDart for crate::api::dto::RecommendationProfileActionDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
-            Self::Play => 0.into_dart(),
-            Self::Collect => 1.into_dart(),
-            Self::Trash => 2.into_dart(),
+            Self::Collect => 0.into_dart(),
+            Self::PlayComplete => 1.into_dart(),
+            Self::PlayShort => 2.into_dart(),
+            Self::Trash => 3.into_dart(),
             _ => unreachable!(),
         }
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::dto::RecommendationHistoryActionDto
+    for crate::api::dto::RecommendationProfileActionDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::RecommendationHistoryActionDto>
-    for crate::api::dto::RecommendationHistoryActionDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::RecommendationProfileActionDto>
+    for crate::api::dto::RecommendationProfileActionDto
 {
-    fn into_into_dart(self) -> crate::api::dto::RecommendationHistoryActionDto {
+    fn into_into_dart(self) -> crate::api::dto::RecommendationProfileActionDto {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::dto::RecommendationHistoryItemDto {
+impl flutter_rust_bridge::IntoDart for crate::api::dto::RecommendationProfileItemDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.action.into_into_dart().into_dart(),
-            self.song.into_into_dart().into_dart(),
+            self.standard_hash.into_into_dart().into_dart(),
+            self.mix_song_id.into_into_dart().into_dart(),
+            self.event_time_ms.into_into_dart().into_dart(),
+            self.count.into_into_dart().into_dart(),
+            self.source_bits.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::dto::RecommendationHistoryItemDto
+    for crate::api::dto::RecommendationProfileItemDto
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::RecommendationHistoryItemDto>
-    for crate::api::dto::RecommendationHistoryItemDto
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::RecommendationProfileItemDto>
+    for crate::api::dto::RecommendationProfileItemDto
 {
-    fn into_into_dart(self) -> crate::api::dto::RecommendationHistoryItemDto {
+    fn into_into_dart(self) -> crate::api::dto::RecommendationProfileItemDto {
         self
     }
 }
@@ -3554,6 +3582,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::SongDto {
             self.album_id.into_into_dart().into_dart(),
             self.mix_song_id.into_into_dart().into_dart(),
             self.file_id.into_into_dart().into_dart(),
+            self.collect_time_secs.into_into_dart().into_dart(),
             self.hashes.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4044,12 +4073,12 @@ impl SseEncode for Vec<u8> {
     }
 }
 
-impl SseEncode for Vec<crate::api::dto::RecommendationHistoryItemDto> {
+impl SseEncode for Vec<crate::api::dto::RecommendationProfileItemDto> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::api::dto::RecommendationHistoryItemDto>::sse_encode(item, serializer);
+            <crate::api::dto::RecommendationProfileItemDto>::sse_encode(item, serializer);
         }
     }
 }
@@ -4335,18 +4364,21 @@ impl SseEncode for crate::api::dto::RecommendationBatchDto {
         <Option<String>>::sse_encode(self.subtitle, serializer);
         <Option<String>>::sse_encode(self.mark_list, serializer);
         <Option<String>>::sse_encode(self.mark, serializer);
+        <Option<i64>>::sse_encode(self.sync_need, serializer);
+        <Option<i64>>::sse_encode(self.sync_point, serializer);
         <Vec<crate::api::dto::SongDto>>::sse_encode(self.songs, serializer);
     }
 }
 
-impl SseEncode for crate::api::dto::RecommendationHistoryActionDto {
+impl SseEncode for crate::api::dto::RecommendationProfileActionDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::api::dto::RecommendationHistoryActionDto::Play => 0,
-                crate::api::dto::RecommendationHistoryActionDto::Collect => 1,
-                crate::api::dto::RecommendationHistoryActionDto::Trash => 2,
+                crate::api::dto::RecommendationProfileActionDto::Collect => 0,
+                crate::api::dto::RecommendationProfileActionDto::PlayComplete => 1,
+                crate::api::dto::RecommendationProfileActionDto::PlayShort => 2,
+                crate::api::dto::RecommendationProfileActionDto::Trash => 3,
                 _ => {
                     unimplemented!("");
                 }
@@ -4356,11 +4388,15 @@ impl SseEncode for crate::api::dto::RecommendationHistoryActionDto {
     }
 }
 
-impl SseEncode for crate::api::dto::RecommendationHistoryItemDto {
+impl SseEncode for crate::api::dto::RecommendationProfileItemDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::dto::RecommendationHistoryActionDto>::sse_encode(self.action, serializer);
-        <crate::api::dto::SongDto>::sse_encode(self.song, serializer);
+        <crate::api::dto::RecommendationProfileActionDto>::sse_encode(self.action, serializer);
+        <Option<String>>::sse_encode(self.standard_hash, serializer);
+        <Option<u64>>::sse_encode(self.mix_song_id, serializer);
+        <i64>::sse_encode(self.event_time_ms, serializer);
+        <u32>::sse_encode(self.count, serializer);
+        <u32>::sse_encode(self.source_bits, serializer);
     }
 }
 
@@ -4403,6 +4439,7 @@ impl SseEncode for crate::api::dto::SongDto {
         <Option<u64>>::sse_encode(self.album_id, serializer);
         <Option<u64>>::sse_encode(self.mix_song_id, serializer);
         <Option<u64>>::sse_encode(self.file_id, serializer);
+        <Option<u64>>::sse_encode(self.collect_time_secs, serializer);
         <crate::api::dto::AudioHashesDto>::sse_encode(self.hashes, serializer);
     }
 }

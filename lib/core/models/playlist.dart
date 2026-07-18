@@ -17,6 +17,7 @@ class Playlist {
     this.tracksLoaded = false,
     this.trackSnapshotCount,
     this.tracksUpdatedAt,
+    this.fullSnapshotUpdatedAt,
     this.tags,
   });
 
@@ -37,11 +38,14 @@ class Playlist {
   final bool tracksLoaded;
   final int? trackSnapshotCount;
   final DateTime? tracksUpdatedAt;
+  final DateTime? fullSnapshotUpdatedAt;
   final String? tags;
 
   bool get isCollected => listType == 1;
   bool get isSystem => isMyFavorite || isDefaultCollect;
   bool get isWritable => !isCollected;
+  int get availableTrackCount =>
+      tracksLoaded ? trackSnapshotCount ?? count : count;
 
   Playlist copyWith({
     String? localId,
@@ -60,6 +64,7 @@ class Playlist {
     bool? tracksLoaded,
     int? trackSnapshotCount,
     DateTime? tracksUpdatedAt,
+    DateTime? fullSnapshotUpdatedAt,
     String? tags,
   }) => Playlist(
     localId: localId ?? this.localId,
@@ -78,6 +83,7 @@ class Playlist {
     tracksLoaded: tracksLoaded ?? this.tracksLoaded,
     trackSnapshotCount: trackSnapshotCount ?? this.trackSnapshotCount,
     tracksUpdatedAt: tracksUpdatedAt ?? this.tracksUpdatedAt,
+    fullSnapshotUpdatedAt: fullSnapshotUpdatedAt ?? this.fullSnapshotUpdatedAt,
     tags: tags ?? this.tags,
   );
 

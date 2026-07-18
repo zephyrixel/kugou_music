@@ -40,6 +40,7 @@ class LibraryRepository {
   int _membershipVersion = 0;
   Future<void>? _running;
   int? _runningGeneration;
+  Future<bool>? _favoriteIndexLoad;
   bool _disposed = false;
 
   Stream<List<Playlist>> watchPlaylists() => _store.watchPlaylists();
@@ -83,7 +84,8 @@ class LibraryRepository {
   LibrarySyncStatus get status => _status;
 
   Future<void> activate(int userId) async {
-    if (_userId != userId) _reporter?.resetSession();
+    if (_userId != userId) _reporter?.activate(userId);
+    _favoriteIndexLoad = null;
     _trackLoader.cancelAll();
     final generation = ++_generation;
     _userId = userId;
@@ -108,14 +110,17 @@ class LibraryRepository {
     );
     if (_syncDue(cachedState.lastSyncedAt)) {
       unawaited(_sync(generation, userId, wipe: false).catchError((_) {}));
+    } else {
+      _scheduleFavoriteIndex();
     }
   }
 
   Future<void> deactivate() async {
-    _reporter?.resetSession();
+    await _reporter?.deactivate();
     _trackLoader.cancelAll();
     _generation += 1;
     _userId = null;
+    _favoriteIndexLoad = null;
     await _store.clearLibrary();
     if (!_disposed) _emit(const LibrarySyncStatus.idle());
   }
@@ -183,6 +188,7 @@ class LibraryRepository {
               '音乐库同步完成 playlists=${playlists.length} history=${history.length}',
               target: 'library.sync',
             );
+            _scheduleFavoriteIndex();
           } catch (error) {
             AppLog.warn('音乐库同步失败', target: 'library.sync', error: error);
             if (!_isCurrent(generation, userId)) return;
@@ -212,15 +218,79 @@ class LibraryRepository {
     final userId = _userId;
     if (userId == null) return;
     final membershipVersion = _membershipVersion;
-    await _trackLoader.refreshAll(
+    final committed = await _trackLoader.refreshAll(
       localId,
       isCurrent: () => _isCurrent(generation, userId),
       canCommit: () => membershipVersion == _membershipVersion,
     );
+    if (committed) {
+      final playlist = await _store.playlist(localId);
+      if (playlist?.isMyFavorite == true) _reporter?.notifyProfileReady();
+    }
+  }
+
+  Future<bool> ensureFavoriteIndex({bool force = false}) {
+    final existing = _favoriteIndexLoad;
+    if (existing != null) return existing;
+    late final Future<bool> tracked;
+    tracked = _ensureFavoriteIndex(force: force).whenComplete(() {
+      if (identical(_favoriteIndexLoad, tracked)) _favoriteIndexLoad = null;
+    });
+    _favoriteIndexLoad = tracked;
+    return tracked;
+  }
+
+  Future<bool> _ensureFavoriteIndex({required bool force}) async {
+    final userId = _userId;
+    final generation = _generation;
+    if (userId == null) return false;
+    var favorite = await _store.favoritePlaylist();
+    if (!_isCurrent(generation, userId)) return false;
+    if (favorite == null) {
+      _reporter?.notifyProfileReady();
+      return true;
+    }
+    if (!force &&
+        favorite.tracksLoaded &&
+        _sameDay(favorite.fullSnapshotUpdatedAt, _now())) {
+      _reporter?.notifyProfileReady();
+      return true;
+    }
+
+    for (var attempt = 0; attempt < 2; attempt += 1) {
+      final membershipVersion = _membershipVersion;
+      final committed = await _trackLoader.refreshAll(
+        favorite!.localId!,
+        isCurrent: () => _isCurrent(generation, userId),
+        canCommit: () => membershipVersion == _membershipVersion,
+      );
+      if (!_isCurrent(generation, userId)) return false;
+      if (committed) {
+        _reporter?.notifyProfileReady();
+        return true;
+      }
+      favorite = await _store.favoritePlaylist();
+      if (favorite == null) return true;
+    }
+    return false;
+  }
+
+  void _scheduleFavoriteIndex() {
+    unawaited(
+      ensureFavoriteIndex().catchError((Object error) {
+        AppLog.warn('后台更新“我喜欢”索引失败', target: 'library.favorite', error: error);
+        return false;
+      }),
+    );
   }
 
   Future<void> toggleFavorite(Song song) async {
-    final favorite = await _store.favoritePlaylist();
+    var favorite = await _store.favoritePlaylist();
+    if (favorite != null && !favorite.tracksLoaded) {
+      final ready = await ensureFavoriteIndex(force: true);
+      if (!ready) throw StateError('“我喜欢”索引尚未准备完成');
+      favorite = await _store.favoritePlaylist();
+    }
     if (favorite?.localId == null || favorite?.listId == null) {
       throw StateError('账号没有可用的“我喜欢”歌单');
     }
@@ -282,7 +352,9 @@ class LibraryRepository {
         song,
         present: snapshot.wasPresent,
         fileId: snapshot.fileId,
+        collectTimeSecs: snapshot.collectTimeSecs,
         count: snapshot.previousCount,
+        snapshotCount: snapshot.previousSnapshotCount,
       );
       rethrow;
     }
@@ -415,11 +487,6 @@ class LibraryRepository {
     );
   }
 
-  Future<void> reportRecommendationPlayed(Song song) async {
-    if (_userId == null) return;
-    _reporter?.reportPlayed(song);
-  }
-
   bool _isCurrent(int generation, int userId) =>
       !_disposed && _generation == generation && _userId == userId;
 
@@ -441,3 +508,9 @@ class LibraryRepository {
     await _statuses.close();
   }
 }
+
+bool _sameDay(DateTime? left, DateTime right) =>
+    left != null &&
+    left.year == right.year &&
+    left.month == right.month &&
+    left.day == right.day;

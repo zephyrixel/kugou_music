@@ -27,7 +27,7 @@ class MusicAudioHandler extends BaseAudioHandler
     this._sdk,
     this._recordPlayed,
     this._audioCache, {
-    Future<void> Function(Song)? reportRecommendationPlayed,
+    PlaybackProfileRecorder? recordRecommendationPlayback,
     this.queueStore,
     this.queueSourceFactory,
     AudioPlayerPort? player,
@@ -41,9 +41,13 @@ class MusicAudioHandler extends BaseAudioHandler
        _qualityState = PlaybackQualityState(requested: initialQuality),
        _persistPreferredQuality = persistPreferredQuality ?? _ignoreQuality,
        _recommendationPlayTracker = RecommendationPlayTracker(
-         reportRecommendationPlayed ?? (_) async {},
+         recordRecommendationPlayback ??
+             (_, {required listened, required sourceBits}) async {},
        ) {
-    _player.playbackEventStream.listen(_broadcastState);
+    _player.playbackEventStream.listen((event) {
+      _recommendationPlayTracker.update(playing: _player.playing);
+      _broadcastState(event);
+    });
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
         unawaited(_advanceAfterCompletion());
@@ -51,11 +55,7 @@ class MusicAudioHandler extends BaseAudioHandler
     });
     _player.positionStream.listen((position) {
       _enforcePreviewEnd(position);
-      _recommendationPlayTracker.update(
-        position: position,
-        playing: _player.playing,
-        duration: _currentMediaDuration,
-      );
+      _recommendationPlayTracker.update(playing: _player.playing);
     });
     if (observeLifecycle) WidgetsBinding.instance.addObserver(this);
     unawaited((configureSession ?? _configureSession)());
@@ -303,7 +303,7 @@ class MusicAudioHandler extends BaseAudioHandler
     _prefetchAttemptedSongId = null;
     await _persistQueue();
     _audioCache.setActive(null);
-    _recommendationPlayTracker.reset();
+    await _finishRecommendationSession();
     _currentAudioHandle = null;
     await _player.stop();
     await super.stop();
@@ -459,6 +459,14 @@ class MusicAudioHandler extends BaseAudioHandler
 
   void _broadcastState(PlaybackEvent event) =>
       _publishSystemPlaybackState(event);
+
+  Future<void> _finishRecommendationSession() async {
+    try {
+      await _recommendationPlayTracker.finish();
+    } catch (error) {
+      AppLog.warn('保存本地推荐画像失败', target: 'recommendation.profile', error: error);
+    }
+  }
 }
 
 Future<void> _ignoreQuality(AudioQuality _) async {}

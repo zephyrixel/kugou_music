@@ -27,6 +27,7 @@ pub(super) fn song_to_dto_with_detail(song: &SongRef, detail: Option<&SongRef>) 
         album_id: song.album_id,
         mix_song_id: song.mix_song_id,
         file_id: song.file_id,
+        collect_time_secs: song.collect_time,
         hashes: AudioHashesDto {
             standard: song
                 .resources
@@ -84,18 +85,41 @@ pub(super) fn song_dto_to_song_ref(song: &SongDto) -> SongRef {
     result.artwork_url = song.artwork_url.clone();
     result.privilege = song.privilege;
     result.file_id = song.file_id;
+    result.collect_time = song.collect_time_secs;
     result
 }
 
-pub(super) fn recommendation_history_item_to_sdk(
-    item: &RecommendationHistoryItemDto,
+pub(super) fn recommendation_profile_item_to_sdk(
+    item: &RecommendationProfileItemDto,
 ) -> ClientPlaylistItem {
-    let song = song_dto_to_song_ref(&item.song);
-    match item.action {
-        RecommendationHistoryActionDto::Play => ClientPlaylistItem::play(&song),
-        RecommendationHistoryActionDto::Collect => ClientPlaylistItem::collect(&song),
-        RecommendationHistoryActionDto::Trash => ClientPlaylistItem::trash(&song),
+    ClientPlaylistItem {
+        action: match item.action {
+            RecommendationProfileActionDto::Collect => ClientPlaylistItem::ACTION_COLLECT,
+            RecommendationProfileActionDto::PlayComplete => ClientPlaylistItem::ACTION_PLAY,
+            RecommendationProfileActionDto::PlayShort => 4,
+            RecommendationProfileActionDto::Trash => ClientPlaylistItem::ACTION_TRASH,
+        },
+        hash: item.standard_hash.clone(),
+        mix_song_id: item.mix_song_id,
+        // Lite's NewUploadDataModel does not put the event timestamp directly
+        // in `T`.  It stores the week bucket returned by
+        // GuessYouLikeHelper.h(timestampMs).  The full millisecond timestamp
+        // is carried by the sync-point fields and is kept in the Dart profile
+        // store for ordering.
+        time: Some(recommendation_time_bucket(item.event_time_ms)),
+        count: Some(item.count.min(i32::MAX as u32) as i32),
+        flag: None,
+        source: (item.source_bits != 0).then_some(item.source_bits.min(i32::MAX as u32) as i32),
     }
+}
+
+fn recommendation_time_bucket(event_time_ms: i64) -> i64 {
+    // Official Lite epoch: 2017-12-24 00:00:00.001 UTC.  The native helper
+    // truncates to a seven-day bucket and clamps pre-epoch values to zero.
+    const EPOCH_MS: i64 = 1_514_131_200_001;
+    const WEEK_MS: i64 = 604_800_000;
+    let bucket = event_time_ms.saturating_sub(EPOCH_MS) / WEEK_MS;
+    bucket.clamp(0, i32::MAX as i64)
 }
 
 pub(super) fn recommendation_report_ack_to_dto(
