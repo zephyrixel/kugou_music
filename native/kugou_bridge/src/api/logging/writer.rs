@@ -39,6 +39,7 @@ pub(super) fn run(receiver: Receiver<Command>) {
     }
 }
 
+#[flutter_rust_bridge::frb(ignore)]
 #[derive(Default)]
 struct WriterState {
     directory: Option<PathBuf>,

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/cache/cache_codec.dart';
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/discovery_card.dart';
 import 'package:kgmusic/core/models/song.dart';
 
 void main() {
@@ -63,5 +64,31 @@ void main() {
     expect(decodedVip.businessType, 'concept');
     expect(decodedVip.products.single.productType, 'svip');
     expect(decodedVip.products.single.paid, isTrue);
+  });
+
+  test('discovery cache preserves server copy and playable songs', () {
+    const card = DiscoveryCard(
+      id: 3001,
+      title: '私人专属好歌',
+      subtitle: '根据最近的收听持续更新',
+      songs: [
+        Song(
+          id: 'mix:42',
+          title: 'Discovery Song',
+          mixSongId: 42,
+          hashes: AudioHashes(standard: 'standard', high: 'high'),
+        ),
+      ],
+    );
+
+    final decoded = CacheCodecs.discoveryCard.decode(
+      CacheCodecs.discoveryCard.encode(card),
+    );
+
+    expect(decoded.id, 3001);
+    expect(decoded.title, '私人专属好歌');
+    expect(decoded.subtitle, '根据最近的收听持续更新');
+    expect(decoded.songs.single.mixSongId, 42);
+    expect(decoded.songs.single.hashes.high, 'high');
   });
 }

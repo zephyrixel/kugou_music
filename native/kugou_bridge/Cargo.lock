@@ -812,9 +812,9 @@ dependencies = [
 
 [[package]]
 name = "kugou_sdk"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fd1fa2c3147610c53326b5c2bc45b535636760e24f8e79a3a1112fb719136a8"
+checksum = "467d5a2be9abbc80c67af700bbe74eb287f6fdfdea552c239ed077641b48c832"
 dependencies = [
  "aes",
  "base64",

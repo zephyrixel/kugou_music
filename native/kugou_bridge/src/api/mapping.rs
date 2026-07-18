@@ -158,7 +158,7 @@ pub(super) async fn songs_to_dtos_with_artwork(
             mix_ids.push(mix_id);
         }
     }
-    // kugou_sdk 0.2.4 does not expose artwork as a typed SongRef field yet.
+    // Detail lookup fills artwork and alternate-quality hashes missing from list rows.
     for chunk in mix_ids.chunks(40) {
         if let Ok(response) = client.songs().details_by_mix_ids_raw(session, chunk).await {
             collect_detail_enrichment(&response.data, &mut enrichment_by_mix_id);

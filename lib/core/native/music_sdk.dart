@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/discovery_card.dart';
 import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/lyric.dart';
 import 'package:kgmusic/core/models/playlist.dart';
@@ -26,6 +27,7 @@ abstract interface class AuthSdk {
 
 abstract interface class BrowseSdk {
   Future<List<Song>> everydayRecommendations();
+  Future<DiscoveryCard> discoveryCard(int cardId, {int pageSize = 10});
   Future<SearchPage> search(String keyword, {int page = 1, int pageSize = 30});
   Future<PlaylistSearchPage> searchPlaylists(
     String keyword, {
@@ -188,6 +190,23 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
     final result = await bridge.getEverydayRecommendations();
     return result.map(_songFromDto).toList(growable: false);
   });
+
+  @override
+  Future<DiscoveryCard> discoveryCard(int cardId, {int pageSize = 10}) =>
+      _guard(() async {
+        final value = await bridge.getDiscoveryCard(
+          cardId: cardId,
+          pageSize: pageSize,
+        );
+        final title = value.title?.trim();
+        final subtitle = value.subtitle?.trim();
+        return DiscoveryCard(
+          id: value.cardId,
+          title: title?.isNotEmpty == true ? title! : '为你发现',
+          subtitle: subtitle?.isNotEmpty == true ? subtitle : null,
+          songs: value.songs.map(_songFromDto).toList(growable: false),
+        );
+      });
 
   @override
   Future<RecommendationBatch> personalFm(PersonalFmInput input) =>

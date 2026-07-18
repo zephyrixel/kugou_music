@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
-import 'package:kgmusic/core/models/history_entry.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/account_avatar_button.dart';
 import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
-import 'package:kgmusic/core/widgets/kg_status.dart';
-import 'package:kgmusic/core/widgets/play_song.dart';
-import 'package:kgmusic/core/widgets/song_artwork.dart';
 
 class DiscoverHeader extends StatelessWidget {
   const DiscoverHeader({super.key, this.name});
@@ -64,11 +58,15 @@ class DailyRecommendationHero extends StatelessWidget {
     required this.songs,
     required this.loading,
     required this.onPlay,
+    required this.failed,
+    required this.onRetry,
   });
 
   final List<Song> songs;
   final bool loading;
   final VoidCallback? onPlay;
+  final bool failed;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -130,21 +128,30 @@ class DailyRecommendationHero extends StatelessWidget {
                   child: Text(
                     loading
                         ? '正在整理你的每日推荐'
+                        : failed
+                        ? '每日推荐暂时无法加载'
                         : songs.isEmpty
                         ? '暂时没有推荐歌曲'
                         : '${songs.length} 首精选 · 从 ${song!.artistLabel} 开始',
-                    key: ValueKey('${loading}_${songs.length}'),
+                    key: ValueKey('${loading}_${failed}_${songs.length}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ),
                 const SizedBox(height: KgSpacing.md),
-                FilledButton.icon(
-                  onPressed: onPlay,
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('播放今日推荐'),
-                ),
+                if (failed)
+                  OutlinedButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('重新加载'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: onPlay,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('播放今日推荐'),
+                  ),
               ],
             ),
           ),
@@ -152,87 +159,4 @@ class DailyRecommendationHero extends StatelessWidget {
       ),
     );
   }
-}
-
-class RecentSongsRow extends ConsumerWidget {
-  const RecentSongsRow({super.key, required this.entries});
-
-  final List<HistoryEntry> entries;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final songs = entries.map((entry) => entry.song).toList(growable: false);
-    return SizedBox(
-      height: 164,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: entries.length,
-        separatorBuilder: (_, _) => const SizedBox(width: KgSpacing.sm),
-        itemBuilder: (context, index) {
-          final song = entries[index].song;
-          return SizedBox(
-            width: 116,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(KgRadii.medium),
-              onTap: () => playSong(
-                context,
-                ref,
-                song,
-                queueRequest: PlaybackQueueRequest.snapshot(
-                  title: '最近播放',
-                  songs: songs,
-                  kind: PlaybackQueueOriginKind.history,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SongArtwork(
-                    url: song.artworkUrl,
-                    cacheId: 'song:${song.id}',
-                    size: 116,
-                    radius: KgRadii.medium,
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    song.artistLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: KgColors.textMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class SongListSkeleton extends StatelessWidget {
-  const SongListSkeleton({super.key});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: KgSpacing.lg),
-    child: Column(
-      children: List.generate(
-        5,
-        (_) => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 7),
-          child: KgSkeleton(height: 54, radius: KgRadii.medium),
-        ),
-      ),
-    ),
-  );
 }

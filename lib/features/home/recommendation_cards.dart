@@ -49,9 +49,15 @@ class _RecommendationCardsState extends ConsumerState<RecommendationCards> {
           ),
         )
         .toList(growable: false);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [cards.first, const SizedBox(width: 12), cards.last],
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [cards.first, const SizedBox(width: 12), cards.last],
+        ),
+      ),
     );
   }
 }

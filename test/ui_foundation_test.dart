@@ -13,6 +13,7 @@ import 'package:kgmusic/core/widgets/kg_marquee_text.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
 import 'package:kgmusic/features/home/discover_sections.dart';
+import 'package:kgmusic/features/home/home_song_shelf.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
 
 void main() {
@@ -42,6 +43,8 @@ void main() {
               child: DailyRecommendationHero(
                 songs: [song],
                 loading: false,
+                failed: false,
+                onRetry: _noop,
                 onPlay: null,
               ),
             ),
@@ -77,6 +80,34 @@ void main() {
     );
 
     expect(find.text('今天想听什么？'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('首页歌曲卡片架在窄屏保持稳定尺寸并响应点击', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 360));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Song? selected;
+
+    await tester.pumpWidget(
+      _testApp(
+        Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: HomeSongShelf(
+              title: '喜欢这首歌的TA也喜欢',
+              subtitle: '根据你的收听持续发现',
+              songs: const [song],
+              onSongTap: (value) => selected = value,
+              onPlayAll: _noop,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.widget<SongArtwork>(find.byType(SongArtwork)).size, 142);
+    await tester.tap(find.byKey(const ValueKey('home-song:song:responsive')));
+    expect(selected, song);
     expect(tester.takeException(), isNull);
   });
 
@@ -397,6 +428,8 @@ void main() {
     expect(resolved, Duration.zero);
   });
 }
+
+void _noop() {}
 
 Widget _testApp(Widget child) =>
     MaterialApp(theme: buildKgTheme(), home: child);

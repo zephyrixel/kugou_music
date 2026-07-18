@@ -1,9 +1,9 @@
 use kugou_sdk::user::{YOUTH_DAY_VIP_SOURCE_MINE, YouthDayVipClaimRequest};
 use kugou_sdk::{
-    CollectRequest, FreshSongAction, FreshSongsRequest, HeartRadioRequest, HistoryFetchRequest,
-    HistorySongOp, HistoryUploadRequest, LyricSearchRequest, Pagination, PersonalFmRequest,
-    PlaybackOutcome, PlaylistEditRequest, PlaylistKind, PlaylistTrackInput, ReportHistoryRequest,
-    ReportRepeatedRequest, SearchRequest, SongRef,
+    CollectRequest, DiscoveryCardRequest, FreshSongAction, FreshSongsRequest, HeartRadioRequest,
+    HistoryFetchRequest, HistorySongOp, HistoryUploadRequest, LyricSearchRequest, Pagination,
+    PersonalFmRequest, PlaybackOutcome, PlaylistEditRequest, PlaylistKind, PlaylistTrackInput,
+    ReportHistoryRequest, ReportRepeatedRequest, SearchRequest, SongRef,
 };
 
 pub use super::dto::*;
@@ -135,6 +135,31 @@ pub async fn get_everyday_recommendations() -> Result<Vec<SongDto>, BridgeError>
     let songs =
         songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
     Ok(songs)
+}
+
+pub async fn get_discovery_card(
+    card_id: u32,
+    page_size: u32,
+) -> Result<DiscoveryCardDto, BridgeError> {
+    let runtime = runtime()?;
+    let mut session = runtime.session.lock().await;
+    let card = runtime
+        .client
+        .discovery()
+        .card(
+            &mut session,
+            DiscoveryCardRequest::new(card_id).page_size(page_size.clamp(1, 30)),
+        )
+        .await
+        .map_err(BridgeError::from_sdk)?
+        .data;
+    let songs = songs_to_dtos_with_artwork(&runtime.client, &mut session, &card.items).await;
+    Ok(DiscoveryCardDto {
+        card_id: card.card_id.unwrap_or(card_id),
+        title: card.title,
+        subtitle: card.desc.or(card.label_desc),
+        songs,
+    })
 }
 
 pub async fn get_personal_fm(

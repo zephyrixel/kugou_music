@@ -21,6 +21,7 @@ enum PlaybackQueueOriginKind {
   history,
   personalFm,
   heartRadio,
+  discovery,
 }
 
 extension PlaybackQueueOriginKindInfo on PlaybackQueueOriginKind {
@@ -34,6 +35,7 @@ extension PlaybackQueueOriginKindInfo on PlaybackQueueOriginKind {
     PlaybackQueueOriginKind.history => '最近播放',
     PlaybackQueueOriginKind.personalFm => '猜你喜欢',
     PlaybackQueueOriginKind.heartRadio => '红心电台',
+    PlaybackQueueOriginKind.discovery => '为你发现',
   };
 }
 
@@ -119,11 +121,13 @@ class PlaybackQueueRequest {
   factory PlaybackQueueRequest.snapshot({
     required String title,
     required List<Song> songs,
+    String? id,
     PlaybackQueueOriginKind kind = PlaybackQueueOriginKind.snapshot,
   }) => PlaybackQueueRequest(
     origin: PlaybackQueueOrigin(
       kind: kind,
       title: title,
+      id: id,
       totalCount: songs.length,
     ),
     songs: List.unmodifiable(songs),

@@ -97,6 +97,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DeviceProfileDto dco_decode_device_profile_dto(dynamic raw);
 
   @protected
+  DiscoveryCardDto dco_decode_discovery_card_dto(dynamic raw);
+
+  @protected
   HeartRadioRequestDto dco_decode_heart_radio_request_dto(dynamic raw);
 
   @protected
@@ -360,6 +363,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   DeviceProfileDto sse_decode_device_profile_dto(SseDeserializer deserializer);
+
+  @protected
+  DiscoveryCardDto sse_decode_discovery_card_dto(SseDeserializer deserializer);
 
   @protected
   HeartRadioRequestDto sse_decode_heart_radio_request_dto(
@@ -685,6 +691,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_device_profile_dto(
     DeviceProfileDto self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_discovery_card_dto(
+    DiscoveryCardDto self,
     SseSerializer serializer,
   );
 

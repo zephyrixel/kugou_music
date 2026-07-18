@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/discovery_card.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/models/song_codec.dart';
@@ -27,6 +28,26 @@ abstract final class CacheCodecs {
     encodeValue: (value) => value.map(SongCodec.encode).toList(growable: false),
     decodeValue: (value) =>
         _list(value).map(SongCodec.decode).toList(growable: false),
+  );
+
+  static final discoveryCard = CacheCodec<DiscoveryCard>(
+    encodeValue: (value) => {
+      'id': value.id,
+      'title': value.title,
+      'subtitle': value.subtitle,
+      'songs': value.songs.map(SongCodec.encode).toList(growable: false),
+    },
+    decodeValue: (value) {
+      final map = _map(value);
+      return DiscoveryCard(
+        id: _int(map['id']) ?? 0,
+        title: _string(map['title']) ?? '为你发现',
+        subtitle: _string(map['subtitle']),
+        songs: _list(
+          map['songs'],
+        ).map(SongCodec.decode).toList(growable: false),
+      );
+    },
   );
 
   static final searchPage = CacheCodec<SearchPage>(

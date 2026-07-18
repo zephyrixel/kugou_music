@@ -8,9 +8,10 @@ import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
-import 'package:kgmusic/core/widgets/song_tile.dart';
-import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/home/discover_sections.dart';
+import 'package:kgmusic/features/home/home_discovery.dart';
+import 'package:kgmusic/features/home/home_discovery_section.dart';
+import 'package:kgmusic/features/home/home_song_shelf.dart';
 import 'package:kgmusic/features/home/recommendation_cards.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -22,11 +23,15 @@ class HomeScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider).value;
     final history = ref.watch(historyEntriesProvider).value ?? const [];
     final songs = recommendations.value ?? const <Song>[];
+    final recentSongs = history
+        .take(8)
+        .map((entry) => entry.song)
+        .toList(growable: false);
     return SafeArea(
       bottom: false,
       child: KgContentWidth(
         child: RefreshIndicator(
-          onRefresh: () => _refresh(ref),
+          onRefresh: () => _refresh(context, ref),
           child: CustomScrollView(
             key: const PageStorageKey('discover-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
@@ -36,7 +41,7 @@ class HomeScreen extends ConsumerWidget {
                   KgSpacing.lg,
                   KgSpacing.xl,
                   KgSpacing.lg,
-                  KgSpacing.sm,
+                  KgSpacing.section,
                 ),
                 sliver: SliverToBoxAdapter(
                   child: Column(
@@ -47,6 +52,9 @@ class HomeScreen extends ConsumerWidget {
                       DailyRecommendationHero(
                         songs: songs,
                         loading: recommendations.isLoading && songs.isEmpty,
+                        failed: recommendations.hasError && songs.isEmpty,
+                        onRetry: () =>
+                            ref.invalidate(dailyRecommendationsProvider),
                         onPlay: songs.isEmpty
                             ? null
                             : () => _playCollection(
@@ -65,26 +73,39 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: KgSpacing.md),
                       const SizedBox(height: 184, child: RecommendationCards()),
-                      if (history.isNotEmpty) ...[
+                      if (recentSongs.isNotEmpty) ...[
                         const SizedBox(height: KgSpacing.section),
-                        const KgSectionHeader(
+                        HomeSongShelf(
                           title: '最近听过',
                           subtitle: '从上次停下的地方继续',
+                          songs: recentSongs,
+                          onSongTap: (song) => _playCollection(
+                            context,
+                            ref,
+                            song,
+                            recentSongs,
+                            '最近播放',
+                            PlaybackQueueOriginKind.history,
+                          ),
+                          onPlayAll: () => _playCollection(
+                            context,
+                            ref,
+                            recentSongs.first,
+                            recentSongs,
+                            '最近播放',
+                            PlaybackQueueOriginKind.history,
+                          ),
                         ),
-                        const SizedBox(height: KgSpacing.md),
-                        RecentSongsRow(entries: history.take(8).toList()),
                       ],
-                      const SizedBox(height: KgSpacing.section),
-                      const KgSectionHeader(
-                        title: '每日精选',
-                        subtitle: '根据你的音乐口味持续更新',
-                      ),
-                      const SizedBox(height: KgSpacing.xs),
                     ],
                   ),
                 ),
               ),
-              _recommendationList(context, ref, recommendations),
+              SliverList.builder(
+                itemCount: homeDiscoveryCardIds.length,
+                itemBuilder: (context, index) =>
+                    HomeDiscoverySection(cardId: homeDiscoveryCardIds[index]),
+              ),
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
@@ -97,55 +118,36 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _refresh(WidgetRef ref) async {
+  Future<void> _refresh(BuildContext context, WidgetRef ref) async {
     final userId = ref.read(authControllerProvider).snapshot.userId;
-    await ref
-        .read(musicRepositoryProvider)
-        .everydayRecommendations(
-          userId: userId,
-          mode: CacheLoadMode.forceRefresh,
-        )
-        .last;
+    final repository = ref.read(musicRepositoryProvider);
+    try {
+      await Future.wait<Object?>([
+        repository
+            .everydayRecommendations(
+              userId: userId,
+              mode: CacheLoadMode.forceRefresh,
+            )
+            .last,
+        for (final cardId in homeDiscoveryCardIds)
+          repository
+              .discoveryCard(
+                cardId,
+                userId: userId,
+                pageSize: homeDiscoveryPageSize,
+                mode: CacheLoadMode.forceRefresh,
+              )
+              .last,
+      ]);
+    } catch (_) {
+      if (context.mounted) showAppError(context, '部分首页内容刷新失败，请稍后重试');
+    }
+    if (!context.mounted) return;
     ref.invalidate(dailyRecommendationsProvider);
+    for (final cardId in homeDiscoveryCardIds) {
+      ref.invalidate(homeDiscoveryCardProvider(cardId));
+    }
   }
-
-  Widget _recommendationList(
-    BuildContext context,
-    WidgetRef ref,
-    AsyncValue<List<Song>> recommendations,
-  ) => recommendations.when(
-    skipLoadingOnRefresh: true,
-    loading: () => const SliverToBoxAdapter(child: SongListSkeleton()),
-    error: (error, _) => SliverFillRemaining(
-      hasScrollBody: false,
-      child: KgErrorView(
-        message: '每日推荐暂时无法加载，请稍后重试',
-        onRetry: () async => ref.invalidate(dailyRecommendationsProvider),
-      ),
-    ),
-    data: (songs) => songs.isEmpty
-        ? const SliverFillRemaining(
-            hasScrollBody: false,
-            child: KgEmptyView('今天还没有推荐内容'),
-          )
-        : SliverList.builder(
-            itemCount: songs.length,
-            itemBuilder: (context, index) => SongTile(
-              song: songs[index],
-              index: index + 1,
-              variant: SongTileVariant.indexed,
-              onTap: () => _playCollection(
-                context,
-                ref,
-                songs[index],
-                songs,
-                '每日推荐',
-                PlaybackQueueOriginKind.dailyRecommendations,
-              ),
-              trailing: SongTileActions(song: songs[index]),
-            ),
-          ),
-  );
 
   void _playCollection(
     BuildContext context,

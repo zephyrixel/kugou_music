@@ -6,6 +6,7 @@ import 'package:kgmusic/core/cache/cache_codec.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/discovery_card.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
@@ -32,6 +33,20 @@ class MusicRepository {
     policy: MusicCachePolicies.daily,
     mode: mode,
     remote: _remote.everydayRecommendations,
+  );
+
+  Stream<DiscoveryCard> discoveryCard(
+    int cardId, {
+    int? userId,
+    int pageSize = 10,
+    CacheLoadMode mode = CacheLoadMode.normal,
+  }) => _cachedStream(
+    key: '${_scope(userId)}/discovery/$cardId/$pageSize',
+    accountUserId: userId,
+    codec: CacheCodecs.discoveryCard,
+    policy: MusicCachePolicies.discovery,
+    mode: mode,
+    remote: () => _remote.discoveryCard(cardId, pageSize: pageSize),
   );
 
   Stream<SearchPage> search(

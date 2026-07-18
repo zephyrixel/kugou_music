@@ -132,6 +132,14 @@ pub struct RecommendationBatchDto {
 }
 
 #[derive(Debug, Clone)]
+pub struct DiscoveryCardDto {
+    pub card_id: u32,
+    pub title: Option<String>,
+    pub subtitle: Option<String>,
+    pub songs: Vec<SongDto>,
+}
+
+#[derive(Debug, Clone)]
 pub struct RecommendationReportAckDto {
     pub sync_point: Option<i64>,
     pub is_clean: Option<bool>,

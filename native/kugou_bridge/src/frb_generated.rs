@@ -38,7 +38,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 690656593;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1014929829;
 
 // Section: executor
 
@@ -543,6 +543,44 @@ fn wire__crate__api__sdk__get_cloud_playlists_impl(
                     (move || async move {
                         let output_ok =
                             crate::api::sdk::get_cloud_playlists(api_page, api_page_size).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sdk__get_discovery_card_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_discovery_card",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_card_id = <u32>::sse_decode(&mut deserializer);
+            let api_page_size = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, crate::api::dto::BridgeError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::sdk::get_discovery_card(api_card_id, api_page_size).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -1759,6 +1797,22 @@ impl SseDecode for crate::api::dto::DeviceProfileDto {
     }
 }
 
+impl SseDecode for crate::api::dto::DiscoveryCardDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_cardId = <u32>::sse_decode(deserializer);
+        let mut var_title = <Option<String>>::sse_decode(deserializer);
+        let mut var_subtitle = <Option<String>>::sse_decode(deserializer);
+        let mut var_songs = <Vec<crate::api::dto::SongDto>>::sse_decode(deserializer);
+        return crate::api::dto::DiscoveryCardDto {
+            card_id: var_cardId,
+            title: var_title,
+            subtitle: var_subtitle,
+            songs: var_songs,
+        };
+    }
+}
+
 impl SseDecode for crate::api::dto::HeartRadioRequestDto {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -2601,67 +2655,68 @@ fn pde_ffi_dispatcher_primary_impl(
         12 => wire__crate__api__sdk__get_auth_state_impl(port, ptr, rust_vec_len, data_len),
         13 => wire__crate__api__sdk__get_cloud_history_impl(port, ptr, rust_vec_len, data_len),
         14 => wire__crate__api__sdk__get_cloud_playlists_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__sdk__get_everyday_recommendations_impl(
+        15 => wire__crate__api__sdk__get_discovery_card_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__sdk__get_everyday_recommendations_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        16 => wire__crate__api__sdk__get_heart_radio_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__sdk__get_month_vip_record_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__sdk__get_personal_fm_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__sdk__get_playlist_tracks_by_gid_impl(
+        17 => wire__crate__api__sdk__get_heart_radio_impl(port, ptr, rust_vec_len, data_len),
+        18 => wire__crate__api__sdk__get_month_vip_record_impl(port, ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__sdk__get_personal_fm_impl(port, ptr, rust_vec_len, data_len),
+        20 => wire__crate__api__sdk__get_playlist_tracks_by_gid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        20 => wire__crate__api__sdk__get_playlist_tracks_by_list_id_impl(
+        21 => wire__crate__api__sdk__get_playlist_tracks_by_list_id_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        21 => wire__crate__api__sdk__get_song_lyrics_impl(port, ptr, rust_vec_len, data_len),
-        22 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
-        23 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
-        24 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
-        25 => {
+        22 => wire__crate__api__sdk__get_song_lyrics_impl(port, ptr, rust_vec_len, data_len),
+        23 => wire__crate__api__sdk__get_user_profile_impl(port, ptr, rust_vec_len, data_len),
+        24 => wire__crate__api__sdk__get_user_vip_impl(port, ptr, rust_vec_len, data_len),
+        25 => wire__crate__api__sdk__init_app_impl(port, ptr, rust_vec_len, data_len),
+        26 => {
             wire__crate__api__sdk__initialize_native_logging_impl(port, ptr, rust_vec_len, data_len)
         }
-        26 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
-        27 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
-        28 => wire__crate__api__sdk__logout_impl(port, ptr, rust_vec_len, data_len),
-        29 => wire__crate__api__sdk__refresh_login_impl(port, ptr, rust_vec_len, data_len),
-        30 => wire__crate__api__sdk__register_device_impl(port, ptr, rust_vec_len, data_len),
-        31 => {
+        27 => wire__crate__api__sdk__initialize_sdk_impl(port, ptr, rust_vec_len, data_len),
+        28 => wire__crate__api__sdk__login_by_sms_impl(port, ptr, rust_vec_len, data_len),
+        29 => wire__crate__api__sdk__logout_impl(port, ptr, rust_vec_len, data_len),
+        30 => wire__crate__api__sdk__refresh_login_impl(port, ptr, rust_vec_len, data_len),
+        31 => wire__crate__api__sdk__register_device_impl(port, ptr, rust_vec_len, data_len),
+        32 => {
             wire__crate__api__sdk__remove_song_from_playlist_impl(port, ptr, rust_vec_len, data_len)
         }
-        32 => wire__crate__api__sdk__report_recommendation_favorite_click_impl(
+        33 => wire__crate__api__sdk__report_recommendation_favorite_click_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        33 => wire__crate__api__sdk__report_recommendation_history_impl(
+        34 => wire__crate__api__sdk__report_recommendation_history_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        34 => wire__crate__api__sdk__report_recommendation_repeated_impl(
+        35 => wire__crate__api__sdk__report_recommendation_repeated_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        35 => wire__crate__api__sdk__resolve_playback_impl(port, ptr, rust_vec_len, data_len),
-        36 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
-        37 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
-        38 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
-        39 => wire__crate__api__sdk__set_native_log_level_impl(port, ptr, rust_vec_len, data_len),
-        40 => wire__crate__api__sdk__upgrade_day_vip_impl(port, ptr, rust_vec_len, data_len),
-        41 => wire__crate__api__sdk__upload_cloud_history_impl(port, ptr, rust_vec_len, data_len),
+        36 => wire__crate__api__sdk__resolve_playback_impl(port, ptr, rust_vec_len, data_len),
+        37 => wire__crate__api__sdk__search_playlists_impl(port, ptr, rust_vec_len, data_len),
+        38 => wire__crate__api__sdk__search_songs_impl(port, ptr, rust_vec_len, data_len),
+        39 => wire__crate__api__sdk__send_sms_code_impl(port, ptr, rust_vec_len, data_len),
+        40 => wire__crate__api__sdk__set_native_log_level_impl(port, ptr, rust_vec_len, data_len),
+        41 => wire__crate__api__sdk__upgrade_day_vip_impl(port, ptr, rust_vec_len, data_len),
+        42 => wire__crate__api__sdk__upload_cloud_history_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -2916,6 +2971,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::DeviceProfileDto>
     for crate::api::dto::DeviceProfileDto
 {
     fn into_into_dart(self) -> crate::api::dto::DeviceProfileDto {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::dto::DiscoveryCardDto {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.card_id.into_into_dart().into_dart(),
+            self.title.into_into_dart().into_dart(),
+            self.subtitle.into_into_dart().into_dart(),
+            self.songs.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::dto::DiscoveryCardDto
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::dto::DiscoveryCardDto>
+    for crate::api::dto::DiscoveryCardDto
+{
+    fn into_into_dart(self) -> crate::api::dto::DiscoveryCardDto {
         self
     }
 }
@@ -3814,6 +3892,16 @@ impl SseEncode for crate::api::dto::DeviceProfileDto {
         <bool>::sse_encode(self.has_pressure, serializer);
         <bool>::sse_encode(self.has_step_counter, serializer);
         <bool>::sse_encode(self.has_ambient_temperature, serializer);
+    }
+}
+
+impl SseEncode for crate::api::dto::DiscoveryCardDto {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <u32>::sse_encode(self.card_id, serializer);
+        <Option<String>>::sse_encode(self.title, serializer);
+        <Option<String>>::sse_encode(self.subtitle, serializer);
+        <Vec<crate::api::dto::SongDto>>::sse_encode(self.songs, serializer);
     }
 }
 

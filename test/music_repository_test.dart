@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/models/account.dart';
+import 'package:kgmusic/core/models/discovery_card.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
@@ -118,18 +119,49 @@ void main() {
       expect(remote.dailyCalls, 2);
     },
   );
+
+  test('discovery cache is isolated by account and card id', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final remote = _FakeMusicSdk(
+      () async => const [],
+      discoveryLoader: (cardId, pageSize) async => DiscoveryCard(
+        id: cardId,
+        title: 'Card $cardId',
+        songs: const [freshSong],
+      ),
+    );
+    final repository = MusicRepository(remote, database);
+
+    await repository.discoveryCard(3001, userId: 1).last;
+    await repository.discoveryCard(3001, userId: 1).last;
+    await repository.discoveryCard(3004, userId: 1).last;
+    await repository.discoveryCard(3001, userId: 2).last;
+
+    expect(remote.discoveryCalls, 3);
+  });
 }
 
 class _FakeMusicSdk implements BrowseSdk {
-  _FakeMusicSdk(this._dailyLoader);
+  _FakeMusicSdk(this._dailyLoader, {this.discoveryLoader});
 
   final Future<List<Song>> Function() _dailyLoader;
+  final Future<DiscoveryCard> Function(int cardId, int pageSize)?
+  discoveryLoader;
   int dailyCalls = 0;
+  int discoveryCalls = 0;
 
   @override
   Future<List<Song>> everydayRecommendations() {
     dailyCalls += 1;
     return _dailyLoader();
+  }
+
+  @override
+  Future<DiscoveryCard> discoveryCard(int cardId, {int pageSize = 10}) async {
+    discoveryCalls += 1;
+    return discoveryLoader?.call(cardId, pageSize) ??
+        DiscoveryCard(id: cardId, title: 'Discovery', songs: const []);
   }
 
   @override

@@ -75,4 +75,31 @@ void main() {
     expect(await store.read(2), isNull);
     expect(await store.read(1), isNotNull);
   });
+
+  test('discovery queues preserve their server title and card id', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final store = PlaybackQueueStore(database);
+    final request = PlaybackQueueRequest.snapshot(
+      title: '小众宝藏佳作',
+      id: '3004',
+      songs: const [song],
+      kind: PlaybackQueueOriginKind.discovery,
+    );
+
+    await store.write(
+      7,
+      PlaybackQueueSnapshot(
+        request: request,
+        currentIndex: 0,
+        order: PlaybackOrder.sequential,
+      ),
+    );
+
+    final restored = await store.read(7);
+    expect(restored!.request.origin.kind, PlaybackQueueOriginKind.discovery);
+    expect(restored.request.origin.title, '小众宝藏佳作');
+    expect(restored.request.origin.id, '3004');
+    expect(restored.request.hasMore, isFalse);
+  });
 }

@@ -68,6 +68,14 @@ Future<PlaylistSearchPageDto> searchPlaylists({
 Future<List<SongDto>> getEverydayRecommendations() =>
     RustLib.instance.api.crateApiSdkGetEverydayRecommendations();
 
+Future<DiscoveryCardDto> getDiscoveryCard({
+  required int cardId,
+  required int pageSize,
+}) => RustLib.instance.api.crateApiSdkGetDiscoveryCard(
+  cardId: cardId,
+  pageSize: pageSize,
+);
+
 Future<RecommendationBatchDto> getPersonalFm({
   required PersonalFmRequestDto request,
 }) => RustLib.instance.api.crateApiSdkGetPersonalFm(request: request);

@@ -15,6 +15,7 @@ class CachePolicy {
 
 abstract final class MusicCachePolicies {
   static const daily = CachePolicy(freshFor: Duration(hours: 6));
+  static const discovery = CachePolicy(freshFor: Duration(hours: 6));
   static const profile = CachePolicy(freshFor: Duration(minutes: 30));
   static const vip = CachePolicy(freshFor: Duration(minutes: 10));
   static const search = CachePolicy(freshFor: Duration(minutes: 10));
