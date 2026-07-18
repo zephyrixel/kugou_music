@@ -9,19 +9,6 @@ abstract final class RecommendationProfilePolicy {
   // documented default because the bridge does not expose that remote config.
   static const historyLimit = 400;
   static const dailySyncLimit = 5;
-
-  static const _syncPointEpochMs = 1514736000000;
-  static const _syncPointWeekMs = 604800000;
-
-  /// Converts the server cursor into the same weekly lower bound used by
-  /// Lite's NewUploadDataModel.a(long). A missing/zero cursor means a full
-  /// local profile is eligible.
-  static int? profileCutoffMs(int? syncPoint) {
-    if (syncPoint == null || syncPoint <= 0) return null;
-    if (syncPoint <= _syncPointEpochMs) return _syncPointEpochMs;
-    final offset = syncPoint - _syncPointEpochMs;
-    return syncPoint - offset % _syncPointWeekMs;
-  }
 }
 
 class RecommendationProfileSnapshot {
@@ -41,12 +28,12 @@ class RecommendationProfileSnapshot {
 class RecommendationSyncPolicyState {
   const RecommendationSyncPolicyState({
     required this.dayKey,
-    required this.successCount,
+    required this.syncCount,
     this.nextAllowedAt,
   });
 
   final String dayKey;
-  final int successCount;
+  final int syncCount;
   final DateTime? nextAllowedAt;
 }
 
@@ -130,10 +117,7 @@ class RecommendationProfileStore {
     });
   }
 
-  Future<RecommendationProfileSnapshot> snapshot(
-    int userId, {
-    int? sinceMs,
-  }) async {
+  Future<RecommendationProfileSnapshot> snapshot(int userId) async {
     // Playlist rows are a local read model without a user column. Only use the
     // favorite row when the library baseline proves it belongs to this
     // account; this prevents an account switch from leaking the previous
@@ -182,13 +166,10 @@ class RecommendationProfileStore {
               ? fallbackTime
               : track.collectTimeSecs! * 1000,
           count: 1,
-          // The official full playlist collector marks the "我喜欢" snapshot
-          // with source bit 0x20; playback path bits are tracked separately.
-          sourceBits: 32,
+          flagBits: RecommendationProfileItem.myFavoriteFlag,
+          sourceBits: 0,
         );
-        if (item.hasIdentity && _isAfter(item.eventTimeMs, sinceMs)) {
-          items.add(item);
-        }
+        if (item.hasIdentity) items.add(item);
       }
     }
 
@@ -208,9 +189,7 @@ class RecommendationProfileStore {
         count: row.count,
         sourceBits: row.sourceBits,
       );
-      if (item.hasIdentity && _isAfter(item.eventTimeMs, sinceMs)) {
-        items.add(item);
-      }
+      if (item.hasIdentity) items.add(item);
     }
     return RecommendationProfileSnapshot(
       ready: true,
@@ -226,11 +205,11 @@ class RecommendationProfileStore {
       _database.recommendationSyncStates,
     )..where((item) => item.userId.equals(userId))).getSingleOrNull();
     if (row == null || row.dayKey != dayKey) {
-      return RecommendationSyncPolicyState(dayKey: dayKey, successCount: 0);
+      return RecommendationSyncPolicyState(dayKey: dayKey, syncCount: 0);
     }
     return RecommendationSyncPolicyState(
       dayKey: row.dayKey,
-      successCount: row.successCount,
+      syncCount: row.successCount,
       nextAllowedAt: row.nextAllowedAt,
     );
   }
@@ -244,7 +223,7 @@ class RecommendationProfileStore {
         RecommendationSyncStatesCompanion.insert(
           userId: Value(userId),
           dayKey: state.dayKey,
-          successCount: Value(state.successCount),
+          successCount: Value(state.syncCount),
           nextAllowedAt: Value(state.nextAllowedAt),
         ),
       );
@@ -253,9 +232,6 @@ class RecommendationProfileStore {
     _database.storedRecommendationProfiles,
   )..where((row) => row.userId.equals(userId))).go();
 }
-
-bool _isAfter(int eventTimeMs, int? sinceMs) =>
-    sinceMs == null || eventTimeMs >= sinceMs;
 
 String? _normalizedHash(String? value) {
   final normalized = value?.trim().toLowerCase();

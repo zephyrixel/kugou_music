@@ -1,6 +1,6 @@
 use kugou_sdk::{
     AudioQuality, ClientPlaylistItem, KugouClient, LyricDocument, LyricFormat, ResourceHashes,
-    SearchPlaylist, Session, SongRef, UserPlaylist,
+    SearchPlaylist, Session, SongRef, UserPlaylist, client_playlist_week_bucket,
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -96,30 +96,16 @@ pub(super) fn recommendation_profile_item_to_sdk(
         action: match item.action {
             RecommendationProfileActionDto::Collect => ClientPlaylistItem::ACTION_COLLECT,
             RecommendationProfileActionDto::PlayComplete => ClientPlaylistItem::ACTION_PLAY,
-            RecommendationProfileActionDto::PlayShort => 4,
+            RecommendationProfileActionDto::PlayShort => ClientPlaylistItem::ACTION_PLAY_SHORT,
             RecommendationProfileActionDto::Trash => ClientPlaylistItem::ACTION_TRASH,
         },
         hash: item.standard_hash.clone(),
         mix_song_id: item.mix_song_id,
-        // Lite's NewUploadDataModel does not put the event timestamp directly
-        // in `T`.  It stores the week bucket returned by
-        // GuessYouLikeHelper.h(timestampMs).  The full millisecond timestamp
-        // is carried by the sync-point fields and is kept in the Dart profile
-        // store for ordering.
-        time: Some(recommendation_time_bucket(item.event_time_ms)),
+        time: Some(client_playlist_week_bucket(item.event_time_ms)),
         count: Some(item.count.min(i32::MAX as u32) as i32),
-        flag: None,
+        flag: (item.flag_bits != 0).then_some(item.flag_bits.min(i32::MAX as u32) as i32),
         source: (item.source_bits != 0).then_some(item.source_bits.min(i32::MAX as u32) as i32),
     }
-}
-
-fn recommendation_time_bucket(event_time_ms: i64) -> i64 {
-    // Official Lite epoch: 2017-12-24 00:00:00.001 UTC.  The native helper
-    // truncates to a seven-day bucket and clamps pre-epoch values to zero.
-    const EPOCH_MS: i64 = 1_514_131_200_001;
-    const WEEK_MS: i64 = 604_800_000;
-    let bucket = event_time_ms.saturating_sub(EPOCH_MS) / WEEK_MS;
-    bucket.clamp(0, i32::MAX as i64)
 }
 
 pub(super) fn recommendation_report_ack_to_dto(

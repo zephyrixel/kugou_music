@@ -2195,15 +2195,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return RecommendationProfileItemDto(
       action: dco_decode_recommendation_profile_action_dto(arr[0]),
       standardHash: dco_decode_opt_String(arr[1]),
       mixSongId: dco_decode_opt_CastedPrimitive_u_64(arr[2]),
       eventTimeMs: dco_decode_CastedPrimitive_i_64(arr[3]),
       count: dco_decode_u_32(arr[4]),
-      sourceBits: dco_decode_u_32(arr[5]),
+      flagBits: dco_decode_u_32(arr[5]),
+      sourceBits: dco_decode_u_32(arr[6]),
     );
   }
 
@@ -3260,6 +3261,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mixSongId = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     var var_eventTimeMs = sse_decode_CastedPrimitive_i_64(deserializer);
     var var_count = sse_decode_u_32(deserializer);
+    var var_flagBits = sse_decode_u_32(deserializer);
     var var_sourceBits = sse_decode_u_32(deserializer);
     return RecommendationProfileItemDto(
       action: var_action,
@@ -3267,6 +3269,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mixSongId: var_mixSongId,
       eventTimeMs: var_eventTimeMs,
       count: var_count,
+      flagBits: var_flagBits,
       sourceBits: var_sourceBits,
     );
   }
@@ -4222,6 +4225,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_CastedPrimitive_u_64(self.mixSongId, serializer);
     sse_encode_CastedPrimitive_i_64(self.eventTimeMs, serializer);
     sse_encode_u_32(self.count, serializer);
+    sse_encode_u_32(self.flagBits, serializer);
     sse_encode_u_32(self.sourceBits, serializer);
   }
 

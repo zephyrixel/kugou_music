@@ -218,7 +218,6 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
           request: bridge.PersonalFmRequestDto(
             action: switch (input.action) {
               PersonalFmAction.play => bridge.PersonalFmActionDto.play,
-              PersonalFmAction.skip => bridge.PersonalFmActionDto.skip,
               PersonalFmAction.garbage => bridge.PersonalFmActionDto.garbage,
             },
             currentSong: input.currentSong == null
@@ -271,6 +270,7 @@ class KugouMusicSdk implements MusicSdk, LyricsSdk {
               mixSongId: item.mixSongId,
               eventTimeMs: item.eventTimeMs,
               count: item.count,
+              flagBits: item.flagBits,
               sourceBits: item.sourceBits,
             ),
           )

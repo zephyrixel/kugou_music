@@ -531,7 +531,7 @@ class LyricWordDto {
           text == other.text;
 }
 
-enum PersonalFmActionDto { play, skip, garbage }
+enum PersonalFmActionDto { play, garbage }
 
 class PersonalFmRequestDto {
   final PersonalFmActionDto action;
@@ -803,6 +803,7 @@ class RecommendationProfileItemDto {
   final int? mixSongId;
   final int eventTimeMs;
   final int count;
+  final int flagBits;
   final int sourceBits;
 
   const RecommendationProfileItemDto({
@@ -811,6 +812,7 @@ class RecommendationProfileItemDto {
     this.mixSongId,
     required this.eventTimeMs,
     required this.count,
+    required this.flagBits,
     required this.sourceBits,
   });
 
@@ -821,6 +823,7 @@ class RecommendationProfileItemDto {
       mixSongId.hashCode ^
       eventTimeMs.hashCode ^
       count.hashCode ^
+      flagBits.hashCode ^
       sourceBits.hashCode;
 
   @override
@@ -833,6 +836,7 @@ class RecommendationProfileItemDto {
           mixSongId == other.mixSongId &&
           eventTimeMs == other.eventTimeMs &&
           count == other.count &&
+          flagBits == other.flagBits &&
           sourceBits == other.sourceBits;
 }
 

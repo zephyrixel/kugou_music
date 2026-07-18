@@ -57,38 +57,6 @@ void main() {
     expect(complete.sourceBits, 8);
   });
 
-  test('sync_point 使用官方周桶作为画像时间下限', () async {
-    const epoch = 1514736000000;
-    const week = 604800000;
-    const cutoff = epoch + week;
-    final rawSyncPoint = cutoff + 1234;
-
-    await profiles.recordPlayback(
-      userId: 7,
-      song: songA,
-      listened: const Duration(seconds: 10),
-      sourceBits: 1,
-      occurredAt: DateTime.fromMillisecondsSinceEpoch(cutoff - 1),
-    );
-    await profiles.recordPlayback(
-      userId: 7,
-      song: songB,
-      listened: const Duration(seconds: 10),
-      sourceBits: 1,
-      occurredAt: DateTime.fromMillisecondsSinceEpoch(cutoff),
-    );
-
-    final snapshot = await profiles.snapshot(
-      7,
-      sinceMs: RecommendationProfilePolicy.profileCutoffMs(rawSyncPoint),
-    );
-
-    expect(snapshot.items.map((item) => item.standardHash), [
-      songB.hashes.standard,
-    ]);
-    expect(RecommendationProfilePolicy.profileCutoffMs(0), isNull);
-  });
-
   test('完整收藏画像使用实际可用歌曲和真实 collect_time', () async {
     await library.replaceLibrary(
       userId: 7,
@@ -108,7 +76,8 @@ void main() {
 
     expect(snapshot.ready, isTrue);
     expect(collected, hasLength(2));
-    expect(collected.first.sourceBits, 32);
+    expect(collected.first.flagBits, RecommendationProfileItem.myFavoriteFlag);
+    expect(collected.first.sourceBits, 0);
     expect(
       collected.map((item) => item.eventTimeMs),
       contains(songA.collectTimeSecs! * 1000),

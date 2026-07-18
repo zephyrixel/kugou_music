@@ -14,7 +14,7 @@ extension RecommendationKindInfo on RecommendationKind {
   };
 }
 
-enum PersonalFmAction { play, skip, garbage }
+enum PersonalFmAction { play, garbage }
 
 class PersonalFmInput {
   const PersonalFmInput({
@@ -72,11 +72,14 @@ enum RecommendationProfileAction {
 }
 
 class RecommendationProfileItem {
+  static const myFavoriteFlag = 32;
+
   const RecommendationProfileItem({
     required this.action,
     required this.eventTimeMs,
     required this.count,
     required this.sourceBits,
+    this.flagBits = 0,
     this.standardHash,
     this.mixSongId,
   });
@@ -86,6 +89,7 @@ class RecommendationProfileItem {
   final int? mixSongId;
   final int eventTimeMs;
   final int count;
+  final int flagBits;
   final int sourceBits;
 
   bool get hasIdentity =>

@@ -108,6 +108,33 @@ void main() {
     expect(sdk.historyReports, isEmpty);
   });
 
+  test('猜你喜欢首次 login 响应不触发画像同步', () async {
+    final sdk = _FakeMusicSdk()
+      ..personalBatches.add(
+        const RecommendationBatch(
+          title: '猜你喜欢',
+          syncNeed: 1,
+          syncPoint: 0,
+          songs: [songA, songB],
+        ),
+      );
+    final value = reporter(sdk, jitterSeconds: () => 0);
+    await value.recordPlayback(
+      songA,
+      listened: const Duration(seconds: 10),
+      sourceBits: 1,
+    );
+
+    await RecommendationQueueSource(
+      sdk,
+      value,
+      kind: RecommendationKind.personalFm,
+    ).start();
+    await value.flush();
+
+    expect(sdk.historyReports, isEmpty);
+  });
+
   test('红心电台续拉回传 mixSongId 且不触发 FM 画像同步', () async {
     final sdk = _FakeMusicSdk()
       ..heartBatches.addAll([
@@ -151,7 +178,7 @@ void main() {
     expect(sdk.historyReports, isEmpty);
   });
 
-  test('普通播放只落本地，只有 sync_need=1 才同步画像', () async {
+  test('普通播放只落本地，画像同步要求 sync_need=1 且 sync_point=0', () async {
     final sdk = _FakeMusicSdk();
     final value = reporter(sdk, jitterSeconds: () => 0);
     await value.recordPlayback(
@@ -162,6 +189,8 @@ void main() {
 
     value.onPersonalFmSuccess(syncNeed: null, syncPoint: null);
     value.onPersonalFmSuccess(syncNeed: 0, syncPoint: 2);
+    value.onPersonalFmSuccess(syncNeed: 1, syncPoint: null);
+    value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 2);
     await value.flush();
     expect(sdk.historyReports, isEmpty);
 
@@ -177,7 +206,7 @@ void main() {
     expect(report.items.single.sourceBits, 1);
   });
 
-  test('同步按成功次数冷却并在自然日重置', () async {
+  test('同步按任务发起次数冷却并在自然日重置', () async {
     var now = DateTime(2026, 7, 18, 9);
     final sdk = _FakeMusicSdk();
     final value = reporter(sdk, now: () => now, jitterSeconds: () => 0);
@@ -189,14 +218,14 @@ void main() {
 
     value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 0);
     await value.flush();
-    // The first successful sync has only the random jitter cooldown. With a
+    // The first sync has only the random jitter cooldown. With a
     // zero-jitter test clock, the next trigger can run immediately.
     now = now.add(const Duration(seconds: 1));
     value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 0);
     await value.flush();
     expect(sdk.historyReports, hasLength(2));
 
-    // The second sync uses the previous successful count (1), hence a
+    // The second sync uses the previous task count (1), hence a
     // five-minute cooldown.
     now = now.add(const Duration(minutes: 4, seconds: 59));
     value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 0);
@@ -214,7 +243,7 @@ void main() {
     expect(sdk.historyReports, hasLength(4));
   });
 
-  test('自然日内最多完成五次画像同步', () async {
+  test('自然日内最多发起五次画像同步', () async {
     var now = DateTime(2026, 7, 18, 0, 1);
     final sdk = _FakeMusicSdk();
     final value = reporter(sdk, now: () => now, jitterSeconds: () => 0);
@@ -301,13 +330,19 @@ void main() {
     expect(second.items, hasLength(1));
     expect(second.complete, isTrue);
     expect(second.previousSyncPoint, first.nextSyncPoint);
-    expect(second.lastUploadHash, 'hash-400');
+    expect(second.lastUploadHash, 'hash-1');
   });
 
-  test('report 失败通过全局错误总线暴露且不计成功次数', () async {
+  test('report 失败通过全局错误总线暴露且仍计入同步限频', () async {
+    var now = DateTime(2026, 7, 18, 9);
     final sdk = _FakeMusicSdk()..reportError = StateError('network down');
     final errors = AppErrorBus();
-    final value = reporter(sdk, errors: errors, jitterSeconds: () => 0);
+    final value = reporter(
+      sdk,
+      errors: errors,
+      now: () => now,
+      jitterSeconds: () => 60,
+    );
     final nextMessage = errors.messages.first;
     await value.recordPlayback(
       songA,
@@ -319,7 +354,15 @@ void main() {
 
     expect(await nextMessage, '推荐反馈暂未同步，不影响继续播放');
     await value.flush();
+    final failedPolicy = await profileStore.syncPolicy(7, '2026-07-18');
+    expect(failedPolicy.syncCount, 1);
+
     sdk.reportError = null;
+    value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 0);
+    await value.flush();
+    expect(sdk.historyReports, isEmpty);
+
+    now = now.add(const Duration(seconds: 61));
     value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 0);
     await value.flush();
     expect(sdk.historyReports, hasLength(1));

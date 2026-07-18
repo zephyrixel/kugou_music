@@ -310,19 +310,7 @@ class MusicAudioHandler extends BaseAudioHandler
   }
 
   @override
-  Future<void> skipToNext() async {
-    final feedback = _recommendationFeedbackContext();
-    final source = _queueRequest?.source;
-    await _skipToNextInternal();
-    if (_order == PlaybackOrder.repeatOne) return;
-    final RecommendationFeedbackSource? feedbackSource =
-        source is RecommendationFeedbackSource
-        ? source as RecommendationFeedbackSource
-        : null;
-    if (feedback != null && feedbackSource != null) {
-      feedbackSource.reportSkip(feedback);
-    }
-  }
+  Future<void> skipToNext() => _skipToNextInternal();
 
   Future<void> _skipToNextInternal({bool honorRepeatOne = true}) async {
     if (_songs.isEmpty || _index < 0) return;
@@ -413,8 +401,6 @@ class MusicAudioHandler extends BaseAudioHandler
   Future<void> skipToQueueItem(int index) async {
     final request = _queueRequest;
     if (request == null || index < 0 || index >= _songs.length) return;
-    final feedback = index > _index ? _recommendationFeedbackContext() : null;
-    final source = request.source;
     await _requestPlayback(
       request: request,
       index: index,
@@ -422,13 +408,6 @@ class MusicAudioHandler extends BaseAudioHandler
       autoPlay: true,
       recordHistory: index != _index,
     );
-    final RecommendationFeedbackSource? feedbackSource =
-        source is RecommendationFeedbackSource
-        ? source as RecommendationFeedbackSource
-        : null;
-    if (feedback != null && feedbackSource != null) {
-      feedbackSource.reportSkip(feedback);
-    }
   }
 
   Future<void> dislikeCurrent() async {

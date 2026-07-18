@@ -2194,8 +2194,7 @@ impl SseDecode for crate::api::dto::PersonalFmActionDto {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
             0 => crate::api::dto::PersonalFmActionDto::Play,
-            1 => crate::api::dto::PersonalFmActionDto::Skip,
-            2 => crate::api::dto::PersonalFmActionDto::Garbage,
+            1 => crate::api::dto::PersonalFmActionDto::Garbage,
             _ => unreachable!("Invalid variant for PersonalFmActionDto: {}", inner),
         };
     }
@@ -2403,6 +2402,7 @@ impl SseDecode for crate::api::dto::RecommendationProfileItemDto {
         let mut var_mixSongId = <Option<u64>>::sse_decode(deserializer);
         let mut var_eventTimeMs = <i64>::sse_decode(deserializer);
         let mut var_count = <u32>::sse_decode(deserializer);
+        let mut var_flagBits = <u32>::sse_decode(deserializer);
         let mut var_sourceBits = <u32>::sse_decode(deserializer);
         return crate::api::dto::RecommendationProfileItemDto {
             action: var_action,
@@ -2410,6 +2410,7 @@ impl SseDecode for crate::api::dto::RecommendationProfileItemDto {
             mix_song_id: var_mixSongId,
             event_time_ms: var_eventTimeMs,
             count: var_count,
+            flag_bits: var_flagBits,
             source_bits: var_sourceBits,
         };
     }
@@ -3217,8 +3218,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::PersonalFmActionDto {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
             Self::Play => 0.into_dart(),
-            Self::Skip => 1.into_dart(),
-            Self::Garbage => 2.into_dart(),
+            Self::Garbage => 1.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -3487,6 +3487,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::RecommendationProfileIte
             self.mix_song_id.into_into_dart().into_dart(),
             self.event_time_ms.into_into_dart().into_dart(),
             self.count.into_into_dart().into_dart(),
+            self.flag_bits.into_into_dart().into_dart(),
             self.source_bits.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -4234,8 +4235,7 @@ impl SseEncode for crate::api::dto::PersonalFmActionDto {
         <i32>::sse_encode(
             match self {
                 crate::api::dto::PersonalFmActionDto::Play => 0,
-                crate::api::dto::PersonalFmActionDto::Skip => 1,
-                crate::api::dto::PersonalFmActionDto::Garbage => 2,
+                crate::api::dto::PersonalFmActionDto::Garbage => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -4396,6 +4396,7 @@ impl SseEncode for crate::api::dto::RecommendationProfileItemDto {
         <Option<u64>>::sse_encode(self.mix_song_id, serializer);
         <i64>::sse_encode(self.event_time_ms, serializer);
         <u32>::sse_encode(self.count, serializer);
+        <u32>::sse_encode(self.flag_bits, serializer);
         <u32>::sse_encode(self.source_bits, serializer);
     }
 }

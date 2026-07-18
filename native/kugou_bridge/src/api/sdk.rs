@@ -174,12 +174,6 @@ pub async fn get_personal_fm(
             .unwrap_or_else(|| {
                 PersonalFmRequest::start().remain_songcnt(request.remain_song_count)
             }),
-        PersonalFmActionDto::Skip => PersonalFmRequest::skip(
-            current_song
-                .as_ref()
-                .ok_or_else(|| BridgeError::invalid_argument("skip requires current song"))?,
-        )
-        .remain_songcnt(request.remain_song_count),
         PersonalFmActionDto::Garbage => PersonalFmRequest::garbage(
             current_song
                 .as_ref()
@@ -214,8 +208,8 @@ pub async fn get_personal_fm(
         subtitle: response.data.mark.clone(),
         mark_list: response.data.mark_list,
         mark: response.data.mark,
-        sync_need: recommendation_extra_i64(&response.data.extra, &["sync_need", "syncNeed"]),
-        sync_point: recommendation_sync_point(&response.data.extra),
+        sync_need: response.data.sync_need,
+        sync_point: response.data.sync_point,
         songs,
     })
 }
@@ -280,26 +274,6 @@ pub async fn report_recommendation_history(
         .await
         .map_err(BridgeError::from_sdk)?;
     Ok(recommendation_report_ack_to_dto(&response.data))
-}
-
-fn recommendation_sync_point(
-    extra: &std::collections::BTreeMap<String, serde_json::Value>,
-) -> Option<i64> {
-    recommendation_extra_i64(extra, &["sync_point", "syncPoint"])
-}
-
-fn recommendation_extra_i64(
-    extra: &std::collections::BTreeMap<String, serde_json::Value>,
-    keys: &[&str],
-) -> Option<i64> {
-    keys.iter().find_map(|key| {
-        let value = extra.get(*key)?;
-        value
-            .as_i64()
-            .or_else(|| value.as_u64().and_then(|number| i64::try_from(number).ok()))
-            .or_else(|| value.as_bool().map(i64::from))
-            .or_else(|| value.as_str()?.trim().parse().ok())
-    })
 }
 
 pub async fn report_recommendation_repeated(
@@ -935,14 +909,16 @@ mod tests {
             mix_song_id: song.mix_song_id,
             event_time_ms: 1_700_000_000_000,
             count: 2,
-            source_bits: 32,
+            flag_bits: ClientPlaylistItem::FLAG_MY_FAV as u32,
+            source_bits: 0,
         });
         assert_eq!(row.action, ClientPlaylistItem::ACTION_COLLECT);
         assert_eq!(row.hash.as_deref(), Some("STANDARD"));
         assert_eq!(row.mix_song_id, Some(42));
         assert_eq!(row.time, Some(307));
         assert_eq!(row.count, Some(2));
-        assert_eq!(row.source, Some(32));
+        assert_eq!(row.flag, Some(ClientPlaylistItem::FLAG_MY_FAV));
+        assert_eq!(row.source, None);
     }
 
     #[test]
@@ -953,6 +929,7 @@ mod tests {
             mix_song_id: None,
             event_time_ms: 1_514_131_200_000,
             count: 1,
+            flag_bits: 0,
             source_bits: 0,
         });
         assert_eq!(before_epoch.time, Some(0));
@@ -963,32 +940,10 @@ mod tests {
             mix_song_id: None,
             event_time_ms: 1_514_131_200_001 + 604_800_000,
             count: 1,
+            flag_bits: 0,
             source_bits: 0,
         });
         assert_eq!(one_week.time, Some(1));
-    }
-
-    #[test]
-    fn personal_fm_sync_point_accepts_number_and_string() {
-        let numeric = BTreeMap::from([("sync_point".to_owned(), serde_json::json!(0))]);
-        let string = BTreeMap::from([("syncPoint".to_owned(), serde_json::json!("42"))]);
-
-        assert_eq!(recommendation_sync_point(&numeric), Some(0));
-        assert_eq!(recommendation_sync_point(&string), Some(42));
-    }
-
-    #[test]
-    fn personal_fm_sync_need_accepts_number_string_and_bool() {
-        let numeric = BTreeMap::from([("sync_need".to_owned(), serde_json::json!(1))]);
-        let string = BTreeMap::from([("syncNeed".to_owned(), serde_json::json!("0"))]);
-        let boolean = BTreeMap::from([("sync_need".to_owned(), serde_json::json!(true))]);
-
-        assert_eq!(recommendation_extra_i64(&numeric, &["sync_need"]), Some(1));
-        assert_eq!(
-            recommendation_extra_i64(&string, &["sync_need", "syncNeed"]),
-            Some(0)
-        );
-        assert_eq!(recommendation_extra_i64(&boolean, &["sync_need"]), Some(1));
     }
 
     #[test]

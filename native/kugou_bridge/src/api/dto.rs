@@ -103,7 +103,6 @@ pub struct PlaylistSearchHitDto {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PersonalFmActionDto {
     Play,
-    Skip,
     Garbage,
 }
 
@@ -162,6 +161,7 @@ pub struct RecommendationProfileItemDto {
     pub mix_song_id: Option<u64>,
     pub event_time_ms: i64,
     pub count: u32,
+    pub flag_bits: u32,
     pub source_bits: u32,
 }
 

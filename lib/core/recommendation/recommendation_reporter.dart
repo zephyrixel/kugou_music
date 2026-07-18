@@ -30,7 +30,6 @@ class RecommendationReporter {
   bool _profileSyncPending = false;
   bool _profileReadySignalPending = false;
   int _profileTriggerVersion = 0;
-  int? _profileCutoffMs;
 
   void activate(int userId) {
     if (_userId == userId) return;
@@ -38,7 +37,6 @@ class RecommendationReporter {
     _userId = userId;
     _profileSyncPending = false;
     _profileReadySignalPending = false;
-    _profileCutoffMs = null;
   }
 
   Future<void> deactivate({bool clearProfile = true}) async {
@@ -47,7 +45,6 @@ class RecommendationReporter {
     _userId = null;
     _profileSyncPending = false;
     _profileReadySignalPending = false;
-    _profileCutoffMs = null;
     if (clearProfile && userId != null) await _store.clearProfile(userId);
   }
 
@@ -93,9 +90,8 @@ class RecommendationReporter {
   }
 
   void onPersonalFmSuccess({required int? syncNeed, required int? syncPoint}) {
-    if (syncNeed != 1 || _userId == null) return;
+    if (syncNeed != 1 || syncPoint != 0 || _userId == null) return;
     _profileTriggerVersion += 1;
-    _profileCutoffMs = RecommendationProfilePolicy.profileCutoffMs(syncPoint);
     _profileSyncPending = true;
     _startProfileSync();
   }
@@ -139,9 +135,8 @@ class RecommendationReporter {
     if (_syncInFlight != null) return;
     final generation = _sessionGeneration;
     final triggerVersion = _profileTriggerVersion;
-    final cutoffMs = _profileCutoffMs;
     late final Future<void> tracked;
-    tracked = _syncProfile(generation, sinceMs: cutoffMs)
+    tracked = _syncProfile(generation)
         .catchError((Object error) {
           if (generation == _sessionGeneration) {
             reportError('画像同步', error);
@@ -165,10 +160,10 @@ class RecommendationReporter {
     _syncInFlight = tracked;
   }
 
-  Future<void> _syncProfile(int generation, {required int? sinceMs}) async {
+  Future<void> _syncProfile(int generation) async {
     final userId = _userId;
     if (userId == null || generation != _sessionGeneration) return;
-    final snapshot = await _store.snapshot(userId, sinceMs: sinceMs);
+    final snapshot = await _store.snapshot(userId);
     if (generation != _sessionGeneration || _userId != userId) return;
     if (!snapshot.ready) return;
     _profileSyncPending = false;
@@ -178,7 +173,7 @@ class RecommendationReporter {
     final dayKey = _dayKey(now);
     final policy = await _store.syncPolicy(userId, dayKey);
     if (generation != _sessionGeneration || _userId != userId) return;
-    if (policy.successCount >= RecommendationProfilePolicy.dailySyncLimit) {
+    if (policy.syncCount >= RecommendationProfilePolicy.dailySyncLimit) {
       return;
     }
     final nextAllowedAt = policy.nextAllowedAt;
@@ -194,6 +189,20 @@ class RecommendationReporter {
         if (byAction != 0) return byAction;
         return (left.standardHash ?? '').compareTo(right.standardHash ?? '');
       });
+
+    final syncCount = policy.syncCount + 1;
+    final jitter = _jitterSeconds().clamp(0, 60);
+    await _store.saveSyncPolicy(
+      userId,
+      RecommendationSyncPolicyState(
+        dayKey: dayKey,
+        syncCount: syncCount,
+        nextAllowedAt: now.add(
+          Duration(minutes: policy.syncCount * 5, seconds: jitter),
+        ),
+      ),
+    );
+    if (generation != _sessionGeneration || _userId != userId) return;
 
     var previousSyncPoint = 0;
     String? lastUploadHash;
@@ -218,27 +227,11 @@ class RecommendationReporter {
       );
       if (generation != _sessionGeneration || _userId != userId) return;
       previousSyncPoint = nextSyncPoint;
-      final hash = wireItems.last.standardHash?.trim();
+      final hash = wireItems.first.standardHash?.trim();
       lastUploadHash = hash?.isNotEmpty == true ? hash : null;
     }
-
-    final successCount = policy.successCount + 1;
-    final jitter = _jitterSeconds().clamp(0, 60);
-    await _store.saveSyncPolicy(
-      userId,
-      RecommendationSyncPolicyState(
-        dayKey: dayKey,
-        successCount: successCount,
-        // The native cooldown uses the number of successful syncs *before*
-        // this attempt.  Thus the first upload is eligible immediately (plus
-        // jitter), while the second waits five minutes, and so on.
-        nextAllowedAt: now.add(
-          Duration(minutes: policy.successCount * 5, seconds: jitter),
-        ),
-      ),
-    );
     AppLog.debug(
-      '推荐画像同步完成 rows=${items.length} count=$successCount',
+      '推荐画像同步完成 rows=${items.length} count=$syncCount',
       target: 'recommendation.report',
     );
   }

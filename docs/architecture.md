@@ -14,7 +14,7 @@ features/*
     │       ├── LibraryStore ── Drift CRUD / watch
     │       └── LibraryRemote ── core/native/MusicSdk
     │                              └── FRB ── Rust kugou_bridge
-    │                                               └── kugou_sdk 0.2.8 / Lite
+    │                                               └── kugou_sdk 0.2.9 / Lite
     ├── core/cache/MusicRepository ── 推荐、搜索与资料响应缓存
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
@@ -151,13 +151,15 @@ App 必须登录且播链/搜索依赖网络，因此库层不做持久化 Outbo
 
 - 所有来源的播放只在本地累计墙钟收听时长；seek 不计时，暂停与音质切换保留会话。
   单次 `>120s` 写 A=3，否则写 A=4；收藏、垃圾桶分别使用 A=1/A=5。
-- `report_history` 不是通用播放上报。仅猜你喜欢成功返回 `sync_need=1`（排除登录动作）且
-  完整收藏索引可用、本地画像非空时同步；`sync_point` 仅作为官方周桶时间下限，云播放历史
-  继续走 `users().history_upload`。
-- 每个自然日最多成功 5 次。成功后的冷却为“当日成功次数 × 5 分钟 + 0～60 秒随机”，
+- `report_history` 不是通用播放上报。仅猜你喜欢非登录请求成功返回 `sync_need=1` 且
+  `sync_point=0`、完整收藏索引可用、本地画像非空时同步；云播放历史继续走
+  `users().history_upload`。
+- 每个自然日最多发起 5 次非空同步任务。任务发起时即记录次数与时间，HTTP 失败也不会绕过
+  限频；冷却为“本次发起前的当日次数 × 5 分钟 + 0～60 秒随机”，
   状态跨重启保存；冷却命中不会自行定时重试，只等待下一次猜你喜欢拉歌。
 - 画像按事件时间降序分为最多 400 条一包（Lite 默认配置），包内反序发送；`prev/next_sync_point`、
-  `complete` 与 `last_uplpad_hash` 按官方上传任务游标推进。任一包失败即停止并使用通用错误提示。
+  `complete` 与 `last_uplpad_hash`（原切片末项、wire 首项）按官方上传任务游标推进。任一包失败
+  即停止并使用通用错误提示。
 
 ## 后续迭代
 

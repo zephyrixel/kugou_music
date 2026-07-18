@@ -20,7 +20,6 @@ class RecommendationFeedbackContext {
 
 abstract interface class RecommendationFeedbackSource {
   RecommendationKind get kind;
-  void reportSkip(RecommendationFeedbackContext context);
   void reportDislike(RecommendationFeedbackContext context);
 }
 
@@ -86,12 +85,6 @@ class RecommendationQueueSource
   }
 
   @override
-  void reportSkip(RecommendationFeedbackContext context) {
-    if (kind != RecommendationKind.personalFm) return;
-    _runFeedback('跳过', PersonalFmAction.skip, context);
-  }
-
-  @override
   void reportDislike(RecommendationFeedbackContext context) {
     unawaited(_recordDislike(context));
   }
@@ -100,36 +93,21 @@ class RecommendationQueueSource
     try {
       await _reporter.recordTrash(context.song);
       if (kind == RecommendationKind.personalFm) {
-        _runFeedback('不感兴趣', PersonalFmAction.garbage, context);
+        final batch = await _serialized(
+          () => _fetch(
+            action: PersonalFmAction.garbage,
+            currentSong: context.song,
+            remainSongCount: context.remainSongCount,
+            playtimeSecs: context.position.inSeconds,
+          ),
+        );
+        _pending.addAll(
+          _filterNew(batch.songs, _pending, reportRepeated: false),
+        );
       }
     } catch (error) {
-      _reporter.reportError('不感兴趣记录', error);
+      _reporter.reportError('不感兴趣', error);
     }
-  }
-
-  void _runFeedback(
-    String label,
-    PersonalFmAction action,
-    RecommendationFeedbackContext context,
-  ) {
-    unawaited(
-      _serialized(
-            () => _fetch(
-              action: action,
-              currentSong: context.song,
-              remainSongCount: context.remainSongCount,
-              playtimeSecs: context.position.inSeconds,
-            ),
-          )
-          .then((batch) {
-            _pending.addAll(
-              _filterNew(batch.songs, _pending, reportRepeated: false),
-            );
-          })
-          .catchError((Object error) {
-            _reporter.reportError(label, error);
-          }),
-    );
   }
 
   Future<RecommendationBatch> _fetch({
@@ -160,7 +138,7 @@ class RecommendationQueueSource
       ),
     };
     final value = await batch;
-    if (kind == RecommendationKind.personalFm) {
+    if (kind == RecommendationKind.personalFm && currentSong != null) {
       _reporter.onPersonalFmSuccess(
         syncNeed: value.syncNeed,
         syncPoint: value.syncPoint,
