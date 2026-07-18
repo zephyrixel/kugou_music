@@ -14,7 +14,7 @@ features/*
     │       ├── LibraryStore ── Drift CRUD / watch
     │       └── LibraryRemote ── core/native/MusicSdk
     │                              └── FRB ── Rust kugou_bridge
-    │                                               └── kugou_sdk 0.2.5 / Lite
+    │                                               └── kugou_sdk 0.2.8 / Lite
     ├── core/cache/MusicRepository ── 推荐、搜索与资料响应缓存
     │
     ├── core/player/MusicAudioHandler ── just_audio + audio_service
@@ -76,8 +76,8 @@ features/*
 4. 切换音质会重新解析临时 URL，同时保留播放位置以及播放/暂停状态，不重复写入历史。
 5. SDK 返回 `preview_end_ms` 时，播放器在该位置自动暂停。
 6. 只在新歌曲地址成功装载后写入最近播放记录。
-7. 播放地址使用 `LockCachingAudioSource` 渐进写入 1 GB LRU 缓存；缓存键由歌曲
-   hash、实际音质和试听状态组成，临时签名 URL 不参与资源身份。
+7. 播放地址使用 `LockCachingAudioSource` 渐进写入可配置的 LRU 缓存（默认 1 GB）；
+   缓存键由歌曲 hash、实际音质和试听状态组成，临时签名 URL 不参与资源身份。
 8. 进度条仅在用户结束拖动时调用一次 `seek`，避免连续 Range 请求。
 9. 切歌先解析地址与准备缓存源，`setAudioSource` 成功后才原子提交歌曲、封面、
    队列索引和音质状态；过期请求不得覆盖新请求。
@@ -103,6 +103,8 @@ features/*
   保留 500 项和 30 天。
 - 封面、歌单图片和头像使用统一图片缓存，最多 800 项、保留 30 天；Android
   媒体通知优先使用已缓存的本地封面。
+- 非敏感应用偏好由统一配置存储维护；默认播放音质和歌曲缓存上限跨重启保留，
+  缓存上限可在 256 MB 至 8 GB 间按 256 MB 调整。缩小上限时保护正在播放和下载的文件。
 - “清理临时缓存”不会删除登录、音乐库，也不会中断当前播放。
 
 ## 会话与安全

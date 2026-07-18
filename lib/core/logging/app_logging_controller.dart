@@ -7,16 +7,21 @@ import 'package:kgmusic/core/logging/app_log_exporter.dart';
 import 'package:kgmusic/core/logging/app_log_level.dart';
 import 'package:kgmusic/core/logging/app_log_store.dart';
 import 'package:kgmusic/core/native/rust_bridge.dart' as bridge;
+import 'package:kgmusic/core/preferences/preference_store.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AppLoggingController extends ChangeNotifier {
   AppLoggingController._(this.store, this._preferences, this._level);
 
-  static const _levelKey = 'app_log_level';
+  static final _levelKey = PreferenceKey<String>(
+    name: 'app_log_level',
+    defaultValue: AppLogLevel.info.name,
+    decode: (value) => value is String ? value : null,
+    encode: (value) => value,
+  );
 
   final AppLogStore store;
-  final SharedPreferencesAsync _preferences;
+  final PreferenceStore _preferences;
   AppLogLevel _level;
   bool _nativeAvailable = false;
   String? _nativeError;
@@ -28,7 +33,9 @@ class AppLoggingController extends ChangeNotifier {
   AppLogExporter get exporter =>
       AppLogExporter(store, flushNative: _flushNative);
 
-  static Future<AppLoggingController> create() async {
+  static Future<AppLoggingController> create(
+    PreferenceStore preferences,
+  ) async {
     Directory directory;
     try {
       final support = await getApplicationSupportDirectory();
@@ -42,10 +49,9 @@ class AppLoggingController extends ChangeNotifier {
     } catch (_) {
       // File logging is best effort and must never prevent application startup.
     }
-    final preferences = SharedPreferencesAsync();
     String? persistedValue;
     try {
-      persistedValue = await preferences.getString(_levelKey);
+      persistedValue = await preferences.read(_levelKey);
     } catch (_) {
       // Keep the default level when platform preferences are unavailable.
     }
@@ -100,7 +106,7 @@ class AppLoggingController extends ChangeNotifier {
         ? AppLogLevel.debug
         : level;
     try {
-      await _preferences.setString(_levelKey, persistedLevel.name);
+      await _preferences.write(_levelKey, persistedLevel.name);
     } catch (error) {
       AppLog.warn('保存日志等级失败', target: 'logging', error: error);
     }

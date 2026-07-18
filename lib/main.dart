@@ -20,6 +20,8 @@ import 'package:kgmusic/core/player/audio_service_config.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
 import 'package:kgmusic/core/player/playback_queue_store.dart';
+import 'package:kgmusic/core/preferences/app_settings.dart';
+import 'package:kgmusic/core/preferences/preference_store.dart';
 import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
 import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
@@ -38,7 +40,9 @@ Future<void> main() async {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final logging = await AppLoggingController.create();
+  final preferenceStore = SharedPreferenceStore();
+  final settings = await AppSettingsController.create(preferenceStore);
+  final logging = await AppLoggingController.create(preferenceStore);
   installAppLogErrorHandlers();
   await RustLib.init();
   await logging.initializeNative();
@@ -60,7 +64,9 @@ Future<void> _bootstrap() async {
     libraryRemote,
     recommendationReporter: recommendationReporter,
   );
-  final audioCache = await AudioCacheManager.create();
+  final audioCache = await AudioCacheManager.create(
+    maxBytes: settings.settings.audioCacheMaxBytes,
+  );
   final musicRepository = MusicRepository(sdk, database);
   final queueStore = PlaybackQueueStore(database);
   final queueSourceFactory = PlaybackQueueSourceFactory(
@@ -77,6 +83,8 @@ Future<void> _bootstrap() async {
       reportRecommendationPlayed: library.reportRecommendationPlayed,
       queueStore: queueStore,
       queueSourceFactory: queueSourceFactory,
+      initialQuality: settings.settings.defaultPlaybackQuality,
+      persistPreferredQuality: settings.setDefaultPlaybackQuality,
     ),
     config: kgMusicAudioServiceConfig,
   );
@@ -93,6 +101,7 @@ Future<void> _bootstrap() async {
         playbackQueueFactoryProvider.overrideWithValue(queueSourceFactory),
         appErrorBusProvider.overrideWithValue(appErrorBus),
         appLoggingControllerProvider.overrideWith((ref) => logging),
+        appSettingsControllerProvider.overrideWith((ref) => settings),
         recommendationReporterProvider.overrideWithValue(
           recommendationReporter,
         ),

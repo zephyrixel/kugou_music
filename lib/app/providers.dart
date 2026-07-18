@@ -19,6 +19,7 @@ import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/native/lyrics_sdk.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue_sources.dart';
+import 'package:kgmusic/core/preferences/app_settings.dart';
 import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
 import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
@@ -75,6 +76,13 @@ final appLoggingControllerProvider =
     ChangeNotifierProvider<AppLoggingController>(
       (ref) => throw UnimplementedError(
         'appLoggingControllerProvider must be overridden',
+      ),
+    );
+
+final appSettingsControllerProvider =
+    ChangeNotifierProvider<AppSettingsController>(
+      (ref) => throw UnimplementedError(
+        'appSettingsControllerProvider must be overridden',
       ),
     );
 

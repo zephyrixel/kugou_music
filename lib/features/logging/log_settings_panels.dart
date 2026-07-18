@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/formatters.dart';
 import 'package:kgmusic/core/logging/app_log_level.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_settings_group.dart';
@@ -35,7 +36,7 @@ class LogLevelPanel extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            Text(_formatBytes(totalBytes)),
+            Text(formatByteSize(totalBytes)),
           ],
         ),
         const SizedBox(height: 12),
@@ -72,12 +73,6 @@ class LogLevelPanel extends StatelessWidget {
       ],
     ),
   );
-
-  static String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KiB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
-  }
 }
 
 class LogActionGroup extends StatelessWidget {

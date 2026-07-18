@@ -32,9 +32,14 @@ class MusicAudioHandler extends BaseAudioHandler
     this.queueSourceFactory,
     AudioPlayerPort? player,
     Future<void> Function()? configureSession,
+    AudioQuality initialQuality = AudioQuality.standard,
+    Future<void> Function(AudioQuality)? persistPreferredQuality,
     bool observeLifecycle = true,
     bool restoreQueueOnStart = true,
   }) : _player = player ?? JustAudioPlayerPort(),
+       _preferredQuality = initialQuality,
+       _qualityState = PlaybackQualityState(requested: initialQuality),
+       _persistPreferredQuality = persistPreferredQuality ?? _ignoreQuality,
        _recommendationPlayTracker = RecommendationPlayTracker(
          reportRecommendationPlayed ?? (_) async {},
        ) {
@@ -63,6 +68,7 @@ class MusicAudioHandler extends BaseAudioHandler
   final PlaybackQueueStore? queueStore;
   final PlaybackQueueSourceFactory? queueSourceFactory;
   final AudioPlayerPort _player;
+  final Future<void> Function(AudioQuality) _persistPreferredQuality;
   final RecommendationPlayTracker _recommendationPlayTracker;
   final StreamController<String?> _messages = StreamController.broadcast();
   final StreamController<PlaybackQualityState> _qualityStates =
@@ -71,10 +77,8 @@ class MusicAudioHandler extends BaseAudioHandler
       StreamController.broadcast(sync: true);
   final PlaybackQueueController _queueController = PlaybackQueueController();
   int _loadGeneration = 0;
-  AudioQuality _preferredQuality = AudioQuality.standard;
-  PlaybackQualityState _qualityState = const PlaybackQualityState(
-    requested: AudioQuality.standard,
-  );
+  AudioQuality _preferredQuality;
+  PlaybackQualityState _qualityState;
   Duration? _previewEnd;
   bool _previewStopped = false;
   CachedAudioHandle? _currentAudioHandle;
@@ -145,6 +149,7 @@ class MusicAudioHandler extends BaseAudioHandler
     }
 
     if (_index < 0 || _index >= _songs.length) {
+      await _persistPreferredQuality(quality);
       _preferredQuality = quality;
       _emitQualityState(PlaybackQualityState(requested: quality));
       return;
@@ -154,6 +159,7 @@ class MusicAudioHandler extends BaseAudioHandler
     final previousState = _qualityState;
     final resumePosition = _player.position;
     final resumePlaying = _player.playing;
+    await _persistPreferredQuality(quality);
     _preferredQuality = quality;
     AppLog.info(
       '切换播放音质 ${previousQuality.name} -> ${quality.name}',
@@ -173,6 +179,11 @@ class MusicAudioHandler extends BaseAudioHandler
       if (_preferredQuality == quality) {
         _preferredQuality = previousQuality;
         _emitQualityState(previousState);
+        try {
+          await _persistPreferredQuality(previousQuality);
+        } catch (error) {
+          AppLog.warn('恢复播放音质偏好失败', target: 'player.quality', error: error);
+        }
       }
       AppLog.warn('切换播放音质失败', target: 'player.quality');
       rethrow;
@@ -449,6 +460,8 @@ class MusicAudioHandler extends BaseAudioHandler
   void _broadcastState(PlaybackEvent event) =>
       _publishSystemPlaybackState(event);
 }
+
+Future<void> _ignoreQuality(AudioQuality _) async {}
 
 class PlaybackQualityState {
   const PlaybackQualityState({

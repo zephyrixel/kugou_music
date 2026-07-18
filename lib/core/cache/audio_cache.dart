@@ -19,21 +19,33 @@ class CachedAudioHandle {
   final File file;
 }
 
+class AudioCacheUsage {
+  const AudioCacheUsage({required this.totalBytes, required this.maxBytes});
+
+  final int totalBytes;
+  final int maxBytes;
+}
+
 abstract interface class AudioCache {
   Future<CachedAudioHandle> sourceFor(Song song, PlayableResolution resolution);
   void setActive(CachedAudioHandle? handle);
 }
 
 class AudioCacheManager implements AudioCache {
-  AudioCacheManager._({required this._directory, required this.maxBytes});
+  AudioCacheManager._(this._directory, this._maxBytes);
 
   static const defaultMaxBytes = 1024 * 1024 * 1024;
 
   final Directory _directory;
-  final int maxBytes;
+  int _maxBytes;
   String? _activePath;
   final Set<String> _downloadingPaths = {};
   final Set<String> _pendingClearPaths = {};
+  bool _prunePending = false;
+  bool _pruneRequested = false;
+  Future<void>? _pruneOperation;
+
+  int get maxBytes => _maxBytes;
 
   static Future<AudioCacheManager> create({
     Directory? directory,
@@ -45,7 +57,7 @@ class AudioCacheManager implements AudioCache {
           p.join((await _temporaryDirectory()).path, 'kgmusic_audio_v1'),
         );
     await root.create(recursive: true);
-    final manager = AudioCacheManager._(directory: root, maxBytes: maxBytes);
+    final manager = AudioCacheManager._(root, maxBytes);
     await manager._removeStalePartials();
     await manager.prune();
     return manager;
@@ -82,28 +94,83 @@ class AudioCacheManager implements AudioCache {
   void setActive(CachedAudioHandle? handle) {
     final previousPath = _activePath;
     _activePath = handle?.file.path;
-    if (previousPath != null &&
+    final clearPrevious =
+        previousPath != null &&
         previousPath != _activePath &&
         _pendingClearPaths.remove(previousPath) &&
-        !_downloadingPaths.contains(previousPath)) {
-      unawaited(_deleteWithSidecars(File(previousPath)));
+        !_downloadingPaths.contains(previousPath);
+    if (clearPrevious) {
+      unawaited(_deletePendingFile(previousPath));
+    } else if (_prunePending && previousPath != _activePath) {
+      unawaited(prune());
     }
   }
 
-  Future<void> prune() async {
-    if (!await _directory.exists()) return;
+  Future<void> setMaxBytes(int maxBytes) async {
+    if (maxBytes <= 0) {
+      throw ArgumentError.value(maxBytes, 'maxBytes', 'must be positive');
+    }
+    _maxBytes = maxBytes;
+    await prune();
+  }
+
+  Future<AudioCacheUsage> usage() async {
+    if (!await _directory.exists()) {
+      return AudioCacheUsage(totalBytes: 0, maxBytes: _maxBytes);
+    }
+    var totalBytes = 0;
+    await for (final entity in _directory.list()) {
+      if (entity is! File) continue;
+      try {
+        totalBytes += await entity.length();
+      } on FileSystemException {
+        // A concurrent cleanup may remove a file between listing and stat.
+      }
+    }
+    return AudioCacheUsage(totalBytes: totalBytes, maxBytes: _maxBytes);
+  }
+
+  Future<void> prune() {
+    _pruneRequested = true;
+    final activeOperation = _pruneOperation;
+    if (activeOperation != null) return activeOperation;
+
+    late final Future<void> operation;
+    operation = _drainPruneRequests().whenComplete(() {
+      if (identical(_pruneOperation, operation)) _pruneOperation = null;
+    });
+    _pruneOperation = operation;
+    return operation;
+  }
+
+  Future<void> _drainPruneRequests() async {
+    while (_pruneRequested) {
+      _pruneRequested = false;
+      await _pruneOnce();
+    }
+  }
+
+  Future<void> _pruneOnce() async {
+    if (!await _directory.exists()) {
+      _prunePending = false;
+      return;
+    }
     final files = await _audioFiles();
     var total = files.fold<int>(0, (sum, file) => sum + file.lengthSync());
-    if (total <= maxBytes) return;
+    if (total <= _maxBytes) {
+      _prunePending = false;
+      return;
+    }
 
     files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
     for (final file in files) {
-      if (total <= maxBytes) break;
+      if (total <= _maxBytes) break;
       if (_isProtected(file.path)) continue;
       final length = file.lengthSync();
       await _deleteWithSidecars(file);
       total -= length;
     }
+    _prunePending = total > _maxBytes;
   }
 
   Future<void> clear() async {
@@ -136,6 +203,7 @@ class AudioCacheManager implements AudioCache {
       if (_pendingClearPaths.contains(path) && path != _activePath) {
         _pendingClearPaths.remove(path);
         await _deleteWithSidecars(File(path));
+        if (_prunePending) await prune();
       } else {
         await prune();
       }
@@ -158,6 +226,11 @@ class AudioCacheManager implements AudioCache {
     for (final suffix in const ['.mime', '.part']) {
       await _deleteFile(File('${file.path}$suffix'));
     }
+  }
+
+  Future<void> _deletePendingFile(String path) async {
+    await _deleteWithSidecars(File(path));
+    if (_prunePending) await prune();
   }
 
   Future<void> _deleteFile(File file) async {

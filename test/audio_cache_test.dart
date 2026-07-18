@@ -108,6 +108,64 @@ void main() {
   });
 
   test(
+    'audio cache applies a smaller runtime limit and reports usage',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('kgmusic-limit-');
+      addTearDown(() => directory.delete(recursive: true));
+      final manager = await AudioCacheManager.create(
+        directory: directory,
+        maxBytes: 100,
+      );
+      final oldFile = File('${directory.path}/old.mp3');
+      final newFile = File('${directory.path}/new.mp3');
+      await oldFile.writeAsBytes(List.filled(8, 1));
+      await newFile.writeAsBytes(List.filled(8, 2));
+      await oldFile.setLastModified(DateTime(2025));
+      await newFile.setLastModified(DateTime(2026));
+
+      await manager.setMaxBytes(10);
+      final usage = await manager.usage();
+
+      expect(await oldFile.exists(), isFalse);
+      expect(await newFile.exists(), isTrue);
+      expect(usage.totalBytes, 8);
+      expect(usage.maxBytes, 10);
+    },
+  );
+
+  test(
+    'runtime pruning defers the active song until playback changes',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'kgmusic-active-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final manager = await AudioCacheManager.create(
+        directory: directory,
+        maxBytes: 100,
+      );
+      final activeFile = File('${directory.path}/active.mp3');
+      await activeFile.writeAsBytes(List.filled(12, 1));
+      manager.setActive(
+        CachedAudioHandle(
+          source: LockCachingAudioSource(
+            Uri.parse('https://example.com/active.mp3'),
+            cacheFile: activeFile,
+          ),
+          file: activeFile,
+        ),
+      );
+
+      await manager.setMaxBytes(10);
+      expect(await activeFile.exists(), isTrue);
+
+      manager.setActive(null);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(await activeFile.exists(), isFalse);
+    },
+  );
+
+  test(
     'cache clearing preserves the active file until playback changes',
     () async {
       final directory = await Directory.systemTemp.createTemp(

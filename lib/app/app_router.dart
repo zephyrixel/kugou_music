@@ -17,6 +17,7 @@ import 'package:kgmusic/features/logging/log_settings_screen.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
 import 'package:kgmusic/features/playlists/playlist_detail_screen.dart';
 import 'package:kgmusic/features/search/search_screen.dart';
+import 'package:kgmusic/features/settings/settings_screen.dart';
 
 GoRouter createAppRouter(AuthController auth) => GoRouter(
   refreshListenable: auth,
@@ -77,6 +78,11 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
       path: '/account',
       pageBuilder: (_, state) =>
           _fadeThroughPage(state: state, child: const AccountScreen()),
+    ),
+    GoRoute(
+      path: '/account/settings',
+      pageBuilder: (_, state) =>
+          _fadeThroughPage(state: state, child: const SettingsScreen()),
     ),
     GoRoute(
       path: '/account/logs',

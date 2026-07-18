@@ -60,6 +60,49 @@ void main() {
     },
   );
 
+  test('restored default quality is used for the first playback', () async {
+    final sdk = _FakePlayerSdk();
+    final player = _FakeAudioPlayer();
+    final history = <Song>[];
+    final handler = _handler(
+      sdk,
+      player,
+      history,
+      initialQuality: AudioQuality.flac,
+    );
+
+    await handler.playSong(songA);
+
+    expect(sdk.requestedQualities, [AudioQuality.flac]);
+    expect(handler.qualityState.requested, AudioQuality.flac);
+    await player.close();
+  });
+
+  test('failed quality switch restores the persisted preference', () async {
+    final sdk = _FakePlayerSdk();
+    final player = _FakeAudioPlayer();
+    final history = <Song>[];
+    final persisted = <AudioQuality>[];
+    final handler = _handler(
+      sdk,
+      player,
+      history,
+      persistPreferredQuality: (quality) async => persisted.add(quality),
+    );
+    await handler.playSong(songA);
+    sdk.unavailable = true;
+
+    await expectLater(
+      handler.setPlaybackQuality(AudioQuality.high),
+      throwsA(isA<MusicSdkException>()),
+    );
+
+    expect(persisted, [AudioQuality.high, AudioQuality.standard]);
+    expect(handler.qualityState.requested, AudioQuality.standard);
+    expect(handler.qualityState.actual, AudioQuality.standard);
+    await player.close();
+  });
+
   test('completed audio advances to the next queue item', () async {
     final sdk = _FakePlayerSdk();
     final player = _FakeAudioPlayer();
@@ -109,6 +152,8 @@ MusicAudioHandler _handler(
   _FakeAudioPlayer player,
   List<Song> history, {
   List<Song>? recommendation,
+  AudioQuality initialQuality = AudioQuality.standard,
+  Future<void> Function(AudioQuality)? persistPreferredQuality,
 }) => MusicAudioHandler(
   sdk,
   (song) async => history.add(song),
@@ -116,13 +161,17 @@ MusicAudioHandler _handler(
   reportRecommendationPlayed: (song) async => recommendation?.add(song),
   player: player,
   configureSession: () async {},
+  initialQuality: initialQuality,
+  persistPreferredQuality: persistPreferredQuality,
   observeLifecycle: false,
   restoreQueueOnStart: false,
 );
 
 class _FakePlayerSdk implements PlayerSdk {
   bool controlled = false;
+  bool unavailable = false;
   final Map<String, Completer<PlaybackResolution>> _resolutions = {};
+  final List<AudioQuality> requestedQualities = [];
 
   void complete(Song song, AudioQuality quality) {
     _resolutions.remove(song.id)!.complete(_resolution(song, quality));
@@ -134,6 +183,8 @@ class _FakePlayerSdk implements PlayerSdk {
     AudioQuality quality = AudioQuality.standard,
     bool freePreview = false,
   }) {
+    requestedQualities.add(quality);
+    if (unavailable) return Future.value(const UnavailableResolution());
     if (!controlled) return Future.value(_resolution(song, quality));
     return (_resolutions[song.id] ??= Completer()).future;
   }

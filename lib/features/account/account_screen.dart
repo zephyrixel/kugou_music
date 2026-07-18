@@ -71,7 +71,7 @@ class AccountScreen extends ConsumerWidget {
               const SizedBox(height: KgSpacing.section),
               const KgSectionHeader(
                 title: '应用与账号',
-                subtitle: '缓存只包含可重新下载的临时内容',
+                subtitle: '管理播放偏好、本机存储与登录状态',
               ),
               const SizedBox(height: KgSpacing.sm),
               _SettingsCard(authBusy: auth.busy),
@@ -212,16 +212,10 @@ class _SettingsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => KgSettingsGroup(
     children: [
       KgSettingsTile(
-        icon: Icons.monitor_heart_outlined,
-        title: '诊断与日志',
-        subtitle: '查看、调整等级或导出应用日志',
-        onTap: () => context.push('/account/logs'),
-      ),
-      KgSettingsTile(
-        icon: Icons.cleaning_services_outlined,
-        title: '清理临时缓存',
-        subtitle: '释放已下载的歌曲、图片等临时文件',
-        onTap: () => _clearCaches(context, ref),
+        icon: Icons.settings_outlined,
+        title: '设置',
+        subtitle: '播放音质、缓存空间与诊断工具',
+        onTap: () => context.push('/account/settings'),
       ),
       KgSettingsTile(
         enabled: !authBusy,
@@ -280,20 +274,4 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     confirmLabel: '退出',
   );
   if (accepted) await ref.read(authControllerProvider).logout();
-}
-
-Future<void> _clearCaches(BuildContext context, WidgetRef ref) async {
-  final accepted = await confirmDialog(
-    context,
-    title: '清理临时缓存？',
-    content: '将清理可重新下载的歌曲和图片等临时文件，账号与音乐库不会受到影响。',
-    confirmLabel: '清理',
-  );
-  if (accepted != true) return;
-  try {
-    await ref.read(cacheCoordinatorProvider).clearTransientCaches();
-    if (context.mounted) showAppMessage(context, '临时缓存已清理');
-  } catch (_) {
-    if (context.mounted) showAppError(context, '临时文件清理失败，请稍后重试');
-  }
 }
