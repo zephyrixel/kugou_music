@@ -55,6 +55,7 @@ class HomeDiscoverySection extends ConsumerWidget {
             title: card.title,
             subtitle: card.subtitle,
             songs: card.songs,
+            scrollKey: 'discovery:${card.id}',
             onSongTap: play,
             onPlayAll: () => play(card.songs.first),
           ),

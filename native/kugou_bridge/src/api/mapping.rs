@@ -3,31 +3,26 @@ use kugou_sdk::{
     SearchPlaylist, Session, SongRef, UserPlaylist,
 };
 use serde_json::Value;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::dto::*;
 
-#[derive(Debug, Clone, Default)]
-#[flutter_rust_bridge::frb(ignore)]
-pub(super) struct SongDetailEnrichment {
-    pub(super) artwork_url: Option<String>,
-    pub(super) hashes: AudioHashesDto,
+pub(super) fn song_to_dto(song: &SongRef) -> SongDto {
+    song_to_dto_with_detail(song, None)
 }
 
-pub(super) fn song_to_dto_with_enrichment(
-    song: &SongRef,
-    enrichment: Option<&SongDetailEnrichment>,
-) -> SongDto {
+pub(super) fn song_to_dto_with_detail(song: &SongRef, detail: Option<&SongRef>) -> SongDto {
     let primary_hash = song.primary_hash().map(str::to_ascii_lowercase);
-    let detail_hashes = enrichment.map(|value| &value.hashes);
+    let detail_hashes = detail.map(|value| &value.resources);
     SongDto {
         id: stable_song_id(song.mix_song_id, primary_hash.as_deref()),
         title: song.display_name().to_owned(),
         artist: song.singer.clone(),
         album: song.album.clone(),
         duration_secs: song.duration_secs,
-        artwork_url: artwork_from_extra(&song.extra)
-            .or_else(|| enrichment.and_then(|value| value.artwork_url.clone())),
+        artwork_url: detail
+            .and_then(|value| value.artwork_url.clone())
+            .or_else(|| song.artwork_url.clone()),
         privilege: song.privilege,
         album_id: song.album_id,
         mix_song_id: song.mix_song_id,
@@ -52,7 +47,7 @@ pub(super) fn song_to_dto_with_enrichment(
                 .resources
                 .hires
                 .clone()
-                .or_else(|| detail_hashes.and_then(|hashes| hashes.hi_res.clone())),
+                .or_else(|| detail_hashes.and_then(|hashes| hashes.hires.clone())),
             super_hash: song
                 .resources
                 .super_hash
@@ -86,6 +81,7 @@ pub(super) fn song_dto_to_song_ref(song: &SongDto) -> SongRef {
     result.mix_song_id = song.mix_song_id;
     result.album_id = song.album_id;
     result.duration_secs = song.duration_secs;
+    result.artwork_url = song.artwork_url.clone();
     result.privilege = song.privilege;
     result.file_id = song.file_id;
     result
@@ -143,36 +139,47 @@ pub(super) fn lyric_document_to_dto(document: LyricDocument) -> LyricDocumentDto
     }
 }
 
-pub(super) async fn songs_to_dtos_with_artwork(
+pub(super) async fn songs_to_dtos_with_details(
     client: &KugouClient,
     session: &mut Session,
     songs: &[SongRef],
 ) -> Vec<SongDto> {
-    let mut enrichment_by_mix_id = HashMap::new();
+    let mut details_by_mix_id = HashMap::new();
+    let mut seen_mix_ids = HashSet::new();
     let mut mix_ids = Vec::new();
-    for song in songs {
+    for song in songs.iter().filter(|song| needs_song_detail(song)) {
         let Some(mix_id) = song.mix_song_id else {
             continue;
         };
-        if !mix_ids.contains(&mix_id) {
+        if seen_mix_ids.insert(mix_id) {
             mix_ids.push(mix_id);
         }
     }
-    // Detail lookup fills artwork and alternate-quality hashes missing from list rows.
     for chunk in mix_ids.chunks(40) {
-        if let Ok(response) = client.songs().details_by_mix_ids_raw(session, chunk).await {
-            collect_detail_enrichment(&response.data, &mut enrichment_by_mix_id);
+        if let Ok(response) = client.songs().details_by_mix_ids(session, chunk).await {
+            for detail in response.data.items {
+                if let Some(mix_id) = detail.mix_song_id {
+                    details_by_mix_id.insert(mix_id, detail);
+                }
+            }
         }
     }
     songs
         .iter()
         .map(|song| {
-            let enrichment = song
-                .mix_song_id
-                .and_then(|id| enrichment_by_mix_id.get(&id));
-            song_to_dto_with_enrichment(song, enrichment)
+            let detail = song.mix_song_id.and_then(|id| details_by_mix_id.get(&id));
+            song_to_dto_with_detail(song, detail)
         })
         .collect()
+}
+
+fn needs_song_detail(song: &SongRef) -> bool {
+    song.artwork_url.is_none()
+        || song.resources.standard.is_none()
+        || (song.resources.high.is_none()
+            && song.resources.flac.is_none()
+            && song.resources.hires.is_none()
+            && song.resources.super_hash.is_none())
 }
 
 pub(super) fn artwork_from_extra(extra: &BTreeMap<String, Value>) -> Option<String> {
@@ -238,60 +245,6 @@ fn nonempty_artwork(value: &str) -> Option<String> {
     (!value.is_empty() && value != "-").then(|| value.to_owned())
 }
 
-pub(super) fn collect_detail_enrichment(
-    value: &Value,
-    output: &mut HashMap<u64, SongDetailEnrichment>,
-) {
-    match value {
-        Value::Array(items) => items
-            .iter()
-            .for_each(|item| collect_detail_enrichment(item, output)),
-        Value::Object(object) => {
-            let mix_id = value_u64_for_keys(value, &["album_audio_id", "MixSongID", "mixsongid"])
-                .or_else(|| {
-                    object.get("base").and_then(|base| {
-                        value_u64_for_keys(
-                            base,
-                            &["album_audio_id", "MixSongID", "mixsongid", "ID"],
-                        )
-                    })
-                });
-            if let Some(mix_id) = mix_id {
-                output.insert(
-                    mix_id,
-                    SongDetailEnrichment {
-                        artwork_url: artwork_from_value(value),
-                        hashes: audio_hashes_from_detail(value),
-                    },
-                );
-            }
-            for key in ["data", "items", "info", "list", "lists"] {
-                if let Some(nested) = object.get(key) {
-                    collect_detail_enrichment(nested, output);
-                }
-            }
-        }
-        _ => {}
-    }
-}
-
-fn audio_hashes_from_detail(value: &Value) -> AudioHashesDto {
-    let audio_info = value
-        .as_object()
-        .and_then(|object| object_value_for_key(object, "audio_info"));
-    let find = |keys: &[&str]| {
-        string_for_keys(value, keys)
-            .or_else(|| audio_info.and_then(|info| string_for_keys(info, keys)))
-    };
-    AudioHashesDto {
-        standard: find(&["FileHash", "filehash", "hash", "hash_128"]),
-        high: find(&["HQFileHash", "hq_hash", "hash_320", "320hash"]),
-        flac: find(&["SQFileHash", "sq_hash", "hash_flac", "sqhash"]),
-        hi_res: find(&["ResFileHash", "hash_high", "hash_hires"]),
-        super_hash: find(&["SuperFileHash", "super_hash", "hash_super"]),
-    }
-}
-
 fn object_value_for_key<'a>(
     object: &'a serde_json::Map<String, Value>,
     key: &str,
@@ -299,22 +252,6 @@ fn object_value_for_key<'a>(
     object
         .iter()
         .find_map(|(name, value)| artwork_key_matches(name, key).then_some(value))
-}
-
-fn string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
-    let object = value.as_object()?;
-    keys.iter().find_map(|key| {
-        object.iter().find_map(|(name, value)| {
-            if !artwork_key_matches(name, key) {
-                return None;
-            }
-            value
-                .as_str()
-                .map(str::trim)
-                .filter(|value| !value.is_empty() && *value != "-")
-                .map(str::to_owned)
-        })
-    })
 }
 
 pub(super) fn scalar_string_for_keys(value: &Value, keys: &[&str]) -> Option<String> {
@@ -366,17 +303,6 @@ pub(super) fn vip_product_to_dto(value: &Value) -> VipProductDto {
             ],
         ),
     }
-}
-
-fn value_u64_for_keys(value: &Value, keys: &[&str]) -> Option<u64> {
-    let object = value.as_object()?;
-    keys.iter().find_map(|key| {
-        let value = object.get(*key)?;
-        value
-            .as_u64()
-            .or_else(|| value.as_str()?.trim().parse().ok())
-            .filter(|value| *value > 0)
-    })
 }
 
 pub(super) fn search_playlist_to_dto(value: &SearchPlaylist) -> PlaylistSearchHitDto {

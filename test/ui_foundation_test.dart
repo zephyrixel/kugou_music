@@ -97,6 +97,7 @@ void main() {
               title: '喜欢这首歌的TA也喜欢',
               subtitle: '根据你的收听持续发现',
               songs: const [song],
+              scrollKey: 'test',
               onSongTap: (value) => selected = value,
               onPlayAll: _noop,
             ),
@@ -108,6 +109,41 @@ void main() {
     expect(tester.widget<SongArtwork>(find.byType(SongArtwork)).size, 142);
     await tester.tap(find.byKey(const ValueKey('home-song:song:responsive')));
     expect(selected, song);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('首页歌曲卡片架始终从屏幕左侧开始', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 360));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    const secondSong = Song(
+      id: 'song:second',
+      title: '第二首歌',
+      hashes: AudioHashes(standard: 'second-hash'),
+    );
+
+    await tester.pumpWidget(
+      _testApp(
+        Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            body: HomeSongShelf(
+              title: '方向测试',
+              songs: const [song, secondSong],
+              scrollKey: 'direction-test',
+              onSongTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final firstLeft = tester
+        .getTopLeft(find.byKey(const ValueKey('home-song:song:responsive')))
+        .dx;
+    final secondLeft = tester
+        .getTopLeft(find.byKey(const ValueKey('home-song:song:second')))
+        .dx;
+    expect(firstLeft, lessThan(secondLeft));
     expect(tester.takeException(), isNull);
   });
 

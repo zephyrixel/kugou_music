@@ -3,7 +3,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/discovery_card.dart';
 
 const homeDiscoveryCardIds = <int>[3001, 3014, 3102, 3004, 3005, 3101];
-const homeDiscoveryPageSize = 10;
+const homeDiscoveryPageSize = 30;
 
 final homeDiscoveryCardProvider = StreamProvider.family<DiscoveryCard, int>((
   ref,

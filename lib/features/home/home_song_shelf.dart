@@ -12,6 +12,7 @@ class HomeSongShelf extends StatelessWidget {
     required this.title,
     required this.songs,
     required this.onSongTap,
+    required this.scrollKey,
     this.subtitle,
     this.onPlayAll,
   });
@@ -20,6 +21,7 @@ class HomeSongShelf extends StatelessWidget {
   final String? subtitle;
   final List<Song> songs;
   final ValueChanged<Song> onSongTap;
+  final String scrollKey;
   final VoidCallback? onPlayAll;
 
   @override
@@ -46,7 +48,9 @@ class HomeSongShelf extends StatelessWidget {
           SizedBox(
             height: cardWidth + 48,
             child: ListView.separated(
+              key: PageStorageKey('home-song-shelf:$scrollKey'),
               scrollDirection: Axis.horizontal,
+              reverse: Directionality.of(context) == TextDirection.rtl,
               itemCount: songs.length,
               separatorBuilder: (_, _) => const SizedBox(width: KgSpacing.sm),
               itemBuilder: (context, index) => _HomeSongCard(
@@ -80,6 +84,7 @@ class HomeSongShelfSkeleton extends StatelessWidget {
             height: cardWidth + 48,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
+              reverse: Directionality.of(context) == TextDirection.rtl,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: 4,
               separatorBuilder: (_, _) => const SizedBox(width: KgSpacing.sm),

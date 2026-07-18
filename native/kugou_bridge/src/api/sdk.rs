@@ -86,7 +86,7 @@ pub async fn search_songs(request: SearchRequestDto) -> Result<SongPageDto, Brid
         .await
         .map_err(BridgeError::from_sdk)?;
     let items =
-        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
+        songs_to_dtos_with_details(&runtime.client, &mut session, &response.data.items).await;
     Ok(SongPageDto {
         items,
         page,
@@ -133,7 +133,7 @@ pub async fn get_everyday_recommendations() -> Result<Vec<SongDto>, BridgeError>
         .await
         .map_err(BridgeError::from_sdk)?;
     let songs =
-        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
+        songs_to_dtos_with_details(&runtime.client, &mut session, &response.data.items).await;
     Ok(songs)
 }
 
@@ -153,7 +153,7 @@ pub async fn get_discovery_card(
         .await
         .map_err(BridgeError::from_sdk)?
         .data;
-    let songs = songs_to_dtos_with_artwork(&runtime.client, &mut session, &card.items).await;
+    let songs = card.items.iter().map(song_to_dto).collect();
     Ok(DiscoveryCardDto {
         card_id: card.card_id.unwrap_or(card_id),
         title: card.title,
@@ -208,7 +208,7 @@ pub async fn get_personal_fm(
         .await
         .map_err(BridgeError::from_sdk)?;
     let songs =
-        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
+        songs_to_dtos_with_details(&runtime.client, &mut session, &response.data.items).await;
     Ok(RecommendationBatchDto {
         title: "猜你喜欢".to_owned(),
         subtitle: response.data.mark.clone(),
@@ -233,7 +233,7 @@ pub async fn get_heart_radio(
         .await
         .map_err(BridgeError::from_sdk)?;
     let songs =
-        songs_to_dtos_with_artwork(&runtime.client, &mut session, &response.data.items).await;
+        songs_to_dtos_with_details(&runtime.client, &mut session, &response.data.items).await;
     Ok(RecommendationBatchDto {
         title: "红心电台".to_owned(),
         subtitle: response.data.intro,
@@ -524,7 +524,7 @@ pub async fn get_cloud_history(cursor: Option<String>) -> Result<HistoryPageDto,
         .filter(|item| item.op != Some(0))
         .collect();
     let songs: Vec<SongRef> = history_items.iter().map(|item| item.song.clone()).collect();
-    let song_dtos = songs_to_dtos_with_artwork(&runtime.client, &mut session, &songs).await;
+    let song_dtos = songs_to_dtos_with_details(&runtime.client, &mut session, &songs).await;
     let items = history_items
         .into_iter()
         .zip(song_dtos)
@@ -649,7 +649,7 @@ async fn get_playlist_tracks(
                 .data
         }
     };
-    let items = songs_to_dtos_with_artwork(&runtime.client, &mut session, &value.items).await;
+    let items = songs_to_dtos_with_details(&runtime.client, &mut session, &value.items).await;
     Ok(SongPageDto {
         items,
         page,
@@ -833,7 +833,7 @@ mod tests {
     use super::*;
     use kugou_sdk::{AudioQuality, ClientPlaylistItem, LyricDocument, LyricFormat, ResourceHashes};
     use serde_json::Value;
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::BTreeMap;
 
     #[test]
     fn stable_id_prefers_mix_id() {
@@ -956,32 +956,38 @@ mod tests {
     }
 
     #[test]
-    fn detail_artwork_and_quality_hashes_are_mapped_by_mix_song_id() {
-        let detail = serde_json::json!({
-            "data": [{
-                "base": {"album_audio_id": 32155307},
-                "audio_info": {
-                    "hash": "STD",
-                    "hash_320": "HQ",
-                    "hash_flac": "FLAC",
-                    "hash_high": "HIRES"
-                },
-                "album_info": {
-                    "sizable_cover": "//imge.kugou.com/stdmusic/{size}/cover.jpg"
-                }
-            }]
-        });
-        let mut result = HashMap::new();
-        collect_detail_enrichment(&detail, &mut result);
-        let enrichment = result.get(&32155307).unwrap();
+    fn sdk_artwork_is_mapped_without_extra_parsing() {
+        let mut song = SongRef::default();
+        song.name = Some("Song".into());
+        song.artwork_url = Some("//imge.kugou.com/stdmusic/{size}/album.jpg".into());
+
         assert_eq!(
-            enrichment.artwork_url.as_deref(),
+            song_to_dto(&song).artwork_url.as_deref(),
+            Some("//imge.kugou.com/stdmusic/{size}/album.jpg")
+        );
+    }
+
+    #[test]
+    fn typed_detail_fills_missing_artwork_and_quality_hashes() {
+        let mut song = SongRef::default();
+        song.name = Some("Song".into());
+        song.resources.standard = Some("LIST_STD".into());
+        let mut detail = SongRef::default();
+        detail.artwork_url = Some("//imge.kugou.com/stdmusic/{size}/cover.jpg".into());
+        detail.resources.standard = Some("DETAIL_STD".into());
+        detail.resources.high = Some("HQ".into());
+        detail.resources.flac = Some("FLAC".into());
+        detail.resources.hires = Some("HIRES".into());
+
+        let mapped = song_to_dto_with_detail(&song, Some(&detail));
+        assert_eq!(
+            mapped.artwork_url.as_deref(),
             Some("//imge.kugou.com/stdmusic/{size}/cover.jpg")
         );
-        assert_eq!(enrichment.hashes.standard.as_deref(), Some("STD"));
-        assert_eq!(enrichment.hashes.high.as_deref(), Some("HQ"));
-        assert_eq!(enrichment.hashes.flac.as_deref(), Some("FLAC"));
-        assert_eq!(enrichment.hashes.hi_res.as_deref(), Some("HIRES"));
+        assert_eq!(mapped.hashes.standard.as_deref(), Some("LIST_STD"));
+        assert_eq!(mapped.hashes.high.as_deref(), Some("HQ"));
+        assert_eq!(mapped.hashes.flac.as_deref(), Some("FLAC"));
+        assert_eq!(mapped.hashes.hi_res.as_deref(), Some("HIRES"));
     }
 
     #[test]

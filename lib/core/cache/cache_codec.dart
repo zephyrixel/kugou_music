@@ -31,6 +31,7 @@ abstract final class CacheCodecs {
   );
 
   static final discoveryCard = CacheCodec<DiscoveryCard>(
+    version: 2,
     encodeValue: (value) => {
       'id': value.id,
       'title': value.title,

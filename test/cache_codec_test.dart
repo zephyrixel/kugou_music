@@ -85,6 +85,7 @@ void main() {
       CacheCodecs.discoveryCard.encode(card),
     );
 
+    expect(CacheCodecs.discoveryCard.version, 2);
     expect(decoded.id, 3001);
     expect(decoded.title, '私人专属好歌');
     expect(decoded.subtitle, '根据最近的收听持续更新');

@@ -79,6 +79,7 @@ class HomeScreen extends ConsumerWidget {
                           title: '最近听过',
                           subtitle: '从上次停下的地方继续',
                           songs: recentSongs,
+                          scrollKey: 'recent',
                           onSongTap: (song) => _playCollection(
                             context,
                             ref,
