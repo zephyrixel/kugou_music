@@ -147,9 +147,11 @@ bool Win32Window::Create(const std::wstring& title,
   RECT minimum_rect = {0, 0, Scale(720, scale_factor), Scale(560, scale_factor)};
   AdjustWindowRectExForDpi(&minimum_rect, WS_OVERLAPPEDWINDOW, FALSE, 0, dpi);
   SetProp(window, L"KGMusicMinWidth",
-          reinterpret_cast<HANDLE>(minimum_rect.right - minimum_rect.left));
+          reinterpret_cast<HANDLE>(static_cast<INT_PTR>(
+              minimum_rect.right - minimum_rect.left)));
   SetProp(window, L"KGMusicMinHeight",
-          reinterpret_cast<HANDLE>(minimum_rect.bottom - minimum_rect.top));
+          reinterpret_cast<HANDLE>(static_cast<INT_PTR>(
+              minimum_rect.bottom - minimum_rect.top)));
 
   UpdateTheme(window);
 
