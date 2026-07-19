@@ -40,7 +40,13 @@ apply_standard_settings(${PLUGIN_NAME})
 # exported should be explicitly exported with the FLUTTER_PLUGIN_EXPORT macro.
 set_target_properties(${PLUGIN_NAME} PROPERTIES
   CXX_VISIBILITY_PRESET hidden)
-target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE
+  FLUTTER_PLUGIN_IMPL
+  # Windows Runtime headers used by this plugin still include
+  # <experimental/coroutine>. MSVC 14.51 turns its deprecation diagnostic into
+  # an error unless this compatibility opt-out is defined.
+  _SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS
+)
 
 # Source include directories and library dependencies. Add any plugin-specific
 # dependencies here.
