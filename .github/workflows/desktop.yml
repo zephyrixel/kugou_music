@@ -225,7 +225,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 build/packages/linuxdeploy \
             --appdir build/packages/KGMusic.AppDir \
             --desktop-file packaging/linux/com.zephyrixel.kgmusic.desktop \
-            --icon-file assets/branding/app_icon.png \
+            --icon-file packaging/linux/com.zephyrixel.kgmusic.png \
             --library /usr/lib/x86_64-linux-gnu/libmpv.so.2 \
             --output appimage
           mv KGMusic-*.AppImage "build/packages/KGMusic-${VERSION}-linux-x86_64.AppImage"
