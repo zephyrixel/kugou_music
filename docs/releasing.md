@@ -30,13 +30,19 @@ git push origin v1.2.3+4
 ## CI 阶段与产物
 
 1. `validation`：解析版本，执行 `flutter analyze`、`flutter test` 和 Rust 测试。
-2. `android`：构建并校验签名 APK、AAB。
+2. `android`：构建并校验签名的 universal、`armeabi-v7a`、`arm64-v8a` APK，以及 AAB。
 3. `linux`：构建 bundle，校验 desktop/AppStream 元数据，生成 DEB、AppImage。
 4. `windows`：构建 x64 bundle，创建已签名或测试签名的 MSIX。
-5. `release`：下载全部产物，创建或更新对应 GitHub Release。
+5. `prepare_release`：创建缺失的 draft Release，或复用已有 draft；已公开的同 tag Release
+   会被拒绝重跑，避免替换公开附件。
+6. 三个平台 job 各自将验证后的文件直接上传到该 Release，不使用 GitHub Actions artifact
+   存储。
+7. `finalize_release`：Windows 正式签名时公开 draft；测试签名时保留 draft。
 
-Release 附件包括 APK、AAB、DEB、AppImage 和 MSIX。中间 artifact 保留 14 天。只有
-`release` job 具有 `contents: write` 权限，其他 job 仅能读取仓库内容。
+Release 附件包括三个 Android APK（universal、`armeabi-v7a`、`arm64-v8a`）、AAB、DEB、
+AppImage 和 MSIX。直接上传避免 Actions artifact 存储配额阻断发布；若任一平台构建失败，
+draft Release 可能保留已上传的部分附件，但不会自动公开。准备、上传和最终发布 job 仅获得
+所需的 `contents: write` 权限。
 
 ## 发布前检查表
 

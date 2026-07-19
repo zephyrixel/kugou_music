@@ -17,6 +17,10 @@ permissions:
 env:
   FLUTTER_VERSION: '3.44.1'
 
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   validation:
     name: Validate release
@@ -92,10 +96,40 @@ jobs:
       - run: flutter test
       - run: cargo test --manifest-path native/kugou_bridge/Cargo.toml
 
-  android:
-    name: Build Android release
+  prepare_release:
+    name: Prepare draft GitHub release
     needs: validation
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Create the draft release when needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+          TARGET_COMMIT: ${{ github.sha }}
+        run: |
+          if draft_state="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2> /dev/null)"; then
+            if [[ "$draft_state" == 'true' ]]; then
+              echo "Reusing draft release $RELEASE_TAG."
+              exit 0
+            fi
+            echo "::error::Release $RELEASE_TAG is already published. Create a new release tag instead of replacing public assets."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            --target "$TARGET_COMMIT" \
+            --title "KGMusic $RELEASE_TAG" \
+            --generate-notes \
+            --draft
+
+  android:
+    name: Build Android release
+    needs: [validation, prepare_release]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -138,7 +172,7 @@ jobs:
             -storepass "$ANDROID_KEYSTORE_PASSWORD" \
             -alias "$ANDROID_KEY_ALIAS" > /dev/null
           echo "path=$keystore_path" >> "$GITHUB_OUTPUT"
-      - name: Build signed APK and AAB
+      - name: Build signed ARM APKs and AAB
         env:
           ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -146,9 +180,21 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
         run: |
-          flutter build apk --release \
-            --build-name "${{ needs.validation.outputs.build_name }}" \
+          build_args=(
+            --release
+            --target-platform android-arm,android-arm64
+            --build-name "${{ needs.validation.outputs.build_name }}"
             --build-number "${{ needs.validation.outputs.build_number }}"
+          )
+          flutter build apk "${build_args[@]}"
+          mkdir -p build/packages
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "build/packages/KGMusic-${RELEASE_TAG}-android-universal.apk"
+          flutter build apk "${build_args[@]}" --split-per-abi
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
+            "build/packages/KGMusic-${RELEASE_TAG}-android-armeabi-v7a.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+            "build/packages/KGMusic-${RELEASE_TAG}-android-arm64-v8a.apk"
           flutter build appbundle --release \
             --build-name "${{ needs.validation.outputs.build_name }}" \
             --build-number "${{ needs.validation.outputs.build_number }}"
@@ -157,27 +203,41 @@ jobs:
             echo '::error::Android apksigner was not found'
             exit 1
           fi
-          "$apksigner" verify --verbose build/app/outputs/flutter-apk/app-release.apk
+          for apk in build/packages/KGMusic-"${RELEASE_TAG}"-android-*.apk; do
+            "$apksigner" verify --verbose "$apk"
+          done
           jarsigner -verify -strict build/app/outputs/bundle/release/app-release.aab
-          mkdir -p build/packages
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "build/packages/KGMusic-${RELEASE_TAG}-android.apk"
           cp build/app/outputs/bundle/release/app-release.aab \
             "build/packages/KGMusic-${RELEASE_TAG}-android.aab"
       - name: Remove Android signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/kgmusic-upload.jks"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-packages
-          path: build/packages/KGMusic-*-android.*
-          if-no-files-found: error
-          retention-days: 14
+      - name: Upload Android packages to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: |
+          packages=(
+            "build/packages/KGMusic-${RELEASE_TAG}-android-universal.apk"
+            "build/packages/KGMusic-${RELEASE_TAG}-android-armeabi-v7a.apk"
+            "build/packages/KGMusic-${RELEASE_TAG}-android-arm64-v8a.apk"
+            "build/packages/KGMusic-${RELEASE_TAG}-android.aab"
+          )
+          for package in "${packages[@]}"; do
+            [[ -f "$package" ]] || {
+              echo "::error::Expected Android package was not produced: $package"
+              exit 1
+            }
+          done
+          gh release upload "$RELEASE_TAG" "${packages[@]}" --clobber
 
   linux:
     name: Build Linux release
-    needs: validation
+    needs: [validation, prepare_release]
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -229,19 +289,26 @@ jobs:
             --library /usr/lib/x86_64-linux-gnu/libmpv.so.2 \
             --output appimage
           mv KGMusic-*.AppImage "build/packages/KGMusic-${VERSION}-linux-x86_64.AppImage"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-packages
-          path: |
-            build/packages/*.AppImage
-            build/packages/*.deb
-          if-no-files-found: error
-          retention-days: 14
+      - name: Upload Linux packages to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: |
+          shopt -s nullglob
+          packages=(build/packages/*.AppImage build/packages/*.deb)
+          if (( ${#packages[@]} != 2 )); then
+            echo "::error::Expected one AppImage and one DEB, found ${#packages[@]} package(s)"
+            exit 1
+          fi
+          gh release upload "$RELEASE_TAG" "${packages[@]}" --clobber
 
   windows:
     name: Build Windows release
-    needs: validation
+    needs: [validation, prepare_release]
     runs-on: windows-2025
+    permissions:
+      contents: write
     outputs:
       test_signed: ${{ steps.signing.outputs.test_signed }}
     steps:
@@ -311,35 +378,33 @@ jobs:
         if: always()
         shell: pwsh
         run: Remove-Item "$env:RUNNER_TEMP\kgmusic.pfx" -Force -ErrorAction SilentlyContinue
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-msix
-          path: build/windows/x64/runner/Release/*.msix
-          if-no-files-found: error
-          retention-days: 14
+      - name: Upload Windows package to the draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: |
+          $packages = @(Get-ChildItem 'build/windows/x64/runner/Release' -Filter '*.msix' -File)
+          if ($packages.Count -ne 1) {
+            throw "Expected one MSIX, found $($packages.Count)."
+          }
+          gh release upload $env:RELEASE_TAG $packages[0].FullName --clobber
 
-  release:
-    name: Publish GitHub release
-    needs: [validation, android, linux, windows]
+  finalize_release:
+    name: Finalize GitHub release
+    needs: [validation, prepare_release, android, linux, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.validation.outputs.release_tag }}
-          target_commitish: ${{ github.sha }}
-          name: KGMusic ${{ needs.validation.outputs.release_tag }}
-          draft: ${{ needs.windows.outputs.test_signed == 'true' }}
-          fail_on_unmatched_files: true
-          generate_release_notes: true
-          files: |
-            artifacts/*.AppImage
-            artifacts/*.deb
-            artifacts/*.apk
-            artifacts/*.aab
-            artifacts/*.msix
+      - name: Publish the fully signed release
+        if: needs.windows.outputs.test_signed == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
+      - name: Keep the test-signed release as a draft
+        if: needs.windows.outputs.test_signed == 'true'
+        run: echo 'Windows package is test-signed; the release remains a draft.'
