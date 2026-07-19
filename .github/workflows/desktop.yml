@@ -1,57 +1,220 @@
-name: Desktop
+name: Release
 
 on:
-  pull_request:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag, for example v1.2.3 or v1.2.3+4
+        required: true
+        type: string
 
 permissions:
   contents: read
 
+env:
+  FLUTTER_VERSION: '3.44.1'
+
 jobs:
   validation:
+    name: Validate release
     runs-on: ubuntu-24.04
+    outputs:
+      build_name: ${{ steps.version.outputs.build_name }}
+      build_number: ${{ steps.version.outputs.build_number }}
+      msix_version: ${{ steps.version.outputs.msix_version }}
+      package_version: ${{ steps.version.outputs.package_version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve release version
+        id: version
+        shell: bash
+        env:
+          REQUESTED_RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            release_tag="$REQUESTED_RELEASE_TAG"
+          else
+            release_tag="$GITHUB_REF_NAME"
+          fi
+          if [[ ! "$release_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(\+([0-9]+))?$ ]]; then
+            echo '::error::Release tag must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH+BUILD'
+            exit 1
+          fi
+          major="$((10#${BASH_REMATCH[1]}))"
+          minor="$((10#${BASH_REMATCH[2]}))"
+          patch="$((10#${BASH_REMATCH[3]}))"
+          explicit_build="${BASH_REMATCH[5]}"
+          build="$((10#${explicit_build:-$GITHUB_RUN_NUMBER}))"
+          for component in "$major" "$minor" "$patch" "$build"; do
+            if (( component > 65535 )); then
+              echo "::error::Every Windows version component must be at most 65535: $component"
+              exit 1
+            fi
+          done
+          if (( build < 1 )); then
+            echo '::error::BUILD must be at least 1 because Android versionCode must be positive'
+            exit 1
+          fi
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            existing_commit="$(git ls-remote --tags origin "refs/tags/$release_tag^{}" | awk 'NR == 1 {print $1}')"
+            if [[ -z "$existing_commit" ]]; then
+              existing_commit="$(git ls-remote --tags origin "refs/tags/$release_tag" | awk 'NR == 1 {print $1}')"
+            fi
+            if [[ -n "$existing_commit" && "$existing_commit" != "$GITHUB_SHA" ]]; then
+              echo "::error::Tag $release_tag already points to $existing_commit, not the selected commit $GITHUB_SHA"
+              exit 1
+            fi
+          fi
+          build_name="$major.$minor.$patch"
+          package_version="$build_name"
+          if [[ -n "$explicit_build" ]]; then package_version="$package_version+$build"; fi
+          echo "build_name=$build_name" >> "$GITHUB_OUTPUT"
+          echo "build_number=$build" >> "$GITHUB_OUTPUT"
+          echo "msix_version=$build_name.$build" >> "$GITHUB_OUTPUT"
+          echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - uses: dtolnay/rust-toolchain@stable
       - name: Install test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libmpv-dev
+          sudo apt-get install -y libmpv-dev libsecret-1-dev
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
       - run: cargo test --manifest-path native/kugou_bridge/Cargo.toml
 
+  android:
+    name: Build Android release
+    needs: validation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      - name: Configure Android release signing
+        id: signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then missing+=("$name"); fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing Android release secrets: ${missing[*]}"
+            exit 1
+          fi
+          keystore_path="$RUNNER_TEMP/kgmusic-upload.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
+          if [[ ! -s "$keystore_path" ]]; then
+            echo '::error::ANDROID_KEYSTORE_BASE64 decoded to an empty file'
+            exit 1
+          fi
+          keytool -list \
+            -keystore "$keystore_path" \
+            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -alias "$ANDROID_KEY_ALIAS" > /dev/null
+          echo "path=$keystore_path" >> "$GITHUB_OUTPUT"
+      - name: Build signed APK and AAB
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: |
+          flutter build apk --release \
+            --build-name "${{ needs.validation.outputs.build_name }}" \
+            --build-number "${{ needs.validation.outputs.build_number }}"
+          flutter build appbundle --release \
+            --build-name "${{ needs.validation.outputs.build_name }}" \
+            --build-number "${{ needs.validation.outputs.build_number }}"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [[ -z "$apksigner" ]]; then
+            echo '::error::Android apksigner was not found'
+            exit 1
+          fi
+          "$apksigner" verify --verbose build/app/outputs/flutter-apk/app-release.apk
+          jarsigner -verify -strict build/app/outputs/bundle/release/app-release.aab
+          mkdir -p build/packages
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "build/packages/KGMusic-${RELEASE_TAG}-android.apk"
+          cp build/app/outputs/bundle/release/app-release.aab \
+            "build/packages/KGMusic-${RELEASE_TAG}-android.aab"
+      - name: Remove Android signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/kgmusic-upload.jks"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-packages
+          path: build/packages/KGMusic-*-android.*
+          if-no-files-found: error
+          retention-days: 14
+
   linux:
+    name: Build Linux release
     needs: validation
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install desktop dependencies
+      - name: Install Linux build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev
+          sudo apt-get install -y \
+            appstream \
+            clang \
+            cmake \
+            desktop-file-utils \
+            libayatana-appindicator3-dev \
+            libgtk-3-dev \
+            libmpv-dev \
+            libsecret-1-dev \
+            ninja-build \
+            pkg-config
       - run: flutter pub get
-      - run: flutter build linux --release
-      - name: Package AppImage and DEB
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Build versioned Linux bundle
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          flutter build linux --release \
+            --build-name "${{ needs.validation.outputs.build_name }}" \
+            --build-number "${{ needs.validation.outputs.build_number }}"
+      - name: Package AppImage and DEB
+        env:
+          VERSION: ${{ needs.validation.outputs.package_version }}
+        run: |
           chmod +x tool/package_linux.sh packaging/linux/AppRun
-          ./tool/package_linux.sh "$version"
+          ./tool/package_linux.sh "$VERSION"
+          desktop-file-validate packaging/linux/com.zephyrixel.kgmusic.desktop
+          appstreamcli validate --no-net packaging/linux/com.zephyrixel.kgmusic.metainfo.xml
+          dpkg-deb --info "build/packages/kgmusic_${VERSION}_amd64.deb"
           curl --fail --location \
             --header 'Accept: application/octet-stream' \
             --header 'Authorization: Bearer ${{ github.token }}' \
@@ -65,16 +228,18 @@ jobs:
             --icon-file assets/branding/app_icon.png \
             --library /usr/lib/x86_64-linux-gnu/libmpv.so.2 \
             --output appimage
-          mv KGMusic-*.AppImage "build/packages/KGMusic-${version}-x86_64.AppImage"
+          mv KGMusic-*.AppImage "build/packages/KGMusic-${VERSION}-linux-x86_64.AppImage"
       - uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: linux-packages
           path: |
             build/packages/*.AppImage
             build/packages/*.deb
+          if-no-files-found: error
+          retention-days: 14
 
   windows:
+    name: Build Windows release
     needs: validation
     runs-on: windows-2025
     outputs:
@@ -83,25 +248,20 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - uses: dtolnay/rust-toolchain@stable
       - run: flutter pub get
-      - run: flutter build windows --release
-      - name: Derive MSIX version
-        id: package_version
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Build versioned Windows bundle
+        run: flutter build windows --release --build-name "${{ needs.validation.outputs.build_name }}" --build-number "${{ needs.validation.outputs.build_number }}"
+      - name: Verify Windows bundle
         shell: pwsh
         run: |
-          if ($env:GITHUB_REF_NAME -notmatch '^v(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$') {
-            throw "Release tag must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH+BUILD"
-          }
-          $build = if ($Matches[4]) { $Matches[4] } else { '0' }
-          "msix_version=$($Matches[1]).$($Matches[2]).$($Matches[3]).$build" >> $env:GITHUB_OUTPUT
-      - name: Select signing mode
+          $executable = 'build/windows/x64/runner/Release/kgmusic.exe'
+          if (-not (Test-Path $executable)) { throw "Windows executable was not produced: $executable" }
+      - name: Select and validate Windows signing mode
         id: signing
-        if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
           PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
@@ -109,32 +269,58 @@ jobs:
           PUBLISHER: ${{ secrets.WINDOWS_PUBLISHER }}
         run: |
           if ($env:PFX_BASE64 -and $env:PFX_PASSWORD -and $env:PUBLISHER) {
-            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\kgmusic.pfx", [Convert]::FromBase64String($env:PFX_BASE64))
+            $pfxPath = "$env:RUNNER_TEMP\kgmusic.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PFX_BASE64))
+            $certificate = [Security.Cryptography.X509Certificates.X509Certificate2]::new(
+              $pfxPath,
+              $env:PFX_PASSWORD,
+              [Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+            )
+            if (-not $certificate.HasPrivateKey) {
+              throw 'The Windows PFX does not contain a private key.'
+            }
+            if ($certificate.Subject -cne $env:PUBLISHER) {
+              throw "WINDOWS_PUBLISHER must exactly match the PFX subject. Expected '$($certificate.Subject)'."
+            }
+            if ($certificate.NotAfter -le (Get-Date)) {
+              throw "The Windows signing certificate expired on $($certificate.NotAfter.ToString('u'))."
+            }
+            if ($certificate.NotAfter -le (Get-Date).AddDays(30)) {
+              "::warning::The Windows signing certificate expires on $($certificate.NotAfter.ToString('u'))."
+            }
             "test_signed=false" >> $env:GITHUB_OUTPUT
           } else {
             "test_signed=true" >> $env:GITHUB_OUTPUT
             "::warning::Windows signing secrets are incomplete. Creating a test-signed MSIX; the GitHub release will remain a draft."
           }
       - name: Build production-signed MSIX
-        if: startsWith(github.ref, 'refs/tags/v') && steps.signing.outputs.test_signed == 'false'
+        if: steps.signing.outputs.test_signed == 'false'
         shell: pwsh
         env:
           PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
           PUBLISHER: ${{ secrets.WINDOWS_PUBLISHER }}
-        run: dart run msix:create --build-windows false --version "${{ steps.package_version.outputs.msix_version }}" --certificate-path "$env:RUNNER_TEMP\kgmusic.pfx" --certificate-password "$env:PFX_PASSWORD" --publisher "$env:PUBLISHER" --output-name "KGMusic-${env:GITHUB_REF_NAME}-windows-x64"
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: dart run msix:create --build-windows false --version "${{ needs.validation.outputs.msix_version }}" --certificate-path "$env:RUNNER_TEMP\kgmusic.pfx" --certificate-password "$env:PFX_PASSWORD" --publisher "$env:PUBLISHER" --output-name "KGMusic-${env:RELEASE_TAG}-windows-x64"
       - name: Build test-signed MSIX
-        if: startsWith(github.ref, 'refs/tags/v') && steps.signing.outputs.test_signed == 'true'
+        if: steps.signing.outputs.test_signed == 'true'
         shell: pwsh
-        run: dart run msix:create --build-windows false --version "${{ steps.package_version.outputs.msix_version }}" --output-name "KGMusic-${env:GITHUB_REF_NAME}-windows-x64-TEST-SIGNED"
+        env:
+          RELEASE_TAG: ${{ needs.validation.outputs.release_tag }}
+        run: dart run msix:create --build-windows false --version "${{ needs.validation.outputs.msix_version }}" --output-name "KGMusic-${env:RELEASE_TAG}-windows-x64-TEST-SIGNED"
+      - name: Remove Windows signing certificate
+        if: always()
+        shell: pwsh
+        run: Remove-Item "$env:RUNNER_TEMP\kgmusic.pfx" -Force -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: windows-msix
           path: build/windows/x64/runner/Release/*.msix
+          if-no-files-found: error
+          retention-days: 14
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [linux, windows]
+    name: Publish GitHub release
+    needs: [validation, android, linux, windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -145,9 +331,15 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.validation.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: KGMusic ${{ needs.validation.outputs.release_tag }}
           draft: ${{ needs.windows.outputs.test_signed == 'true' }}
           fail_on_unmatched_files: true
+          generate_release_notes: true
           files: |
             artifacts/*.AppImage
             artifacts/*.deb
+            artifacts/*.apk
+            artifacts/*.aab
             artifacts/*.msix

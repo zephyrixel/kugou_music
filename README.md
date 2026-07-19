@@ -46,10 +46,16 @@ Windows release 在 Windows 主机运行 `flutter build windows --release`，MSI
 dart run msix:create --build-windows false
 ```
 
-GitHub Actions 在 pull request 构建 Linux/Windows，并在 `v*` tag 发布 AppImage、
-DEB 与 MSIX。正式 Windows 签名使用 `WINDOWS_PFX_BASE64`、
-`WINDOWS_PFX_PASSWORD`、`WINDOWS_PUBLISHER`；缺少任一凭据时只生成明确标记的
-测试签名 MSIX，并保持 GitHub Release 为 draft。
+GitHub Actions 只在推送 `vMAJOR.MINOR.PATCH`（可选 `+BUILD`）tag 或手动触发时运行。
+两种方式都会验证 Flutter/Rust，构建 Android、Linux 与 Windows，并将 APK、AAB、
+AppImage、DEB 与 MSIX 上传到对应的 GitHub Release。手动触发时必须填写 release tag；
+如果同名 tag 已存在，它必须指向本次选择的 commit，否则工作流会拒绝发布。
+
+Android 正式发布必须配置 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、
+`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。
+Windows 正式签名使用 `WINDOWS_PFX_BASE64`、`WINDOWS_PFX_PASSWORD`、
+`WINDOWS_PUBLISHER`；缺少任一 Windows 凭据时只生成明确标记的测试签名 MSIX，
+并保持 GitHub Release 为 draft。Linux 当前不要求签名证书。
 
 Rust 桥接发生变化后运行：
 
