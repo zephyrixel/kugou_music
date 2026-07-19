@@ -1,0 +1,153 @@
+name: Desktop
+
+on:
+  pull_request:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev libmpv-dev
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: cargo test --manifest-path native/kugou_bridge/Cargo.toml
+
+  linux:
+    needs: validation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libayatana-appindicator3-dev libmpv-dev
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - name: Package AppImage and DEB
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          chmod +x tool/package_linux.sh packaging/linux/AppRun
+          ./tool/package_linux.sh "$version"
+          curl --fail --location \
+            --header 'Accept: application/octet-stream' \
+            --header 'Authorization: Bearer ${{ github.token }}' \
+            --output build/packages/linuxdeploy \
+            https://api.github.com/repos/linuxdeploy/linuxdeploy/releases/assets/462806018
+          echo 'e87ee0815d109282fdda73e34c2361d64d02b0ffaea3674b18f1fd1f6a687dcf  build/packages/linuxdeploy' | sha256sum --check --strict
+          chmod +x build/packages/linuxdeploy
+          APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=1 build/packages/linuxdeploy \
+            --appdir build/packages/KGMusic.AppDir \
+            --desktop-file packaging/linux/com.zephyrixel.kgmusic.desktop \
+            --icon-file assets/branding/app_icon.png \
+            --library /usr/lib/x86_64-linux-gnu/libmpv.so.2 \
+            --output appimage
+          mv KGMusic-*.AppImage "build/packages/KGMusic-${version}-x86_64.AppImage"
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: linux-packages
+          path: |
+            build/packages/*.AppImage
+            build/packages/*.deb
+
+  windows:
+    needs: validation
+    runs-on: windows-2025
+    outputs:
+      test_signed: ${{ steps.signing.outputs.test_signed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - name: Derive MSIX version
+        id: package_version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_NAME -notmatch '^v(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$') {
+            throw "Release tag must use vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH+BUILD"
+          }
+          $build = if ($Matches[4]) { $Matches[4] } else { '0' }
+          "msix_version=$($Matches[1]).$($Matches[2]).$($Matches[3]).$build" >> $env:GITHUB_OUTPUT
+      - name: Select signing mode
+        id: signing
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+          PUBLISHER: ${{ secrets.WINDOWS_PUBLISHER }}
+        run: |
+          if ($env:PFX_BASE64 -and $env:PFX_PASSWORD -and $env:PUBLISHER) {
+            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\kgmusic.pfx", [Convert]::FromBase64String($env:PFX_BASE64))
+            "test_signed=false" >> $env:GITHUB_OUTPUT
+          } else {
+            "test_signed=true" >> $env:GITHUB_OUTPUT
+            "::warning::Windows signing secrets are incomplete. Creating a test-signed MSIX; the GitHub release will remain a draft."
+          }
+      - name: Build production-signed MSIX
+        if: startsWith(github.ref, 'refs/tags/v') && steps.signing.outputs.test_signed == 'false'
+        shell: pwsh
+        env:
+          PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+          PUBLISHER: ${{ secrets.WINDOWS_PUBLISHER }}
+        run: dart run msix:create --build-windows false --version "${{ steps.package_version.outputs.msix_version }}" --certificate-path "$env:RUNNER_TEMP\kgmusic.pfx" --certificate-password "$env:PFX_PASSWORD" --publisher "$env:PUBLISHER" --output-name "KGMusic-${env:GITHUB_REF_NAME}-windows-x64"
+      - name: Build test-signed MSIX
+        if: startsWith(github.ref, 'refs/tags/v') && steps.signing.outputs.test_signed == 'true'
+        shell: pwsh
+        run: dart run msix:create --build-windows false --version "${{ steps.package_version.outputs.msix_version }}" --output-name "KGMusic-${env:GITHUB_REF_NAME}-windows-x64-TEST-SIGNED"
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: windows-msix
+          path: build/windows/x64/runner/Release/*.msix
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: ${{ needs.windows.outputs.test_signed == 'true' }}
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/*.AppImage
+            artifacts/*.deb
+            artifacts/*.msix

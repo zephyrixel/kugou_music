@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=KGMusic
+Comment=Lite Kugou music client
+Exec=kgmusic
+Icon=com.zephyrixel.kgmusic
+Categories=AudioVideo;Audio;Player;
+Terminal=false
+StartupNotify=true
+StartupWMClass=com.zephyrixel.kgmusic

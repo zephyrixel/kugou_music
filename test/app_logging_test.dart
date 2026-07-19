@@ -18,7 +18,8 @@ void main() {
   });
 
   tearDown(() async {
-    await store.flush();
+    AppLog.detach(store);
+    await store.dispose();
     await directory.delete(recursive: true);
     AppLog.setLevel(AppLogLevel.info);
   });
@@ -111,6 +112,34 @@ void main() {
         ),
       );
       expect((await store.readEntries()).single.message, 'after-clear');
+    },
+  );
+
+  test(
+    'disposing is terminal and detached logging cannot reopen the file',
+    () async {
+      AppLog.info('before-dispose', target: 'test');
+      AppLog.detach(store);
+      await store.dispose();
+
+      final current = File('${directory.path}/flutter-current.jsonl');
+      await current.delete();
+      AppLog.warn('after-dispose', target: 'test');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(await current.exists(), isFalse);
+      await expectLater(
+        store.append(
+          AppLogEntry(
+            timestamp: DateTime.now(),
+            level: AppLogLevel.info,
+            source: 'flutter',
+            target: 'test',
+            message: 'reopen',
+          ),
+        ),
+        throwsStateError,
+      );
     },
   );
 }

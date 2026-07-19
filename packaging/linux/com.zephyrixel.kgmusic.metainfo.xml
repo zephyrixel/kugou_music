@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.zephyrixel.kgmusic</id>
+  <name>KGMusic</name>
+  <summary>Lite Kugou music client</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <launchable type="desktop-id">com.zephyrixel.kgmusic.desktop</launchable>
+  <developer id="com.zephyrixel">
+    <name>Zephyrixel</name>
+  </developer>
+  <url type="homepage">https://github.com/zephyrixel/kugou_music</url>
+  <description>
+    <p>Browse, search, organize, and play music with the KGMusic Lite desktop client for Linux and Windows.</p>
+    <p>KGMusic provides queue management, lyrics, playlists, and desktop media controls through a Flutter interface backed by a Rust SDK bridge.</p>
+  </description>
+  <content_rating type="oars-1.1"/>
+</component>

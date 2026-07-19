@@ -1,6 +1,6 @@
 # KGMusic
 
-KGMusic 是一个 Android-first 的 Flutter 音乐客户端，使用 Rust
+KGMusic 是一个支持 Android、Linux 与 Windows 的 Flutter 音乐客户端，使用 Rust
 `kugou_sdk = 0.2.9` 访问酷狗 Lite（概念版）接口。项目不会回退到 Standard
 后端。
 
@@ -18,6 +18,10 @@ KGMusic 是一个 Android-first 的 Flutter 音乐客户端，使用 Rust
 - 收藏、播放历史和歌单操作乐观写入本地并立即回写 Lite 云端（失败回滚）
 - `flutter_secure_storage` 保存 Lite 会话；会话不会写入 Drift 或日志
 - Android 明文网络仅允许 `kugou.com` 域及其子域
+- Linux 使用 MPRIS，Windows 使用 SMTC；两端支持硬件媒体键
+- 桌面窗口关闭后隐藏到系统托盘，托盘菜单可控制播放或彻底退出
+- 桌面快捷键：空格播放/暂停，`Ctrl+Left/Right` 上一首/下一首，
+  `Ctrl+1/2/3` 切换主导航
 
 ## 开发命令
 
@@ -26,7 +30,26 @@ dart run build_runner build
 flutter analyze
 flutter test
 flutter build apk --debug
+flutter build linux --release
 ```
+
+Linux 构建环境需要 GTK 3、libsecret、libmpv 和 Ayatana AppIndicator
+开发库。运行时需要可用的 Secret Service 凭据服务。生成 DEB 和 AppDir：
+
+```bash
+./tool/package_linux.sh 1.0.0
+```
+
+Windows release 在 Windows 主机运行 `flutter build windows --release`，MSIX 使用：
+
+```bash
+dart run msix:create --build-windows false
+```
+
+GitHub Actions 在 pull request 构建 Linux/Windows，并在 `v*` tag 发布 AppImage、
+DEB 与 MSIX。正式 Windows 签名使用 `WINDOWS_PFX_BASE64`、
+`WINDOWS_PFX_PASSWORD`、`WINDOWS_PUBLISHER`；缺少任一凭据时只生成明确标记的
+测试签名 MSIX，并保持 GitHub Release 为 draft。
 
 Rust 桥接发生变化后运行：
 

@@ -78,6 +78,17 @@ void main() {
     await player.close();
   });
 
+  test('dispose releases the player exactly once', () async {
+    final player = _FakeAudioPlayer();
+    final handler = _handler(_FakePlayerSdk(), player, <Song>[]);
+
+    await handler.dispose();
+    await handler.dispose();
+
+    expect(player.disposeCount, 1);
+    await player.close();
+  });
+
   test('failed quality switch restores the persisted preference', () async {
     final sdk = _FakePlayerSdk();
     final player = _FakeAudioPlayer();
@@ -247,6 +258,7 @@ class _FakeAudioPlayer implements AudioPlayerPort {
   ProcessingState _state = ProcessingState.idle;
   bool _playing = false;
   Duration positionValue = Duration.zero;
+  int disposeCount = 0;
 
   @override
   Stream<PlaybackEvent> get playbackEventStream => _events.stream;
@@ -305,6 +317,11 @@ class _FakeAudioPlayer implements AudioPlayerPort {
   Future<void> stop() async {
     _playing = false;
     _emit(ProcessingState.idle);
+  }
+
+  @override
+  Future<void> dispose() async {
+    disposeCount += 1;
   }
 
   void emitPosition(Duration position) {

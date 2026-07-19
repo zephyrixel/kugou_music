@@ -44,20 +44,27 @@ class MusicAudioHandler extends BaseAudioHandler
          recordRecommendationPlayback ??
              (_, {required listened, required sourceBits}) async {},
        ) {
-    _player.playbackEventStream.listen((event) {
-      _recommendationPlayTracker.update(playing: _player.playing);
-      _broadcastState(event);
-    });
-    _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) {
-        unawaited(_advanceAfterCompletion());
-      }
-    });
-    _player.positionStream.listen((position) {
-      _enforcePreviewEnd(position);
-      _recommendationPlayTracker.update(playing: _player.playing);
-    });
-    if (observeLifecycle) WidgetsBinding.instance.addObserver(this);
+    _subscriptions.add(
+      _player.playbackEventStream.listen((event) {
+        _recommendationPlayTracker.update(playing: _player.playing);
+        _broadcastState(event);
+      }),
+    );
+    _subscriptions.add(
+      _player.processingStateStream.listen((state) {
+        if (state == ProcessingState.completed) {
+          unawaited(_advanceAfterCompletion());
+        }
+      }),
+    );
+    _subscriptions.add(
+      _player.positionStream.listen((position) {
+        _enforcePreviewEnd(position);
+        _recommendationPlayTracker.update(playing: _player.playing);
+      }),
+    );
+    _observingLifecycle = observeLifecycle;
+    if (_observingLifecycle) WidgetsBinding.instance.addObserver(this);
     unawaited((configureSession ?? _configureSession)());
     if (restoreQueueOnStart) unawaited(_restoreQueue());
   }
@@ -76,6 +83,7 @@ class MusicAudioHandler extends BaseAudioHandler
   final StreamController<PlaybackQueueState> _queueStates =
       StreamController.broadcast(sync: true);
   final PlaybackQueueController _queueController = PlaybackQueueController();
+  final List<StreamSubscription<Object?>> _subscriptions = [];
   int _loadGeneration = 0;
   AudioQuality _preferredQuality;
   PlaybackQualityState _qualityState;
@@ -93,6 +101,8 @@ class MusicAudioHandler extends BaseAudioHandler
   String? _prefetchAttemptedSongId;
   Duration? _restoredPosition;
   Duration? _currentMediaDuration;
+  bool _observingLifecycle = false;
+  bool _disposed = false;
 
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
@@ -307,6 +317,46 @@ class MusicAudioHandler extends BaseAudioHandler
     _currentAudioHandle = null;
     await _player.stop();
     await super.stop();
+  }
+
+  /// Flushes playback state and releases native audio resources exactly once.
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _loadGeneration += 1;
+    _prefetchTimer?.cancel();
+    if (_observingLifecycle) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observingLifecycle = false;
+    }
+    await _disposeStep('保存播放队列', _persistQueue);
+    await _disposeStep('结束推荐播放会话', _finishRecommendationSession);
+    _audioCache.setActive(null);
+    for (final subscription in _subscriptions) {
+      await _disposeStep('取消播放器订阅', subscription.cancel);
+    }
+    _subscriptions.clear();
+    await _disposeStep('停止播放器', _player.stop);
+    await _disposeStep('释放播放器', _player.dispose);
+    await _disposeStep('关闭播放器消息流', _messages.close);
+    await _disposeStep('关闭音质状态流', _qualityStates.close);
+    await _disposeStep('关闭队列状态流', _queueStates.close);
+  }
+
+  Future<void> _disposeStep(
+    String description,
+    Future<void> Function() operation,
+  ) async {
+    try {
+      await operation();
+    } catch (error, stackTrace) {
+      AppLog.warn(
+        '$description失败',
+        target: 'player.dispose',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   @override

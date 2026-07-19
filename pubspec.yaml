@@ -57,6 +57,20 @@ dependencies:
   kugou_bridge:
     path: rust_builder
   freezed_annotation: ^3.1.0
+  just_audio_media_kit: 2.1.0
+  # Local 1.2.1 patch: reproducibly build and link the mimalloc override.
+  media_kit_libs_linux:
+    path: third_party/media_kit_libs_linux
+  media_kit_libs_windows_audio: 1.0.9
+  audio_service_mpris: 0.2.1
+  window_manager: 0.5.2
+  screen_retriever: 0.2.2
+  # Local 0.5.3 patch: tolerate Ayatana's deprecated compatibility constructor.
+  tray_manager:
+    path: third_party/tray_manager
+  # Local SMTC patch: timeline, seek, repeat/shuffle, UI-thread callbacks.
+  audio_service_win:
+    path: third_party/audio_service_win
 
 dev_dependencies:
   flutter_test:
@@ -73,6 +87,15 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.4
   freezed: 3.2.5
   sqlite3: ^3.4.0
+  msix: 3.18.0
+
+msix_config:
+  display_name: KGMusic
+  publisher_display_name: Zephyrixel
+  identity_name: com.zephyrixel.kgmusic
+  logo_path: assets/branding/app_icon.png
+  capabilities: internetClient
+  install_certificate: false
 
 flutter_launcher_icons:
   android: ic_launcher
@@ -92,6 +115,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/branding/app_icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

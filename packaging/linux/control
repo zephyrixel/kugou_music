@@ -1,0 +1,9 @@
+Package: kgmusic
+Version: @VERSION@
+Section: sound
+Priority: optional
+Architecture: amd64
+Maintainer: KGMusic
+Depends: libgtk-3-0, libsecret-1-0, libmpv2, libayatana-appindicator3-1 | libappindicator3-1
+Description: Lite Kugou music client
+ KGMusic is a Flutter and Rust desktop music client using the Lite platform profile.

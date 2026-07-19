@@ -23,6 +23,10 @@ abstract final class AppLog {
     _level = level;
   }
 
+  static void detach(AppLogStore store) {
+    if (identical(_store, store)) _store = null;
+  }
+
   static void setLevel(AppLogLevel level) => _level = level;
 
   static void error(

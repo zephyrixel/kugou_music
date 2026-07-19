@@ -25,6 +25,7 @@ class AppLoggingController extends ChangeNotifier {
   AppLogLevel _level;
   bool _nativeAvailable = false;
   String? _nativeError;
+  bool _disposed = false;
 
   AppLogLevel get level => _level;
   bool get nativeAvailable => _nativeAvailable;
@@ -150,6 +151,17 @@ class AppLoggingController extends ChangeNotifier {
       await bridge.flushNativeLogs();
     } catch (error) {
       throw AppLoggingException(_bridgeMessage(error));
+    }
+  }
+
+  Future<void> disposeResources() async {
+    if (_disposed) return;
+    _disposed = true;
+    AppLog.detach(store);
+    try {
+      await _flushNative();
+    } finally {
+      await store.dispose();
     }
   }
 

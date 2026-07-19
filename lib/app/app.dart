@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/app_router.dart';
@@ -60,10 +62,61 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     theme: buildKgTheme(),
     scaffoldMessengerKey: _scaffoldMessengerKey,
     routerConfig: _router,
-    builder: (context, child) => AppErrorListener(
-      bus: ref.watch(appErrorBusProvider),
-      messengerKey: _scaffoldMessengerKey,
-      child: child ?? const SizedBox.shrink(),
-    ),
+    builder: (context, child) {
+      final content = AppErrorListener(
+        bus: ref.watch(appErrorBusProvider),
+        messengerKey: _scaffoldMessengerKey,
+        child: child ?? const SizedBox.shrink(),
+      );
+      if (!_supportsDesktopShortcuts) return content;
+      return CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.space): _togglePlayback,
+          const SingleActivator(LogicalKeyboardKey.arrowLeft, control: true):
+              _previous,
+          const SingleActivator(LogicalKeyboardKey.arrowRight, control: true):
+              _next,
+          const SingleActivator(LogicalKeyboardKey.digit1, control: true): () =>
+              _navigate('/'),
+          const SingleActivator(LogicalKeyboardKey.digit2, control: true): () =>
+              _navigate('/search'),
+          const SingleActivator(LogicalKeyboardKey.digit3, control: true): () =>
+              _navigate('/library'),
+        },
+        child: content,
+      );
+    },
   );
+
+  bool get _supportsDesktopShortcuts =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.windows);
+
+  bool get _editingText {
+    final context = FocusManager.instance.primaryFocus?.context;
+    return context != null &&
+        context.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  void _togglePlayback() {
+    if (_editingText) return;
+    final handler = ref.read(audioHandlerProvider);
+    final playing = handler.playbackState.value.playing;
+    unawaited(playing ? handler.pause() : handler.play());
+  }
+
+  void _previous() {
+    if (!_editingText) {
+      unawaited(ref.read(audioHandlerProvider).skipToPrevious());
+    }
+  }
+
+  void _next() {
+    if (!_editingText) unawaited(ref.read(audioHandlerProvider).skipToNext());
+  }
+
+  void _navigate(String location) {
+    if (!_editingText) _router.go(location);
+  }
 }

@@ -22,6 +22,7 @@ abstract interface class AudioPlayerPort {
   Future<void> pause();
   Future<void> seek(Duration position);
   Future<void> stop();
+  Future<void> dispose();
 }
 
 class JustAudioPlayerPort implements AudioPlayerPort {
@@ -66,4 +67,6 @@ class JustAudioPlayerPort implements AudioPlayerPort {
   Future<void> seek(Duration position) => _player.seek(position);
   @override
   Future<void> stop() => _player.stop();
+  @override
+  Future<void> dispose() => _player.dispose();
 }

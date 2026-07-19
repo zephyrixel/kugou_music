@@ -23,12 +23,17 @@ class AppLogStore {
   Future<void> _tail = Future<void>.value();
   IOSink? _sink;
   int _currentBytes = 0;
+  bool _disposed = false;
 
   File get _current => File('${directory.path}/${_flutterFiles.first}');
 
-  Future<void> initialize() => _enqueue(_ensureOpen);
+  Future<void> initialize() {
+    if (_disposed) return Future.error(_disposedError());
+    return _enqueue(_ensureOpen);
+  }
 
   Future<void> append(AppLogEntry entry) {
+    if (_disposed) return Future.error(_disposedError());
     final line = '${entry.toJsonLine()}\n';
     final incomingBytes = utf8.encode(line).length;
     return _enqueue(() async {
@@ -40,6 +45,12 @@ class AppLogStore {
   }
 
   Future<void> flush() => _enqueue(() async => _sink?.flush());
+
+  Future<void> dispose() {
+    if (_disposed) return _tail;
+    _disposed = true;
+    return _enqueue(_closeSink);
+  }
 
   Future<List<AppLogEntry>> readEntries({int? limit}) async {
     await flush();
@@ -79,6 +90,7 @@ class AppLogStore {
   }
 
   Future<void> clearFlutterLogs() async {
+    if (_disposed) throw _disposedError();
     await _enqueue(() async {
       await _closeSink();
       for (final name in _flutterFiles) {
@@ -125,4 +137,6 @@ class AppLogStore {
     _tail = next.then<void>((_) {}, onError: (_) {});
     return next;
   }
+
+  StateError _disposedError() => StateError('AppLogStore is disposed');
 }
