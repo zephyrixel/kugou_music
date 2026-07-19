@@ -4,6 +4,9 @@ KGMusic 是一个支持 Android、Linux 与 Windows 的 Flutter 音乐客户端�
 `kugou_sdk = 0.2.9` 访问酷狗 Lite（概念版）接口。项目不会回退到 Standard
 后端。
 
+> KGMusic 是社区维护的非官方客户端，与酷狗音乐及其关联公司不存在隶属、授权或背书
+> 关系。相关名称与商标归其权利人所有；使用者应自行遵守服务条款与所在地区的法律法规。
+
 ## 当前首轮能力
 
 - Lite 每日推荐与歌曲搜索
@@ -67,3 +70,9 @@ flutter_rust_bridge_codegen generate
 
 完整文档（架构、开发测试、平台支持、发布、安全和贡献）见
 [docs/README.md](docs/README.md)。
+
+## 许可证
+
+KGMusic 自有代码以 [GNU General Public License v3.0 or later](LICENSE) 发布。
+`third_party/`、构建工具与分发包中的第三方组件继续适用各自许可证；发布二进制时必须
+同时履行相应的版权声明、源码提供和再分发义务。

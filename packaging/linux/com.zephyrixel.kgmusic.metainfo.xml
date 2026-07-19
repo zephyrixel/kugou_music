@@ -4,7 +4,7 @@
   <name>KGMusic</name>
   <summary>Lite Kugou music client</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-proprietary</project_license>
+  <project_license>GPL-3.0-or-later</project_license>
   <launchable type="desktop-id">com.zephyrixel.kgmusic.desktop</launchable>
   <developer id="com.zephyrixel">
     <name>Zephyrixel</name>
