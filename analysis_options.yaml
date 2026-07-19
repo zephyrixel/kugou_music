@@ -12,6 +12,10 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - third_party/**
+    # Cargokit bundles an independent Dart CLI with its own pubspec and
+    # dependency graph. It is executed by the Rust build plugin, not imported
+    # by the application, so root-level `flutter pub get` cannot analyze it.
+    - rust_builder/cargokit/build_tool/**
 
 linter:
   # The lint rules applied to this project can be customized in the
