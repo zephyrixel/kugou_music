@@ -68,6 +68,9 @@ draft Release 可能保留已上传的部分附件，但不会自动公开。准
 构建前 CI 会解码密钥、检查 alias，并在完成后删除临时 keystore。缺少任一项会失败；
 绝不会回退为 debug key 签名。开发者本地可在 `android/key.properties` 中配置
 `storeFile`、`storePassword`、`keyAlias`、`keyPassword`；该文件与实际 keystore 都不得提交。
+CI 使用 `apksigner` 校验 APK，使用 `jarsigner` 校验 AAB 的 JAR 签名和已签名状态。Android
+upload certificate 通常是自签名证书，因此 AAB 校验不要求其证书链连接到公有 CA；证书指纹
+和持续使用同一 upload key 的责任仍由发布维护者承担。
 
 ## Windows 签名
 

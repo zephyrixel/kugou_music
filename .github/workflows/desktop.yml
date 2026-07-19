@@ -206,8 +206,20 @@ jobs:
           for apk in build/packages/KGMusic-"${RELEASE_TAG}"-android-*.apk; do
             "$apksigner" verify --verbose "$apk"
           done
-          jarsigner -verify -strict build/app/outputs/bundle/release/app-release.aab
-          cp build/app/outputs/bundle/release/app-release.aab \
+          aab_path=build/app/outputs/bundle/release/app-release.aab
+          aab_verification="$RUNNER_TEMP/kgmusic-aab-verification.txt"
+          if ! jarsigner -verify -verbose -certs "$aab_path" > "$aab_verification" 2>&1; then
+            cat "$aab_verification"
+            echo '::error::AAB signature verification failed'
+            exit 1
+          fi
+          if ! grep -qi 'jar verified' "$aab_verification"; then
+            cat "$aab_verification"
+            echo '::error::AAB signature verification did not report a verified archive'
+            exit 1
+          fi
+          grep -i 'jar verified' "$aab_verification"
+          cp "$aab_path" \
             "build/packages/KGMusic-${RELEASE_TAG}-android.aab"
       - name: Remove Android signing key
         if: always()
