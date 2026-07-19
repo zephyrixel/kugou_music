@@ -1,5 +1,9 @@
 # KGMusic 架构说明
 
+本文是面向维护者的实现约束和数据流说明，不是稳定的第三方 API 文档。高层产品范围见
+[项目概览](overview.md)，环境和命令见[开发与测试](development.md)。修改本文描述的
+边界时，应同时修改实现与相关测试。
+
 ## 边界
 
 项目固定使用 `PlatformProfile::Lite`。Flutter 功能层不直接导入 FRB 自动生成
@@ -21,6 +25,90 @@ features/*
     │
     └── core/database/AppDatabase ── Drift (音乐库、推荐画像、响应缓存；无 Outbox)
 ```
+
+## 启动与依赖装配
+
+`lib/main.dart` 是唯一的组合根。它按以下顺序建立运行时；任一关键步骤失败时显示可读的
+启动失败页面，而不是运行半初始化的应用。
+
+```text
+Widgets binding
+  -> desktop audio runtime
+  -> preferences + Flutter logging
+  -> Flutter Rust Bridge runtime + native logging
+  -> Drift health check
+  -> KugouMusicSdk(session restore + device profile)
+  -> repositories, cache, queue source factory
+  -> AudioService / MusicAudioHandler
+  -> desktop lifecycle controller
+  -> ProviderScope overrides -> KgMusicApp
+```
+
+`app/providers.dart` 只暴露应用所需的依赖和 feature-facing provider。测试通过
+`ProviderScope` override 注入替身；页面不创建 SDK、数据库或播放器实例。认证控制器在
+恢复到有效账号后激活 `LibraryRepository`，因此路由只有在认证和首轮音乐库同步均完成后
+才进入主界面。
+
+## 三条关键数据流
+
+### 登录与账号切换
+
+```text
+Android device profile / stable install ID
+  -> Rust initialize_sdk
+  -> secure-storage session envelope (schema v2, Lite)
+  -> AuthController
+  -> LibraryRepository.activate(userId)
+  -> Drift baseline (playlists + history)
+  -> authenticated routes
+```
+
+无效、过期或跨设备会话会清除安全存储并回到登录页。退出登录会清除账号响应缓存、音乐库、
+推荐画像和播放队列；不会把会话复制到 Drift。
+
+### 浏览、缓存与写回
+
+```text
+Feature provider
+  -> MusicRepository / LibraryRepository
+  -> fresh cache or Drift read model
+  -> MusicSdk facade
+  -> generated FRB API
+  -> Rust kugou_bridge -> kugou_sdk Lite
+  -> mapped domain result -> UI stream
+```
+
+常规浏览请求使用 `MusicRepository` 的 TTL 缓存和同键请求合并。音乐库不是 JSON 缓存：
+`LibraryRepository` 协调 `LibraryStore`（Drift）与 `LibraryRemote`（在线 Lite API）。写操作
+遵循“本地乐观更新 -> 在线调用 -> 失败回滚”；新建自建歌单例外，必须先取得远端 `listId`
+再写入本地。
+
+### 播放与队列恢复
+
+```text
+Song tap
+  -> PlaybackQueueSourceFactory (origin + first page)
+  -> MusicAudioHandler / PlaybackQueueController
+  -> MusicSdk.resolve(song, quality)
+  -> LockCachingAudioSource + just_audio
+  -> AudioService state -> mini player / full player / system controls
+```
+
+队列保存来源、已加载歌曲、索引、顺序和位置。恢复时，`PlaybackQueueSourceFactory.restore`
+根据来源重新建立搜索、公开歌单、音乐库或推荐队列的分页加载器；过期的异步地址解析和分页
+请求不得覆盖后来选择的歌曲或账号。
+
+## 持久化边界
+
+| 位置 | 内容 | 生命周期 | 明确禁止 |
+| --- | --- | --- | --- |
+| `flutter_secure_storage` | 会话信封、稳定安装 ID、刷新时间和一次性启动提示 | 登出/会话失效时清理会话 | Drift、日志、普通缓存中的会话/令牌/Cookie |
+| Drift `AppDatabase` | 音乐库读模型、推荐画像/限频、非敏感响应缓存、队列快照 | 按账号或缓存策略清理 | token、短信验证码、设备指纹 |
+| 文件缓存 | 音频、封面、应用日志 | LRU/用户操作/日志策略 | 以临时签名 URL 作为长期音频身份 |
+| SharedPreferences | 音质、缓存上限、窗口几何、日志等级等偏好 | 跨重启保留 | 认证或敏感设备数据 |
+
+数据库 schema 当前为 v7。迁移只能递增；变更表定义、缓存语义或账号清理规则时，必须添加
+迁移测试和退出/账号切换测试。
 
 ## 目录职责
 
@@ -68,6 +156,16 @@ features/*
 - 保持简单的单向依赖：feature → core → native/database。避免为尚未存在的 Lite API
   添加空壳抽象、全局状态或第二套本地/云端模型。
 
+### 变更落点
+
+| 需求类型 | 首选落点 | 不应直接修改 |
+| --- | --- | --- |
+| 新 Lite API | Rust `api/sdk.rs`、DTO/映射、`MusicSdk` 窄接口 | feature 中的 FRB 生成类型 |
+| 新页面能力 | 对应 `features/`、provider、既有 core 门面 | 在 widget 内创建 SDK 或数据库 |
+| 音乐库行为 | `LibraryRepository`、`LibraryStore`、`LibraryRemote` | 页面内重复同步或写回逻辑 |
+| 播放行为 | `MusicAudioHandler`、transition、queue controller/source | 直接操纵 `just_audio` 绕过 handler |
+| 本地 schema | Drift table、迁移、数据库测试 | 手改 `app_database.g.dart` |
+
 ## 播放策略
 
 1. 默认使用标准音质；播放器可按歌曲实际资源切换 320K、FLAC、Hi-Res 或 DSD。
@@ -112,7 +210,7 @@ features/*
 Rust 导出的会话外层必须为：
 
 ```json
-{"schemaVersion":1,"platform":"lite","sessionJson":"..."}
+{"schemaVersion":2,"platform":"lite","sessionJson":"..."}
 ```
 
 导入时拒绝版本不符或 `platform != lite` 的数据。Flutter 使用

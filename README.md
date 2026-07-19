@@ -65,4 +65,5 @@ flutter_rust_bridge_codegen generate
 
 当前 Debug APK 输出到 `build/app/outputs/flutter-apk/app-debug.apk`。
 
-详细的分层结构和后续路线见 [docs/architecture.md](docs/architecture.md)。
+完整文档（架构、开发测试、平台支持、发布、安全和贡献）见
+[docs/README.md](docs/README.md)。
