@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # These versions must be upgraded together with generated bindings.
+      - dependency-name: flutter_rust_bridge
+      - dependency-name: freezed
+      - dependency-name: freezed_annotation
+
+  - package-ecosystem: pub
+    directory: /rust_builder
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: cargo
+    directory: /native/kugou_bridge
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 4
+    ignore:
+      # Bridge and SDK upgrades require coordinated Dart/Rust changes.
+      - dependency-name: flutter_rust_bridge
+      - dependency-name: kugou_sdk
+
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

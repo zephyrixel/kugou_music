@@ -11,14 +11,12 @@ abstract final class PlatformAudioRuntime {
   static void initialize() {
     if (_initialized) return;
     _initialized = true;
-    if (!Platform.isLinux && !Platform.isWindows) return;
-
-    JustAudioMediaKit.title = 'KGMusic';
-    JustAudioMediaKit.ensureInitialized(
-      linux: Platform.isLinux,
-      windows: Platform.isWindows,
-    );
-    if (Platform.isLinux) AudioServiceMpris.registerWith();
+    if (Platform.isLinux) {
+      JustAudioMediaKit.title = 'KGMusic';
+      JustAudioMediaKit.ensureInitialized(linux: true, windows: false);
+      AudioServiceMpris.registerWith();
+      return;
+    }
     if (Platform.isWindows) AudioServiceWin.registerWith();
   }
 }

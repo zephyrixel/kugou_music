@@ -19,7 +19,8 @@ KGMusic 是一个支持 Android、Linux 与 Windows 的 Flutter 音乐客户端�
 - SMS 登录、登录后设备指纹登记与 12 小时前台 token 刷新
 - 用户资料、Lite VIP、收藏、最近播放及完整歌单管理
 - 收藏、播放历史和歌单操作乐观写入本地并立即回写 Lite 云端（失败回滚）
-- `flutter_secure_storage` 保存 Lite 会话；会话不会写入 Drift 或日志
+- `flutter_secure_storage` 保存 Lite 会话；会话不会写入 Drift，普通日志不记录完整网络数据；
+  只有用户临时启用 Trace 时才可能记录凭据、请求/响应头和正文
 - Android 明文网络仅允许 `kugou.com` 域及其子域
 - Linux 使用 MPRIS，Windows 使用 SMTC；两端支持硬件媒体键
 - 桌面窗口关闭后隐藏到系统托盘，托盘菜单可控制播放或彻底退出
@@ -37,7 +38,8 @@ flutter build linux --release
 ```
 
 Linux 构建环境需要 GTK 3、libsecret、libmpv 和 Ayatana AppIndicator
-开发库。运行时需要可用的 Secret Service 凭据服务。生成 DEB 和 AppDir：
+开发库。DEB 和 AppImage 运行时都需要系统提供 `libmpv.so.2`（Debian/Ubuntu 包名为
+`libmpv2`），并提供可用的 Secret Service 凭据服务。生成 DEB 和 AppDir：
 
 ```bash
 ./tool/package_linux.sh 1.0.0
@@ -48,6 +50,9 @@ Windows release 在 Windows 主机运行 `flutter build windows --release`，MSI
 ```bash
 dart run msix:create --build-windows false
 ```
+
+Windows 使用系统 WinRT `MediaPlayer` 音频后端，不随安装包分发预编译 libmpv/FFmpeg DLL；
+可播放编码范围取决于目标 Windows 的 Media Foundation 支持。
 
 GitHub Actions 只在推送 `vMAJOR.MINOR.PATCH`（可选 `+BUILD`）tag 或手动触发时运行。
 两种方式都会验证 Flutter/Rust，构建 Android、Linux 与 Windows，并将 APK、AAB、
@@ -73,6 +78,10 @@ flutter_rust_bridge_codegen generate
 
 ## 许可证
 
+Copyright (C) 2026 Zephyrixel and contributors.
+
 KGMusic 自有代码以 [GNU General Public License v3.0 or later](LICENSE) 发布。
 `third_party/`、构建工具与分发包中的第三方组件继续适用各自许可证；发布二进制时必须
-同时履行相应的版权声明、源码提供和再分发义务。
+同时履行相应的版权声明、源码提供和再分发义务。分发说明见 [NOTICE](NOTICE)、
+[第三方声明](THIRD_PARTY_NOTICES.md)和自动汇总的
+[Rust 依赖许可证](THIRD_PARTY_RUST_NOTICES.txt)。

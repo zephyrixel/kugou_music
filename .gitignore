@@ -41,6 +41,8 @@ migrate_working_dir/
 **/session.json
 *.keystore
 *.jks
+*.p12
+*.pfx
 *.pem
 *.key
 

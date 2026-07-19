@@ -1,0 +1,13 @@
+KGMusic
+Copyright (C) 2026 Zephyrixel and contributors.
+
+KGMusic is licensed under the GNU General Public License, version 3 or
+any later version (GPL-3.0-or-later). The complete license is in LICENSE.
+
+KGMusic includes third-party software under separate licenses. Component
+credits, license locations, and corresponding-source information are in
+THIRD_PARTY_NOTICES.md and THIRD_PARTY_RUST_NOTICES.txt.
+
+KGMusic is an unofficial community client. KuGou names and trademarks belong
+to their respective owners; no affiliation, authorization, or endorsement is
+claimed.

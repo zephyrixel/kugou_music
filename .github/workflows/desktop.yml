@@ -33,7 +33,9 @@ jobs:
       package_version: ${{ steps.version.outputs.package_version }}
       release_tag: ${{ steps.version.outputs.release_tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
       - name: Resolve release version
         id: version
         shell: bash
@@ -82,17 +84,27 @@ jobs:
           echo "msix_version=$build_name.$build" >> "$GITHUB_OUTPUT"
           echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@3a8b2ad3ea1212417907ff0e1b3d0c4e121bef40 # 1.94.0
       - name: Install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libmpv-dev libsecret-1-dev
       - run: flutter pub get
+      - name: Verify generated Rust license notices
+        shell: bash
+        run: |
+          dart run tool/generate_rust_notices.dart \
+            --output "$RUNNER_TEMP/THIRD_PARTY_RUST_NOTICES.txt"
+          if ! cmp --silent THIRD_PARTY_RUST_NOTICES.txt \
+            "$RUNNER_TEMP/THIRD_PARTY_RUST_NOTICES.txt"; then
+            echo '::error::THIRD_PARTY_RUST_NOTICES.txt is stale. Run dart run tool/generate_rust_notices.dart.'
+            exit 1
+          fi
       - run: flutter analyze
       - run: flutter test
       - run: cargo test --manifest-path native/kugou_bridge/Cargo.toml
@@ -132,18 +144,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@3a8b2ad3ea1212417907ff0e1b3d0c4e121bef40 # 1.94.0
       - run: flutter pub get
       - name: Configure Android release signing
         id: signing
@@ -209,19 +223,26 @@ jobs:
           done
           aab_path=build/app/outputs/bundle/release/app-release.aab
           aab_verification="$RUNNER_TEMP/kgmusic-aab-verification.txt"
-          if ! jarsigner -verify -verbose -certs "$aab_path" > "$aab_verification" 2>&1; then
-            cat "$aab_verification"
-            echo '::error::AAB signature verification failed'
-            exit 1
-          fi
-          if ! grep -qi 'jar verified' "$aab_verification"; then
+          jarsigner -verify -verbose -certs "$aab_path" > "$aab_verification" 2>&1 || true
+          if ! grep -Eqi '^jar verified([,.]|$)' "$aab_verification"; then
             cat "$aab_verification"
             echo '::error::AAB signature verification did not report a verified archive'
             exit 1
           fi
-          grep -i 'jar verified' "$aab_verification"
+          grep -Ei '^jar verified' "$aab_verification"
           cp "$aab_path" \
             "build/packages/KGMusic-${RELEASE_TAG}-android.aab"
+      - name: Verify Android legal notices
+        shell: bash
+        run: |
+          unzip -l build/packages/KGMusic-"${{ needs.validation.outputs.release_tag }}"-android-universal.apk \
+            | grep -F 'flutter_assets/LICENSE'
+          unzip -l build/packages/KGMusic-"${{ needs.validation.outputs.release_tag }}"-android-universal.apk \
+            | grep -F 'flutter_assets/NOTICE'
+          unzip -l build/packages/KGMusic-"${{ needs.validation.outputs.release_tag }}"-android-universal.apk \
+            | grep -F 'flutter_assets/THIRD_PARTY_NOTICES.md'
+          unzip -l build/packages/KGMusic-"${{ needs.validation.outputs.release_tag }}"-android-universal.apk \
+            | grep -F 'flutter_assets/THIRD_PARTY_RUST_NOTICES.txt'
       - name: Remove Android signing key
         if: always()
         run: rm -f "$RUNNER_TEMP/kgmusic-upload.jks"
@@ -252,13 +273,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@3a8b2ad3ea1212417907ff0e1b3d0c4e121bef40 # 1.94.0
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
@@ -285,12 +308,15 @@ jobs:
         run: |
           chmod +x tool/package_linux.sh packaging/linux/AppRun
           ./tool/package_linux.sh "$VERSION"
+          test -f build/packages/KGMusic.AppDir/usr/share/doc/kgmusic/LICENSE
+          test -f build/packages/deb-root/usr/share/doc/kgmusic/THIRD_PARTY_NOTICES.md
           desktop-file-validate packaging/linux/com.zephyrixel.kgmusic.desktop
           appstreamcli validate --no-net packaging/linux/com.zephyrixel.kgmusic.metainfo.xml
           dpkg-deb --info "build/packages/kgmusic_${VERSION}_amd64.deb"
           curl --fail --location \
+            --retry 5 \
+            --retry-all-errors \
             --header 'Accept: application/octet-stream' \
-            --header 'Authorization: Bearer ${{ github.token }}' \
             --output build/packages/linuxdeploy \
             https://api.github.com/repos/linuxdeploy/linuxdeploy/releases/assets/462806018
           echo 'e87ee0815d109282fdda73e34c2361d64d02b0ffaea3674b18f1fd1f6a687dcf  build/packages/linuxdeploy' | sha256sum --check --strict
@@ -299,7 +325,6 @@ jobs:
             --appdir build/packages/KGMusic.AppDir \
             --desktop-file packaging/linux/com.zephyrixel.kgmusic.desktop \
             --icon-file packaging/linux/com.zephyrixel.kgmusic.png \
-            --library /usr/lib/x86_64-linux-gnu/libmpv.so.2 \
             --output appimage
           mv KGMusic-*.AppImage "build/packages/KGMusic-${VERSION}-linux-x86_64.AppImage"
       - name: Upload Linux packages to the draft release
@@ -325,13 +350,15 @@ jobs:
     outputs:
       test_signed: ${{ steps.signing.outputs.test_signed }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@3a8b2ad3ea1212417907ff0e1b3d0c4e121bef40 # 1.94.0
       - run: flutter pub get
       - name: Build versioned Windows bundle
         run: flutter build windows --release --build-name "${{ needs.validation.outputs.build_name }}" --build-number "${{ needs.validation.outputs.build_number }}"
@@ -340,6 +367,22 @@ jobs:
         run: |
           $executable = 'build/windows/x64/runner/Release/kgmusic.exe'
           if (-not (Test-Path $executable)) { throw "Windows executable was not produced: $executable" }
+          $forbidden = @(Get-ChildItem 'build/windows/x64/runner/Release' -File -Recurse | Where-Object {
+            $_.Name -match '^(libmpv|avcodec|avdevice|avfilter|avformat|avutil|swresample|swscale).*\.dll$'
+          })
+          if ($forbidden.Count -gt 0) {
+            throw "Unexpected bundled libmpv/FFmpeg binaries: $($forbidden.Name -join ', ')"
+          }
+          $legalFiles = @(
+            'data/flutter_assets/LICENSE',
+            'data/flutter_assets/NOTICE',
+            'data/flutter_assets/THIRD_PARTY_NOTICES.md',
+            'data/flutter_assets/THIRD_PARTY_RUST_NOTICES.txt'
+          )
+          foreach ($legalFile in $legalFiles) {
+            $path = Join-Path 'build/windows/x64/runner/Release' $legalFile
+            if (-not (Test-Path $path)) { throw "Windows legal notice was not bundled: $path" }
+          }
       - name: Select and validate Windows signing mode
         id: signing
         shell: pwsh

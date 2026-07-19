@@ -30,11 +30,11 @@ git push origin v1.2.3+4
 ## CI 阶段与产物
 
 1. `validation`：解析版本，执行 `flutter analyze`、`flutter test` 和 Rust 测试。
-2. `android`：构建并校验签名的 universal、`armeabi-v7a`、`arm64-v8a` APK，以及 AAB。
-3. `linux`：构建 bundle，校验 desktop/AppStream 元数据，生成 DEB、AppImage。
-4. `windows`：构建 x64 bundle，创建已签名或测试签名的 MSIX。
-5. `prepare_release`：创建缺失的 draft Release，或复用已有 draft；已公开的同 tag Release
+2. `prepare_release`：创建缺失的 draft Release，或复用已有 draft；已公开的同 tag Release
    会被拒绝重跑，避免替换公开附件。
+3. `android`：构建并校验签名的 universal、`armeabi-v7a`、`arm64-v8a` APK，以及 AAB。
+4. `linux`：构建 bundle，校验 desktop/AppStream 元数据，生成 DEB、AppImage。
+5. `windows`：使用 WinRT 音频后端构建 x64 bundle，创建已签名或测试签名的 MSIX。
 6. 三个平台 job 各自将验证后的文件直接上传到该 Release，不使用 GitHub Actions artifact
    存储。
 7. `finalize_release`：Windows 正式签名时公开 draft；测试签名时保留 draft。
@@ -42,7 +42,9 @@ git push origin v1.2.3+4
 Release 附件包括三个 Android APK（universal、`armeabi-v7a`、`arm64-v8a`）、AAB、DEB、
 AppImage 和 MSIX。直接上传避免 Actions artifact 存储配额阻断发布；若任一平台构建失败，
 draft Release 可能保留已上传的部分附件，但不会自动公开。准备、上传和最终发布 job 仅获得
-所需的 `contents: write` 权限。
+所需的 `contents: write` 权限。平台 job 需要写权限是因为产物直接上传 draft Release；
+checkout 禁止持久化凭据，写 token 只显式传给上传步骤。所有外部 Action 固定到完整 commit
+SHA，由 Dependabot 提议升级；公开下载 linuxdeploy 时不发送仓库 token。
 
 ## 发布前检查表
 
@@ -52,6 +54,12 @@ draft Release 可能保留已上传的部分附件，但不会自动公开。准
 - [ ] 如需公开 Windows 安装包，PFX、密码和精确 Publisher 已配置且证书未过期。
 - [ ] 已确认没有将 session、token、PFX、keystore 或 Base64 秘密写入提交、Release 文本或
   issue。
+- [ ] 未附带未脱敏的 Trace 日志；排障完成后已切回较低等级并清空本机 Trace 记录。
+- [ ] `NOTICE`、`THIRD_PARTY_NOTICES.md`、`THIRD_PARTY_RUST_NOTICES.txt` 与依赖锁文件
+  一致，且安装包包含这些声明。
+- [ ] Linux 目标环境可提供 `libmpv.so.2`；Windows bundle 不包含 `libmpv-2.dll` 或其他
+  来源不明的 FFmpeg 构件。
+- [ ] GitHub 自动生成的 source archive 指向同一 release tag，可作为该版本 KGMusic 源码入口。
 - [ ] 已准备本版本的变更说明和目标平台的冒烟测试环境。
 
 ## 必需的 Android 密钥
@@ -91,6 +99,7 @@ Linux 当前不要求签名证书。
 - 确认 Release tag、提交和版本号一致。
 - 下载每个平台产物并至少完成一次安装/启动冒烟测试。
 - 检查 Android 安装包签名、Windows 证书信任状态和 Linux DEB 元数据。
+- 抽查每个平台产物中的 GPL、第三方和 Rust 许可证声明。
 - 若 Windows 为测试签名，先完成正式签名和安装验证，再将 draft Release 公开。
 - 不在 issue、日志、Release 描述或附件中放置证书、密码、token 或 Base64 密钥材料。
 

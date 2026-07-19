@@ -1,0 +1,19 @@
+KGMusic
+Copyright (C) 2026 Zephyrixel and contributors.
+
+KGMusic is free software licensed under the GNU General Public License,
+version 3 or any later version. The complete text is installed as
+/usr/share/doc/kgmusic/LICENSE and is also available on Debian-family systems
+at /usr/share/common-licenses/GPL-3.
+
+Third-party components retain their original copyrights and licenses. Their
+component list, source locations, and redistribution notes are installed as
+/usr/share/doc/kgmusic/THIRD_PARTY_NOTICES.md. Rust license texts are installed
+as /usr/share/doc/kgmusic/THIRD_PARTY_RUST_NOTICES.txt, and retained licenses
+for modified or native components are under /usr/share/doc/kgmusic/licenses/.
+
+The DEB and AppImage use the system libmpv.so.2 library (provided by libmpv2 on
+Debian/Ubuntu). Third-party notices shipped with KGMusic are installed under
+/usr/share/doc/kgmusic/.
+
+Source: https://github.com/zephyrixel/kugou_music

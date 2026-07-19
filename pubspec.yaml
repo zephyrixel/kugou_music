@@ -57,10 +57,10 @@ dependencies:
     path: rust_builder
   freezed_annotation: ^3.1.0
   just_audio_media_kit: 2.1.0
+  just_audio_windows: 0.2.3
   # Local 1.2.1 patch: reproducibly build and link the mimalloc override.
   media_kit_libs_linux:
     path: third_party/media_kit_libs_linux
-  media_kit_libs_windows_audio: 1.0.9
   audio_service_mpris: 0.2.1
   window_manager: 0.5.2
   screen_retriever: 0.2.2
@@ -116,6 +116,16 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/app_icon.png
+    - LICENSE
+    - NOTICE
+    - THIRD_PARTY_NOTICES.md
+    - THIRD_PARTY_RUST_NOTICES.txt
+    - third_party/audio_service_win/LICENSE
+    - third_party/just_audio/LICENSE
+    - third_party/media_kit_libs_linux/LICENSE
+    - third_party/tray_manager/LICENSE
+    - third_party/licenses/just_audio_windows-0.2.3-LICENSE.txt
+    - third_party/licenses/mimalloc-2.1.2-LICENSE.txt
 
   # To add assets to your application, add an assets section, like this:
   # assets:

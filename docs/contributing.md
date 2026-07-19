@@ -21,7 +21,8 @@
 - Rust Bridge 按 DTO、映射、错误分类和 SDK 调用分层。改变公开 Bridge API 时，同时更新
   手写 Dart 门面、生成绑定和相关测试。
 - `PlatformProfile::Lite` 是不可变约束；不得增加 Standard 回退路径。
-- 会话只能进入 `flutter_secure_storage`，不能写入 Drift 或日志。
+- 会话只能进入 `flutter_secure_storage`，不能写入 Drift。不得新增在普通等级记录凭据或
+  正文的日志；现有完整网络记录只能位于用户显式启用、重启即回落的 Trace 路径。
 
 ## 编码与提交
 
@@ -64,4 +65,4 @@ cargo test --manifest-path native/kugou_bridge/Cargo.toml
 - [ ] 新行为具有聚焦测试；修改生成输入后已重新生成相应文件。
 - [ ] 已运行与变更范围相符的检查，并在 PR 中列出实际执行的命令。
 - [ ] UI、数据库、Bridge、SDK、平台或签名变更已在 PR 描述中明确标注。
-- [ ] 不包含密钥、真实会话、个人资料、未脱敏日志、构建产物或无关格式化。
+- [ ] 不包含密钥、真实会话、个人资料、未脱敏日志（尤其是 Trace）、构建产物或无关格式化。

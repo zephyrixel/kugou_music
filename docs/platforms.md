@@ -36,13 +36,17 @@ flutter build linux --release
 ```
 
 发布时脚本会基于 Flutter bundle 创建 DEB 和 AppDir，CI 再使用校验过的 `linuxdeploy`
-生成 AppImage。不要手动向 `build/` 目录提交产物。
+生成 AppImage。DEB 和 AppImage 都不内置 libmpv，运行前需由系统提供 `libmpv.so.2`
+（Debian/Ubuntu 包名为 `libmpv2`）。不要手动向 `build/` 目录提交产物。
 
 ## Windows
 
-- `just_audio_media_kit` 提供 Windows 音频后端，`audio_service_win` 接入 SMTC。
+- `just_audio_windows` 使用 Windows Runtime `MediaPlayer` 提供音频后端，
+  `audio_service_win` 接入 SMTC。Windows 包不再携带预编译 libmpv/FFmpeg DLL。
 - 与 Linux 一样，关闭窗口会隐藏到托盘；媒体键、通知区域和应用内播放器共享同一播放状态。
 - Runner 只声明 x64 发布产物。ARM64 不在当前 CI 的发布范围内。
+- 可播放格式取决于目标 Windows 版本安装的 Media Foundation 解码能力；部分 FLAC、
+  Hi-Res 或 DSD 编码可能无法由系统后端解码，此时应切换到系统支持的较低音质。
 
 开发构建：
 
