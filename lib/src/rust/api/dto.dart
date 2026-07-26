@@ -138,6 +138,14 @@ class CloudPlaylistDto {
   final bool isDefaultCollect;
   final String? tags;
 
+  /// Unix seconds. Wire order is oldest-first, so hosts need these to render
+  /// the official newest-first list.
+  final int? createTime;
+  final int? updateTime;
+
+  /// Upstream display rank; `0` is valid and sits on the newest side.
+  final int? sort;
+
   const CloudPlaylistDto({
     this.listId,
     this.globalCollectionId,
@@ -152,6 +160,9 @@ class CloudPlaylistDto {
     required this.isMyFavorite,
     required this.isDefaultCollect,
     this.tags,
+    this.createTime,
+    this.updateTime,
+    this.sort,
   });
 
   @override
@@ -168,7 +179,10 @@ class CloudPlaylistDto {
       isPrivate.hashCode ^
       isMyFavorite.hashCode ^
       isDefaultCollect.hashCode ^
-      tags.hashCode;
+      tags.hashCode ^
+      createTime.hashCode ^
+      updateTime.hashCode ^
+      sort.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -187,7 +201,10 @@ class CloudPlaylistDto {
           isPrivate == other.isPrivate &&
           isMyFavorite == other.isMyFavorite &&
           isDefaultCollect == other.isDefaultCollect &&
-          tags == other.tags;
+          tags == other.tags &&
+          createTime == other.createTime &&
+          updateTime == other.updateTime &&
+          sort == other.sort;
 }
 
 class CloudPlaylistPageDto {

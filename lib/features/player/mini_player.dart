@@ -172,47 +172,66 @@ class MiniPlayer extends ConsumerWidget {
   }
 }
 
+/// The mini player is mounted on every screen for the app's lifetime, and
+/// `positionStream` ticks up to 62 Hz on short previews. A 2px bar cannot show
+/// more than whole percent steps, so collapse to that before rebuilding.
 class _MiniProgress extends StatelessWidget {
   const _MiniProgress({required this.handler});
 
   final MusicAudioHandler handler;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<Duration?>(
-    stream: handler.durationStream,
-    builder: (context, durationSnapshot) => StreamBuilder<PlaybackState>(
-      stream: handler.playbackState,
-      builder: (context, stateSnapshot) => StreamBuilder<Duration>(
-        stream: handler.positionStream,
-        builder: (context, positionSnapshot) {
-          final duration = durationSnapshot.data?.inMilliseconds ?? 0;
-          final position = positionSnapshot.data?.inMilliseconds ?? 0;
-          final value = duration <= 0
-              ? 0.0
-              : (position / duration).clamp(0.0, 1.0);
-          final buffered = duration <= 0
-              ? 0.0
-              : ((stateSnapshot.data?.bufferedPosition.inMilliseconds ?? 0) /
-                        duration)
-                    .clamp(0.0, 1.0);
-          return Stack(
-            children: [
-              LinearProgressIndicator(
-                value: buffered,
-                minHeight: 2,
-                backgroundColor: KgColors.divider,
-                color: Colors.white30,
-              ),
-              LinearProgressIndicator(
-                value: value,
-                minHeight: 2,
-                backgroundColor: Colors.transparent,
-                color: KgColors.accent,
-              ),
-            ],
-          );
-        },
-      ),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: StreamBuilder<Duration?>(
+      stream: handler.durationStream,
+      builder: (context, durationSnapshot) {
+        final duration = durationSnapshot.data?.inMilliseconds ?? 0;
+        if (duration <= 0) {
+          return const _MiniProgressBars(value: 0, buffered: 0);
+        }
+        return StreamBuilder<int>(
+          stream: handler.playbackState
+              .map((state) => _percent(state.bufferedPosition, duration))
+              .distinct(),
+          builder: (context, bufferedSnapshot) => StreamBuilder<int>(
+            stream: handler.positionStream
+                .map((position) => _percent(position, duration))
+                .distinct(),
+            builder: (context, positionSnapshot) => _MiniProgressBars(
+              value: (positionSnapshot.data ?? 0) / 100,
+              buffered: (bufferedSnapshot.data ?? 0) / 100,
+            ),
+          ),
+        );
+      },
     ),
+  );
+
+  static int _percent(Duration position, int durationMs) =>
+      (position.inMilliseconds * 100 / durationMs).clamp(0, 100).round();
+}
+
+class _MiniProgressBars extends StatelessWidget {
+  const _MiniProgressBars({required this.value, required this.buffered});
+
+  final double value;
+  final double buffered;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      LinearProgressIndicator(
+        value: buffered,
+        minHeight: 2,
+        backgroundColor: KgColors.divider,
+        color: Colors.white30,
+      ),
+      LinearProgressIndicator(
+        value: value,
+        minHeight: 2,
+        backgroundColor: Colors.transparent,
+        color: KgColors.accent,
+      ),
+    ],
   );
 }

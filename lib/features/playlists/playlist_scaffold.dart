@@ -96,6 +96,12 @@ class PlaylistSongsView extends ConsumerWidget {
           SliverPersistentHeader(
             pinned: true,
             delegate: _PinnedControlDelegate(
+              identity: Object.hash(
+                title,
+                songs.isEmpty,
+                actions?.length ?? 0,
+                trailing != null,
+              ),
               child: _PlaylistControls(
                 songs: songs,
                 title: title,
@@ -217,9 +223,14 @@ class _PlaylistControls extends StatelessWidget {
 }
 
 class _PinnedControlDelegate extends SliverPersistentHeaderDelegate {
-  const _PinnedControlDelegate({required this.child});
+  const _PinnedControlDelegate({required this.child, required this.identity});
 
   final Widget child;
+
+  /// The values [child] renders from. Comparing the widget itself would always
+  /// differ (it is rebuilt by the parent every frame), forcing this pinned
+  /// blurred header to recomposite over the scrolling list on every tick.
+  final Object identity;
 
   @override
   double get minExtent => 68;
@@ -236,5 +247,5 @@ class _PinnedControlDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _PinnedControlDelegate oldDelegate) =>
-      oldDelegate.child != child;
+      oldDelegate.identity != identity;
 }

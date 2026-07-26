@@ -1146,6 +1146,39 @@ class $StoredPlaylistsTable extends StoredPlaylists
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _remoteSortMeta = const VerificationMeta(
+    'remoteSort',
+  );
+  @override
+  late final GeneratedColumn<int> remoteSort = GeneratedColumn<int>(
+    'remote_sort',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localId,
@@ -1167,6 +1200,9 @@ class $StoredPlaylistsTable extends StoredPlaylists
     fullSnapshotUpdatedAt,
     tags,
     sortOrder,
+    createdAt,
+    updatedAt,
+    remoteSort,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1328,6 +1364,24 @@ class $StoredPlaylistsTable extends StoredPlaylists
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('remote_sort')) {
+      context.handle(
+        _remoteSortMeta,
+        remoteSort.isAcceptableOrUnknown(data['remote_sort']!, _remoteSortMeta),
+      );
+    }
     return context;
   }
 
@@ -1413,6 +1467,18 @@ class $StoredPlaylistsTable extends StoredPlaylists
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      remoteSort: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_sort'],
+      ),
     );
   }
 
@@ -1442,6 +1508,14 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
   final DateTime? fullSnapshotUpdatedAt;
   final String? tags;
   final int sortOrder;
+
+  /// Cloud creation/edit time (schema v8). Null for rows written before the
+  /// migration and for lists the server omits them on.
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  /// Upstream display rank; `0` is valid and sits on the newest side.
+  final int? remoteSort;
   const StoredPlaylist({
     required this.localId,
     this.remoteListId,
@@ -1462,6 +1536,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     this.fullSnapshotUpdatedAt,
     this.tags,
     required this.sortOrder,
+    this.createdAt,
+    this.updatedAt,
+    this.remoteSort,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1509,6 +1586,15 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       map['tags'] = Variable<String>(tags);
     }
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    if (!nullToAbsent || remoteSort != null) {
+      map['remote_sort'] = Variable<int>(remoteSort);
+    }
     return map;
   }
 
@@ -1553,6 +1639,15 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           : Value(fullSnapshotUpdatedAt),
       tags: tags == null && nullToAbsent ? const Value.absent() : Value(tags),
       sortOrder: Value(sortOrder),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      remoteSort: remoteSort == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteSort),
     );
   }
 
@@ -1585,6 +1680,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       ),
       tags: serializer.fromJson<String?>(json['tags']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      remoteSort: serializer.fromJson<int?>(json['remoteSort']),
     );
   }
   @override
@@ -1612,6 +1710,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
       ),
       'tags': serializer.toJson<String?>(tags),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'remoteSort': serializer.toJson<int?>(remoteSort),
     };
   }
 
@@ -1635,6 +1736,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     Value<DateTime?> fullSnapshotUpdatedAt = const Value.absent(),
     Value<String?> tags = const Value.absent(),
     int? sortOrder,
+    Value<DateTime?> createdAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
+    Value<int?> remoteSort = const Value.absent(),
   }) => StoredPlaylist(
     localId: localId ?? this.localId,
     remoteListId: remoteListId.present ? remoteListId.value : this.remoteListId,
@@ -1665,6 +1769,9 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
         : this.fullSnapshotUpdatedAt,
     tags: tags.present ? tags.value : this.tags,
     sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    remoteSort: remoteSort.present ? remoteSort.value : this.remoteSort,
   );
   StoredPlaylist copyWithCompanion(StoredPlaylistsCompanion data) {
     return StoredPlaylist(
@@ -1709,6 +1816,11 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           : this.fullSnapshotUpdatedAt,
       tags: data.tags.present ? data.tags.value : this.tags,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      remoteSort: data.remoteSort.present
+          ? data.remoteSort.value
+          : this.remoteSort,
     );
   }
 
@@ -1733,13 +1845,16 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           ..write('tracksUpdatedAt: $tracksUpdatedAt, ')
           ..write('fullSnapshotUpdatedAt: $fullSnapshotUpdatedAt, ')
           ..write('tags: $tags, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('remoteSort: $remoteSort')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     localId,
     remoteListId,
     globalCollectionId,
@@ -1759,7 +1874,10 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
     fullSnapshotUpdatedAt,
     tags,
     sortOrder,
-  );
+    createdAt,
+    updatedAt,
+    remoteSort,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1782,7 +1900,10 @@ class StoredPlaylist extends DataClass implements Insertable<StoredPlaylist> {
           other.tracksUpdatedAt == this.tracksUpdatedAt &&
           other.fullSnapshotUpdatedAt == this.fullSnapshotUpdatedAt &&
           other.tags == this.tags &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.remoteSort == this.remoteSort);
 }
 
 class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
@@ -1805,6 +1926,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
   final Value<DateTime?> fullSnapshotUpdatedAt;
   final Value<String?> tags;
   final Value<int> sortOrder;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<int?> remoteSort;
   final Value<int> rowid;
   const StoredPlaylistsCompanion({
     this.localId = const Value.absent(),
@@ -1826,6 +1950,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.fullSnapshotUpdatedAt = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.remoteSort = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   StoredPlaylistsCompanion.insert({
@@ -1848,6 +1975,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     this.fullSnapshotUpdatedAt = const Value.absent(),
     this.tags = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.remoteSort = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : localId = Value(localId),
        name = Value(name);
@@ -1871,6 +2001,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Expression<DateTime>? fullSnapshotUpdatedAt,
     Expression<String>? tags,
     Expression<int>? sortOrder,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? remoteSort,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1896,6 +2029,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
         'full_snapshot_updated_at': fullSnapshotUpdatedAt,
       if (tags != null) 'tags': tags,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (remoteSort != null) 'remote_sort': remoteSort,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1920,6 +2056,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     Value<DateTime?>? fullSnapshotUpdatedAt,
     Value<String?>? tags,
     Value<int>? sortOrder,
+    Value<DateTime?>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<int?>? remoteSort,
     Value<int>? rowid,
   }) {
     return StoredPlaylistsCompanion(
@@ -1943,6 +2082,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
           fullSnapshotUpdatedAt ?? this.fullSnapshotUpdatedAt,
       tags: tags ?? this.tags,
       sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      remoteSort: remoteSort ?? this.remoteSort,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2009,6 +2151,15 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (remoteSort.present) {
+      map['remote_sort'] = Variable<int>(remoteSort.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2037,6 +2188,9 @@ class StoredPlaylistsCompanion extends UpdateCompanion<StoredPlaylist> {
           ..write('fullSnapshotUpdatedAt: $fullSnapshotUpdatedAt, ')
           ..write('tags: $tags, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('remoteSort: $remoteSort, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4562,6 +4716,9 @@ typedef $$StoredPlaylistsTableCreateCompanionBuilder =
       Value<DateTime?> fullSnapshotUpdatedAt,
       Value<String?> tags,
       Value<int> sortOrder,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int?> remoteSort,
       Value<int> rowid,
     });
 typedef $$StoredPlaylistsTableUpdateCompanionBuilder =
@@ -4585,6 +4742,9 @@ typedef $$StoredPlaylistsTableUpdateCompanionBuilder =
       Value<DateTime?> fullSnapshotUpdatedAt,
       Value<String?> tags,
       Value<int> sortOrder,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int?> remoteSort,
       Value<int> rowid,
     });
 
@@ -4689,6 +4849,21 @@ class $$StoredPlaylistsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteSort => $composableBuilder(
+    column: $table.remoteSort,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4796,6 +4971,21 @@ class $$StoredPlaylistsTableOrderingComposer
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteSort => $composableBuilder(
+    column: $table.remoteSort,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$StoredPlaylistsTableAnnotationComposer
@@ -4885,6 +5075,17 @@ class $$StoredPlaylistsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get remoteSort => $composableBuilder(
+    column: $table.remoteSort,
+    builder: (column) => column,
+  );
 }
 
 class $$StoredPlaylistsTableTableManager
@@ -4943,6 +5144,9 @@ class $$StoredPlaylistsTableTableManager
                 Value<DateTime?> fullSnapshotUpdatedAt = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int?> remoteSort = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StoredPlaylistsCompanion(
                 localId: localId,
@@ -4964,6 +5168,9 @@ class $$StoredPlaylistsTableTableManager
                 fullSnapshotUpdatedAt: fullSnapshotUpdatedAt,
                 tags: tags,
                 sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                remoteSort: remoteSort,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4987,6 +5194,9 @@ class $$StoredPlaylistsTableTableManager
                 Value<DateTime?> fullSnapshotUpdatedAt = const Value.absent(),
                 Value<String?> tags = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int?> remoteSort = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StoredPlaylistsCompanion.insert(
                 localId: localId,
@@ -5008,6 +5218,9 @@ class $$StoredPlaylistsTableTableManager
                 fullSnapshotUpdatedAt: fullSnapshotUpdatedAt,
                 tags: tags,
                 sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                remoteSort: remoteSort,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

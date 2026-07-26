@@ -21,12 +21,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final recommendations = ref.watch(dailyRecommendationsProvider);
     final profile = ref.watch(userProfileProvider).value;
-    final history = ref.watch(historyEntriesProvider).value ?? const [];
     final songs = recommendations.value ?? const <Song>[];
-    final recentSongs = history
-        .take(8)
-        .map((entry) => entry.song)
-        .toList(growable: false);
     return SafeArea(
       bottom: false,
       child: KgContentWidth(
@@ -57,7 +52,7 @@ class HomeScreen extends ConsumerWidget {
                             ref.invalidate(dailyRecommendationsProvider),
                         onPlay: songs.isEmpty
                             ? null
-                            : () => _playCollection(
+                            : () => _playHomeCollection(
                                 context,
                                 ref,
                                 songs.first,
@@ -73,31 +68,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: KgSpacing.md),
                       const SizedBox(height: 184, child: RecommendationCards()),
-                      if (recentSongs.isNotEmpty) ...[
-                        const SizedBox(height: KgSpacing.section),
-                        HomeSongShelf(
-                          title: '最近听过',
-                          subtitle: '从上次停下的地方继续',
-                          songs: recentSongs,
-                          scrollKey: 'recent',
-                          onSongTap: (song) => _playCollection(
-                            context,
-                            ref,
-                            song,
-                            recentSongs,
-                            '最近播放',
-                            PlaybackQueueOriginKind.history,
-                          ),
-                          onPlayAll: () => _playCollection(
-                            context,
-                            ref,
-                            recentSongs.first,
-                            recentSongs,
-                            '最近播放',
-                            PlaybackQueueOriginKind.history,
-                          ),
-                        ),
-                      ],
+                      const _RecentlyPlayedShelf(),
                     ],
                   ),
                 ),
@@ -149,22 +120,64 @@ class HomeScreen extends ConsumerWidget {
       ref.invalidate(homeDiscoveryCardProvider(cardId));
     }
   }
-
-  void _playCollection(
-    BuildContext context,
-    WidgetRef ref,
-    Song song,
-    List<Song> songs,
-    String title,
-    PlaybackQueueOriginKind kind,
-  ) => playSong(
-    context,
-    ref,
-    song,
-    queueRequest: PlaybackQueueRequest.snapshot(
-      title: title,
-      songs: songs,
-      kind: kind,
-    ),
-  );
 }
+
+/// Isolated leaf: `historyEntriesProvider` is a live Drift watch that fires on
+/// every track change, so keeping it out of [HomeScreen.build] stops playback
+/// from rebuilding the hero, the cards and the discovery sections.
+class _RecentlyPlayedShelf extends ConsumerWidget {
+  const _RecentlyPlayedShelf();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(historyEntriesProvider).value ?? const [];
+    final songs = history
+        .take(8)
+        .map((entry) => entry.song)
+        .toList(growable: false);
+    if (songs.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: KgSpacing.section),
+      child: HomeSongShelf(
+        title: '最近听过',
+        subtitle: '从上次停下的地方继续',
+        songs: songs,
+        scrollKey: 'recent',
+        onSongTap: (song) => _playHomeCollection(
+          context,
+          ref,
+          song,
+          songs,
+          '最近播放',
+          PlaybackQueueOriginKind.history,
+        ),
+        onPlayAll: () => _playHomeCollection(
+          context,
+          ref,
+          songs.first,
+          songs,
+          '最近播放',
+          PlaybackQueueOriginKind.history,
+        ),
+      ),
+    );
+  }
+}
+
+void _playHomeCollection(
+  BuildContext context,
+  WidgetRef ref,
+  Song song,
+  List<Song> songs,
+  String title,
+  PlaybackQueueOriginKind kind,
+) => playSong(
+  context,
+  ref,
+  song,
+  queueRequest: PlaybackQueueRequest.snapshot(
+    title: title,
+    songs: songs,
+    kind: kind,
+  ),
+);

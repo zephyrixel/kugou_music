@@ -167,9 +167,11 @@ class SearchPlaybackQueueSource implements PlaybackQueueSource {
   @override
   Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request) async {
     final page = request.page;
+    // `.last`, not `.first`: the repository emits the cached page before the
+    // refreshed one, and `.first` would abandon the in-flight request.
     final value = await repository
         .search(keyword, userId: userId, page: page, pageSize: pageSize)
-        .first;
+        .last;
     return PlaybackQueuePage(
       page: value.page,
       pageSize: value.pageSize,
@@ -202,7 +204,7 @@ class PublicPlaylistPlaybackQueueSource implements PlaybackQueueSource {
           page: page,
           pageSize: pageSize,
         )
-        .first;
+        .last;
     return PlaybackQueuePage(
       page: value.page,
       pageSize: value.pageSize,

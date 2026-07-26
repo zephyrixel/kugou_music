@@ -113,7 +113,97 @@ void main() {
     );
     expect((await store.playlist('remote:2'))?.trackSnapshotCount, 2);
   });
+
+  test('歌单列表按系统歌单置顶 + 创建时间新到旧排序', () async {
+    await store.replaceLibrary(
+      userId: 7,
+      playlists: [
+        // Wire order is oldest-first; the read model must invert it.
+        _playlist('remote:10', '最旧', createdAt: DateTime.utc(2024, 1, 1)),
+        _playlist('remote:11', '较新', createdAt: DateTime.utc(2025, 6, 1)),
+        _playlist('remote:12', '最新', createdAt: DateTime.utc(2026, 3, 1)),
+        _favoritePlaylist,
+      ],
+      history: const [],
+    );
+
+    expect((await store.watchPlaylists().first).map((item) => item.name), [
+      '我喜欢',
+      '最新',
+      '较新',
+      '最旧',
+    ]);
+  });
+
+  test('缺少创建时间的旧数据落在有时间戳的歌单之后', () async {
+    await store.replaceLibrary(
+      userId: 7,
+      playlists: [
+        _playlist('remote:20', '无时间戳A'),
+        _playlist('remote:21', '无时间戳B'),
+        _playlist('remote:22', '有时间戳', createdAt: DateTime.utc(2020, 1, 1)),
+      ],
+      history: const [],
+    );
+
+    // Rows without createdAt keep their stable wire order at the end rather
+    // than floating to the top.
+    expect((await store.watchPlaylists().first).map((item) => item.name), [
+      '有时间戳',
+      '无时间戳A',
+      '无时间戳B',
+    ]);
+  });
+
+  test('新建歌单出现在列表顶部而不是底部', () async {
+    await store.replaceLibrary(
+      userId: 7,
+      playlists: [
+        _favoritePlaylist,
+        _playlist('remote:30', '已有歌单', createdAt: DateTime.utc(2025, 1, 1)),
+      ],
+      history: const [],
+    );
+
+    await store.upsertPlaylist(_playlist('remote:31', '刚建的歌单'));
+
+    expect((await store.watchPlaylists().first).map((item) => item.name), [
+      '我喜欢',
+      '刚建的歌单',
+      '已有歌单',
+    ]);
+  });
+
+  test('云端同步不会把本地新建歌单的创建时间抹掉', () async {
+    await store.upsertPlaylist(_playlist('remote:40', '本地新建'));
+    final stamped = (await store.playlist('remote:40'))?.createdAt;
+    expect(stamped, isNotNull);
+
+    // A later sync returns the same list without create_time.
+    await store.replaceLibrary(
+      userId: 7,
+      playlists: [
+        _playlist('remote:41', '更旧的云端歌单', createdAt: DateTime.utc(2024, 1, 1)),
+        _playlist('remote:40', '本地新建'),
+      ],
+      history: const [],
+    );
+
+    expect((await store.playlist('remote:40'))?.createdAt, stamped);
+    expect((await store.watchPlaylists().first).first.name, '本地新建');
+  });
 }
+
+Playlist _playlist(String localId, String name, {DateTime? createdAt}) =>
+    Playlist(
+      localId: localId,
+      listId: int.parse(localId.split(':').last),
+      name: name,
+      isPrivate: false,
+      isMyFavorite: false,
+      isDefaultCollect: false,
+      createdAt: createdAt,
+    );
 
 const _favoritePlaylist = Playlist(
   localId: 'remote:2',

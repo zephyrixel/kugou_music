@@ -45,6 +45,9 @@ Future<void> main() async {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The player keeps a full-bleed cover, a blurred backdrop and list
+  // thumbnails decoded at once; the 100 MiB default thrashes on that mix.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 200 << 20;
   try {
     await _bootstrapApp();
   } catch (error, stackTrace) {

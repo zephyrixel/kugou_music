@@ -44,6 +44,14 @@ class StoredPlaylists extends Table {
   TextColumn get tags => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// Cloud creation/edit time (schema v8). Null for rows written before the
+  /// migration and for lists the server omits them on.
+  DateTimeColumn get createdAt => dateTime().nullable()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  /// Upstream display rank; `0` is valid and sits on the newest side.
+  IntColumn get remoteSort => integer().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {localId};
 }

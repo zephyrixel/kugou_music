@@ -1711,8 +1711,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CloudPlaylistDto dco_decode_cloud_playlist_dto(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 13)
-      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
     return CloudPlaylistDto(
       listId: dco_decode_opt_CastedPrimitive_u_64(arr[0]),
       globalCollectionId: dco_decode_opt_String(arr[1]),
@@ -1727,6 +1727,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isMyFavorite: dco_decode_bool(arr[10]),
       isDefaultCollect: dco_decode_bool(arr[11]),
       tags: dco_decode_opt_String(arr[12]),
+      createTime: dco_decode_opt_CastedPrimitive_u_64(arr[13]),
+      updateTime: dco_decode_opt_CastedPrimitive_u_64(arr[14]),
+      sort: dco_decode_opt_CastedPrimitive_u_64(arr[15]),
     );
   }
 
@@ -2591,6 +2594,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isMyFavorite = sse_decode_bool(deserializer);
     var var_isDefaultCollect = sse_decode_bool(deserializer);
     var var_tags = sse_decode_opt_String(deserializer);
+    var var_createTime = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_updateTime = sse_decode_opt_CastedPrimitive_u_64(deserializer);
+    var var_sort = sse_decode_opt_CastedPrimitive_u_64(deserializer);
     return CloudPlaylistDto(
       listId: var_listId,
       globalCollectionId: var_globalCollectionId,
@@ -2605,6 +2611,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isMyFavorite: var_isMyFavorite,
       isDefaultCollect: var_isDefaultCollect,
       tags: var_tags,
+      createTime: var_createTime,
+      updateTime: var_updateTime,
+      sort: var_sort,
     );
   }
 
@@ -3688,6 +3697,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.isMyFavorite, serializer);
     sse_encode_bool(self.isDefaultCollect, serializer);
     sse_encode_opt_String(self.tags, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.createTime, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.updateTime, serializer);
+    sse_encode_opt_CastedPrimitive_u_64(self.sort, serializer);
   }
 
   @protected

@@ -28,12 +28,15 @@ class SongArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pixelSize =
+    final requestedSize =
         decodePixelSize?.clamp(64, 1080) ??
         (size * MediaQuery.devicePixelRatioOf(context)).round().clamp(
           240,
           1080,
         );
+    // Snap before the size reaches either the URL template or the cache key so
+    // every call site for one cover shares a single download and disk entry.
+    final pixelSize = ArtworkCacheService.snapPixelSize(requestedSize);
     final imageUrl = normalizeArtworkUrl(url, size: pixelSize);
     final placeholder = Container(
       width: size,
@@ -58,6 +61,9 @@ class SongArtwork extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          // The player rewrites artUri to the 720px prefetch file, so without
+          // this the mini player and backdrop decode it at full resolution.
+          cacheWidth: requestedSize,
           filterQuality: filterQuality,
           errorBuilder: (_, _, _) => placeholder,
         ),
@@ -79,10 +85,9 @@ class SongArtwork extends StatelessWidget {
         fit: BoxFit.cover,
         cacheManager: ArtworkCacheService.instance.manager,
         cacheKey: cacheKey,
-        memCacheWidth: pixelSize,
-        memCacheHeight: pixelSize,
-        maxWidthDiskCache: pixelSize,
-        maxHeightDiskCache: pixelSize,
+        // Memory-only resize. maxWidth/HeightDiskCache would store a second,
+        // PNG re-encoded copy per size against the object-count cap.
+        memCacheWidth: requestedSize,
         filterQuality: filterQuality,
         placeholder: (_, _) => placeholder,
         errorWidget: (_, _, _) => placeholder,

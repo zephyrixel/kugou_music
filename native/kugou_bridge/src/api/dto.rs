@@ -339,6 +339,12 @@ pub struct CloudPlaylistDto {
     pub is_my_favorite: bool,
     pub is_default_collect: bool,
     pub tags: Option<String>,
+    /// Unix seconds. Wire order is oldest-first, so hosts need these to render
+    /// the official newest-first list.
+    pub create_time: Option<u64>,
+    pub update_time: Option<u64>,
+    /// Upstream display rank; `0` is valid and sits on the newest side.
+    pub sort: Option<u64>,
 }
 
 #[derive(Debug, Clone)]

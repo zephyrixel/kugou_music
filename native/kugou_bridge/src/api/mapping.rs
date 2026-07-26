@@ -349,6 +349,9 @@ pub(super) fn cloud_playlist_to_dto(value: &UserPlaylist) -> CloudPlaylistDto {
         is_my_favorite: value.is_my_fav(),
         is_default_collect: value.is_default_collect(),
         tags: value.tags.clone(),
+        create_time: value.create_time,
+        update_time: value.update_time,
+        sort: value.sort,
     }
 }
 

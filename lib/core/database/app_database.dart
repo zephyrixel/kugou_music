@@ -32,7 +32,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   DateTime? _lastResponsePruneAt;
   int _responseWritesSincePrune = 0;
@@ -98,8 +98,44 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(storedRecommendationProfiles);
         await migrator.createTable(recommendationSyncStates);
       }
+      if (from < 8) {
+        // Playlist ordering columns. Pre-5 upgrades rebuild the table from the
+        // current definition, so only an existing v5+ table needs ALTER TABLE.
+        if (from >= 5) {
+          await migrator.addColumn(storedPlaylists, storedPlaylists.createdAt);
+          await migrator.addColumn(storedPlaylists, storedPlaylists.updatedAt);
+          await migrator.addColumn(storedPlaylists, storedPlaylists.remoteSort);
+        }
+        await _createIndexes();
+      }
+    },
+    beforeOpen: (details) async {
+      // createAll() does not emit the indexes declared below.
+      if (details.wasCreated) await _createIndexes();
     },
   );
+
+  /// Hot ORDER BY / join-predicate columns. Without these every Drift stream
+  /// emission re-runs a full scan plus a filesort.
+  Future<void> _createIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_stored_songs_last_played_at '
+      'ON stored_songs (last_played_at DESC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist_position '
+      'ON stored_playlist_tracks (playlist_local_id, position)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_stored_playlists_order '
+      'ON stored_playlists (is_my_favorite DESC, is_default_collect DESC, '
+      'created_at DESC, sort_order ASC)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cached_responses_last_accessed_at '
+      'ON cached_responses (last_accessed_at DESC)',
+    );
+  }
 
   Future<CachedResponse?> readCachedResponse(String cacheKey) async {
     final row = await (select(
@@ -172,14 +208,18 @@ class AppDatabase extends _$AppDatabase {
     await (delete(
       cachedResponses,
     )..where((item) => item.lastAccessedAt.isSmallerThanValue(cutoff))).go();
-    final rows = await (select(
-      cachedResponses,
-    )..orderBy([(item) => OrderingTerm.desc(item.lastAccessedAt)])).get();
-    if (rows.length <= maxEntries) return;
-    final staleKeys = rows
-        .skip(maxEntries)
-        .map((item) => item.cacheKey)
-        .toList();
+    // Key-only projection: the rows carry full payload JSON, so selecting them
+    // just to count would pull megabytes into memory every prune. SQLite needs
+    // an explicit LIMIT before OFFSET applies, so ask for everything past the
+    // keep-window with a bound large enough to never truncate.
+    final staleKeys =
+        await (selectOnly(cachedResponses)
+              ..addColumns([cachedResponses.cacheKey])
+              ..orderBy([OrderingTerm.desc(cachedResponses.lastAccessedAt)])
+              ..limit(1 << 30, offset: maxEntries))
+            .map((row) => row.read(cachedResponses.cacheKey)!)
+            .get();
+    if (staleKeys.isEmpty) return;
     await (delete(
       cachedResponses,
     )..where((item) => item.cacheKey.isIn(staleKeys))).go();

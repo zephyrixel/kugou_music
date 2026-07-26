@@ -21,8 +21,8 @@ class SongTileActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ids = ref.watch(favoriteSongIdsProvider);
-    final liked = ids.value?.contains(song.id) ?? false;
+    final favorite = ref.watch(songIsFavoriteProvider(song.id));
+    final liked = favorite.value ?? false;
     return SizedBox.square(
       dimension: 40,
       child: PopupMenuButton<_SongAction>(
@@ -43,7 +43,7 @@ class SongTileActions extends ConsumerWidget {
         itemBuilder: (context) => [
           PopupMenuItem(
             value: _SongAction.favorite,
-            enabled: !ids.isLoading,
+            enabled: !favorite.isLoading,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(

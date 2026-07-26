@@ -841,7 +841,15 @@ Playlist _playlist(bridge.CloudPlaylistDto value) => Playlist(
   isMyFavorite: value.isMyFavorite,
   isDefaultCollect: value.isDefaultCollect,
   tags: value.tags,
+  createdAt: _epochSecondsToDate(value.createTime),
+  updatedAt: _epochSecondsToDate(value.updateTime),
+  remoteSort: value.sort,
 );
+
+/// Wire timestamps are Unix seconds; `0` means "not supplied".
+DateTime? _epochSecondsToDate(int? seconds) => seconds == null || seconds <= 0
+    ? null
+    : DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
 
 PlaylistSearchHit _searchHit(bridge.PlaylistSearchHitDto value) =>
     PlaylistSearchHit(

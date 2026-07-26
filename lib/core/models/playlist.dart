@@ -19,6 +19,9 @@ class Playlist {
     this.tracksUpdatedAt,
     this.fullSnapshotUpdatedAt,
     this.tags,
+    this.createdAt,
+    this.updatedAt,
+    this.remoteSort,
   });
 
   /// Drift primary key when persisted. Null for pure-remote snapshots mid-map.
@@ -40,6 +43,14 @@ class Playlist {
   final DateTime? tracksUpdatedAt;
   final DateTime? fullSnapshotUpdatedAt;
   final String? tags;
+
+  /// Cloud creation/edit time. Null for rows written before schema v8 and for
+  /// lists the server omits them on.
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  /// Upstream display rank; `0` is valid and sits on the newest side.
+  final int? remoteSort;
 
   bool get isCollected => listType == 1;
   bool get isSystem => isMyFavorite || isDefaultCollect;
@@ -66,6 +77,9 @@ class Playlist {
     DateTime? tracksUpdatedAt,
     DateTime? fullSnapshotUpdatedAt,
     String? tags,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? remoteSort,
   }) => Playlist(
     localId: localId ?? this.localId,
     listId: listId ?? this.listId,
@@ -85,6 +99,9 @@ class Playlist {
     tracksUpdatedAt: tracksUpdatedAt ?? this.tracksUpdatedAt,
     fullSnapshotUpdatedAt: fullSnapshotUpdatedAt ?? this.fullSnapshotUpdatedAt,
     tags: tags ?? this.tags,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    remoteSort: remoteSort ?? this.remoteSort,
   );
 
   /// Stable local id for a remote-owned list.

@@ -10,9 +10,20 @@ class LibraryStore {
 
   final AppDatabase database;
 
+  /// System lists pin to the top, then newest-first. `createdAt` is null for
+  /// rows written before schema v8, so those fall back to the wire order
+  /// (`sortOrder`) at the end instead of floating to the top.
   Stream<List<Playlist>> watchPlaylists() =>
-      (database.select(database.storedPlaylists)
-            ..orderBy([(row) => OrderingTerm.asc(row.sortOrder)]))
+      (database.select(database.storedPlaylists)..orderBy([
+            (row) => OrderingTerm.desc(row.isMyFavorite),
+            (row) => OrderingTerm.desc(row.isDefaultCollect),
+            (row) => OrderingTerm(
+              expression: row.createdAt,
+              mode: OrderingMode.desc,
+              nulls: NullsOrder.last,
+            ),
+            (row) => OrderingTerm.asc(row.sortOrder),
+          ]))
           .watch()
           .map((rows) => rows.map(_playlistFromRow).toList(growable: false));
 
@@ -45,8 +56,26 @@ class LibraryStore {
     );
   }
 
-  Stream<Set<String>> watchFavoriteSongIds() =>
-      watchFavoriteSongs().map((songs) => songs.map((song) => song.id).toSet());
+  /// Id-only projection. Building full [Song] objects here would allocate the
+  /// whole favorites list on every heart tap just to discard it.
+  Stream<Set<String>> watchFavoriteSongIds() {
+    final songId = database.storedPlaylistTracks.songId;
+    final query = database.selectOnly(database.storedPlaylistTracks)
+      ..addColumns([songId])
+      ..join([
+        innerJoin(
+          database.storedPlaylists,
+          database.storedPlaylists.localId.equalsExp(
+                database.storedPlaylistTracks.playlistLocalId,
+              ) &
+              database.storedPlaylists.isMyFavorite.equals(true),
+          useColumns: false,
+        ),
+      ]);
+    return query.watch().map(
+      (rows) => rows.map((row) => row.read(songId)!).toSet(),
+    );
+  }
 
   Stream<List<HistoryEntry>> watchHistory() =>
       (database.select(database.storedSongs)
@@ -130,11 +159,13 @@ class LibraryStore {
   )..where((row) => row.singletonId.equals(1))).getSingleOrNull();
 
   Future<Playlist?> playlist(String localId) async {
-    final row = await (database.select(
-      database.storedPlaylists,
-    )..where((item) => item.localId.equals(localId))).getSingleOrNull();
+    final row = await playlistRow(localId);
     return row == null ? null : _playlistFromRow(row);
   }
+
+  Future<StoredPlaylist?> playlistRow(String localId) => (database.select(
+    database.storedPlaylists,
+  )..where((item) => item.localId.equals(localId))).getSingleOrNull();
 
   Future<Playlist?> favoritePlaylist() async {
     final row = await (database.select(
@@ -194,6 +225,9 @@ class LibraryStore {
               clearTracksUpdatedAt: countChanged,
               fullSnapshotUpdatedAt: old?.fullSnapshotUpdatedAt,
               clearFullSnapshotUpdatedAt: countChanged,
+              // Keep the local stamp when the cloud omits create_time, so a
+              // list created on this device does not fall back to wire order.
+              createdAt: playlist.createdAt ?? old?.createdAt,
             ),
           );
     }
@@ -364,10 +398,22 @@ class LibraryStore {
       );
 
   Future<void> upsertPlaylist(Playlist playlist, {int? sortOrder}) async {
-    final count = sortOrder ?? await _playlistCount();
+    final existing = await playlistRow(playlist.localId!);
+    // A freshly created/collected list must land at the top. Stamp createdAt so
+    // the newest-first ordering picks it up, and front-insert sortOrder as the
+    // fallback for the pre-v8 rows it is sorted against.
+    final createdAt =
+        playlist.createdAt ?? existing?.createdAt ?? DateTime.now();
     await database
         .into(database.storedPlaylists)
-        .insertOnConflictUpdate(_playlistCompanion(playlist, sortOrder: count));
+        .insertOnConflictUpdate(
+          _playlistCompanion(
+            playlist,
+            sortOrder:
+                sortOrder ?? existing?.sortOrder ?? await _nextFrontSortOrder(),
+            createdAt: createdAt,
+          ),
+        );
   }
 
   Future<void> updatePlaylistMeta(
@@ -564,8 +610,16 @@ class LibraryStore {
     return first == null ? 0 : first.position - 1;
   }
 
-  Future<int> _playlistCount() async =>
-      (await database.select(database.storedPlaylists).get()).length;
+  Future<int> _nextFrontSortOrder() async {
+    final first =
+        await (database.select(database.storedPlaylists)
+              ..orderBy([(row) => OrderingTerm.asc(row.sortOrder)])
+              ..limit(1))
+            .getSingleOrNull();
+    // Cloud snapshots use 0..n. Local inserts decrease from there so a new list
+    // stays ahead of pre-v8 rows without rewriting the whole table.
+    return first == null ? 0 : first.sortOrder - 1;
+  }
 
   Future<int> _storedTrackCount(String localId) async {
     final count = database.storedPlaylistTracks.songId.count();
@@ -616,6 +670,7 @@ StoredPlaylistsCompanion _playlistCompanion(
   DateTime? fullSnapshotUpdatedAt,
   bool clearTracksUpdatedAt = false,
   bool clearFullSnapshotUpdatedAt = false,
+  DateTime? createdAt,
 }) => StoredPlaylistsCompanion.insert(
   localId: playlist.localId!,
   remoteListId: Value(playlist.listId),
@@ -640,6 +695,9 @@ StoredPlaylistsCompanion _playlistCompanion(
       : Value(fullSnapshotUpdatedAt ?? playlist.fullSnapshotUpdatedAt),
   tags: Value(playlist.tags),
   sortOrder: Value(sortOrder ?? 0),
+  createdAt: Value(createdAt ?? playlist.createdAt),
+  updatedAt: Value(playlist.updatedAt),
+  remoteSort: Value(playlist.remoteSort),
 );
 
 Playlist _playlistFromRow(StoredPlaylist row) => Playlist(
@@ -661,6 +719,9 @@ Playlist _playlistFromRow(StoredPlaylist row) => Playlist(
   tracksUpdatedAt: row.tracksUpdatedAt,
   fullSnapshotUpdatedAt: row.fullSnapshotUpdatedAt,
   tags: row.tags,
+  createdAt: row.createdAt,
+  updatedAt: row.updatedAt,
+  remoteSort: row.remoteSort,
 );
 
 Song _songFromRow(StoredSong row, {int? fileId, int? collectTimeSecs}) => Song(

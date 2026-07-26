@@ -151,5 +151,42 @@ void main() {
 
       controller.dispose();
     });
+
+    test('keepItems 刷新期间保留旧列表，成功后收敛到第一页', () async {
+      final pages = <int, List<String>>{
+        1: ['a', 'b'],
+        2: ['c', 'd'],
+      };
+      var page1Loads = 0;
+      final controller = PagedListController<String>(
+        pageSize: 2,
+        itemId: (item) => item,
+        fetchPage: (page, pageSize, forceRefresh) async* {
+          if (page == 1) page1Loads += 1;
+          yield PageSnapshot(
+            items: pages[page] ?? const [],
+            page: page,
+            pageSize: pageSize,
+            total: 4,
+          );
+        },
+      );
+
+      await controller.loadMore(reset: true);
+      await controller.loadMore();
+      expect(controller.items, ['a', 'b', 'c', 'd']);
+
+      // Pull-to-refresh re-anchors on page 1; later pages reload on scroll.
+      await controller.reset(forceRefresh: true, keepItems: true);
+      expect(page1Loads, 2);
+      expect(controller.items, ['a', 'b']);
+      expect(controller.hasMore, isTrue);
+      expect(controller.initialLoading, isFalse);
+
+      await controller.loadMore();
+      expect(controller.items, ['a', 'b', 'c', 'd']);
+
+      controller.dispose();
+    });
   });
 }

@@ -136,6 +136,17 @@ final favoriteSongIdsProvider = StreamProvider<Set<String>>(
   (ref) => ref.watch(libraryRepositoryProvider).watchFavoriteIds(),
 );
 
+/// Per-song view of [favoriteSongIdsProvider]. Song rows watch this instead of
+/// the whole set so a heart tap only rebuilds the two rows that changed.
+final songIsFavoriteProvider = Provider.autoDispose
+    .family<AsyncValue<bool>, String>(
+      (ref, songId) => ref.watch(
+        favoriteSongIdsProvider.select(
+          (ids) => ids.whenData((value) => value.contains(songId)),
+        ),
+      ),
+    );
+
 final historyEntriesProvider = StreamProvider<List<HistoryEntry>>(
   (ref) => ref.watch(libraryRepositoryProvider).watchHistory(),
 );

@@ -1721,6 +1721,9 @@ impl SseDecode for crate::api::dto::CloudPlaylistDto {
         let mut var_isMyFavorite = <bool>::sse_decode(deserializer);
         let mut var_isDefaultCollect = <bool>::sse_decode(deserializer);
         let mut var_tags = <Option<String>>::sse_decode(deserializer);
+        let mut var_createTime = <Option<u64>>::sse_decode(deserializer);
+        let mut var_updateTime = <Option<u64>>::sse_decode(deserializer);
+        let mut var_sort = <Option<u64>>::sse_decode(deserializer);
         return crate::api::dto::CloudPlaylistDto {
             list_id: var_listId,
             global_collection_id: var_globalCollectionId,
@@ -1735,6 +1738,9 @@ impl SseDecode for crate::api::dto::CloudPlaylistDto {
             is_my_favorite: var_isMyFavorite,
             is_default_collect: var_isDefaultCollect,
             tags: var_tags,
+            create_time: var_createTime,
+            update_time: var_updateTime,
+            sort: var_sort,
         };
     }
 }
@@ -2915,6 +2921,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::dto::CloudPlaylistDto {
             self.is_my_favorite.into_into_dart().into_dart(),
             self.is_default_collect.into_into_dart().into_dart(),
             self.tags.into_into_dart().into_dart(),
+            self.create_time.into_into_dart().into_dart(),
+            self.update_time.into_into_dart().into_dart(),
+            self.sort.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -3886,6 +3895,9 @@ impl SseEncode for crate::api::dto::CloudPlaylistDto {
         <bool>::sse_encode(self.is_my_favorite, serializer);
         <bool>::sse_encode(self.is_default_collect, serializer);
         <Option<String>>::sse_encode(self.tags, serializer);
+        <Option<u64>>::sse_encode(self.create_time, serializer);
+        <Option<u64>>::sse_encode(self.update_time, serializer);
+        <Option<u64>>::sse_encode(self.sort, serializer);
     }
 }
 

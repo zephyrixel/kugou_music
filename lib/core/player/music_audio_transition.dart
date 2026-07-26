@@ -209,13 +209,14 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
   }
 
   Future<void> _cacheArtwork(Song song, int generation) async {
-    final artworkUrl = normalizeArtworkUrl(song.artworkUrl, size: 720);
+    const prefetchSize = 720;
+    final artworkUrl = normalizeArtworkUrl(song.artworkUrl, size: prefetchSize);
     if (artworkUrl == null) return;
     try {
       final file = await ArtworkCacheService.instance.getFile(
         url: artworkUrl,
         cacheId: 'song:${song.id}',
-        pixelSize: 720,
+        pixelSize: prefetchSize,
       );
       if (!_isCurrentRequest(generation) ||
           _index < 0 ||
