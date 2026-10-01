@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
@@ -27,7 +28,7 @@ class PlayerPlaybackControls extends StatelessWidget {
       final buffering =
           state?.processingState == AudioProcessingState.buffering;
       final busy = loading || buffering;
-      final playButtonSize = compact ? 52.0 : 64.0;
+      final playButtonSize = compact ? 60.0 : 72.0;
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -50,20 +51,23 @@ class PlayerPlaybackControls extends StatelessWidget {
               fixedSize: Size.square(playButtonSize),
               backgroundColor: KgColors.accent,
               disabledBackgroundColor: KgColors.accent,
-              foregroundColor: Colors.black,
-              disabledForegroundColor: Colors.black,
-              shadowColor: KgColors.accent.withValues(alpha: 0.35),
-              elevation: 8,
+              foregroundColor: KgColors.onAccent,
+              disabledForegroundColor: KgColors.onAccent,
+              elevation: 0,
             ),
             onPressed: busy ? null : (playing ? handler.pause : handler.play),
-            icon: loading
+            icon: busy
                 ? KgBusyIndicator(
                     size: compact ? 24 : 28,
                     strokeWidth: 3,
-                    color: Colors.black,
+                    color: KgColors.onAccent,
                   )
-                : Icon(
-                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                : AnimatedSwitcher(
+                    duration: KgMotion.resolve(context, KgMotion.fast),
+                    child: Icon(
+                      playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      key: ValueKey(playing),
+                    ),
                   ),
           ),
           IconButton(

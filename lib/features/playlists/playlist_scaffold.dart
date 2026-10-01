@@ -5,9 +5,10 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
-import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
+import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:kgmusic/core/widgets/playback_song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_header.dart';
 
@@ -66,24 +67,30 @@ class PlaylistSongsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: CustomScrollView(
-        controller: scrollController,
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            stretch: true,
-            expandedHeight: 310,
-            backgroundColor: KgColors.surface.withValues(alpha: 0.98),
-            surfaceTintColor: Colors.transparent,
-            scrolledUnderElevation: 0,
-            actions: appBarActions,
-            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            flexibleSpace: FlexibleSpaceBar(
-              collapseMode: CollapseMode.parallax,
-              background: PlaylistHeader(
+    return KgContentWidth(
+      child: RefreshIndicator(
+        onRefresh: onRefresh,
+        child: CustomScrollView(
+          controller: scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverLayoutBuilder(
+              builder: (context, constraints) => SliverAppBar(
+                pinned: true,
+                backgroundColor: KgColors.background,
+                actions: appBarActions,
+                title: Opacity(
+                  opacity: (constraints.scrollOffset / 120).clamp(0, 1),
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: PlaylistHeader(
                 title: title,
                 subtitle: subtitle,
                 description: description,
@@ -92,19 +99,9 @@ class PlaylistSongsView extends ConsumerWidget {
                 count: count,
               ),
             ),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _PinnedControlDelegate(
-              identity: Object.hash(
-                title,
-                songs.isEmpty,
-                actions?.length ?? 0,
-                trailing != null,
-              ),
+            PinnedHeaderSliver(
               child: _PlaylistControls(
-                songs: songs,
-                title: title,
+                count: count,
                 actions: actions,
                 trailing: trailing,
                 onPlay: songs.isEmpty
@@ -122,51 +119,55 @@ class PlaylistSongsView extends ConsumerWidget {
                       ),
               ),
             ),
-          ),
-          if (loading && songs.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (error != null && songs.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: KgErrorView(message: '歌单暂时无法加载，请稍后重试', onRetry: onRetry),
-            )
-          else if (songs.isEmpty)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: KgEmptyView('歌单中没有歌曲'),
-            )
-          else
-            SliverList.builder(
-              itemCount: songs.length,
-              itemBuilder: (context, index) {
-                final song = songs[index];
-                return SongTile(
-                  song: song,
-                  index: index + 1,
-                  variant: SongTileVariant.indexed,
-                  onTap: () => playSong(
-                    context,
-                    ref,
-                    song,
-                    queueRequest:
-                        queueRequest?.call(songs) ??
-                        PlaybackQueueRequest.snapshot(
-                          title: title,
-                          songs: songs,
-                        ),
-                  ),
-                  trailing:
-                      songTrailing?.call(context, ref, song) ??
-                      SongTileActions(song: song),
-                );
-              },
+            if (loading && songs.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (error != null && songs.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: KgErrorView(message: '歌单暂时无法加载，请稍后重试', onRetry: onRetry),
+              )
+            else if (songs.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: KgEmptyView('歌单中没有歌曲'),
+              )
+            else
+              SliverList.builder(
+                itemCount: songs.length,
+                itemBuilder: (context, index) {
+                  final song = songs[index];
+                  return PlaybackSongTile(
+                    song: song,
+                    index: index + 1,
+                    variant: SongTileVariant.indexed,
+                    onTap: () => playSong(
+                      context,
+                      ref,
+                      song,
+                      queueRequest:
+                          queueRequest?.call(songs) ??
+                          PlaybackQueueRequest.snapshot(
+                            title: title,
+                            songs: songs,
+                          ),
+                    ),
+                    trailing:
+                        songTrailing?.call(context, ref, song) ??
+                        SongTileActions(song: song),
+                  );
+                },
+              ),
+            ...footerSlivers,
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: MediaQuery.paddingOf(context).bottom + 24,
+              ),
             ),
-          ...footerSlivers,
-          const SliverToBoxAdapter(child: SizedBox(height: 40)),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -174,78 +175,37 @@ class PlaylistSongsView extends ConsumerWidget {
 
 class _PlaylistControls extends StatelessWidget {
   const _PlaylistControls({
-    required this.songs,
-    required this.title,
+    required this.count,
     required this.onPlay,
     required this.actions,
     required this.trailing,
   });
 
-  final List<Song> songs;
-  final String title;
+  final int count;
   final VoidCallback? onPlay;
   final List<Widget>? actions;
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => KgGlassSurface(
-    borderRadius: BorderRadius.zero,
-    color: KgColors.surface.withValues(alpha: 0.94),
-    blurSigma: 14,
+  Widget build(BuildContext context) => ColoredBox(
+    color: KgColors.background,
     child: Padding(
-      padding: const EdgeInsets.fromLTRB(
-        KgSpacing.lg,
-        KgSpacing.xs,
-        KgSpacing.lg,
-        KgSpacing.sm,
-      ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(KgSpacing.lg, 8, KgSpacing.lg, 12),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: onPlay,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(songs.isEmpty ? '暂无歌曲' : '播放全部'),
-              style: FilledButton.styleFrom(
-                backgroundColor: KgColors.accentSoft.withValues(alpha: 0.82),
-                foregroundColor: KgColors.accent,
-              ),
-            ),
+          FilledButton.icon(
+            onPressed: onPlay,
+            icon: const Icon(Icons.play_arrow_rounded),
+            label: const Text('播放全部'),
           ),
-          if (actions?.isNotEmpty == true || trailing != null)
-            const SizedBox(width: KgSpacing.sm),
+          Text('$count 首', style: Theme.of(context).textTheme.bodySmall),
           ...?actions,
           ?trailing,
         ],
       ),
     ),
   );
-}
-
-class _PinnedControlDelegate extends SliverPersistentHeaderDelegate {
-  const _PinnedControlDelegate({required this.child, required this.identity});
-
-  final Widget child;
-
-  /// The values [child] renders from. Comparing the widget itself would always
-  /// differ (it is rebuilt by the parent every frame), forcing this pinned
-  /// blurred header to recomposite over the scrolling list on every tick.
-  final Object identity;
-
-  @override
-  double get minExtent => 68;
-
-  @override
-  double get maxExtent => 68;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) => child;
-
-  @override
-  bool shouldRebuild(covariant _PinnedControlDelegate oldDelegate) =>
-      oldDelegate.identity != identity;
 }

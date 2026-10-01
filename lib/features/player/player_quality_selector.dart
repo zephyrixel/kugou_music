@@ -43,19 +43,15 @@ class PlayerQualitySelector extends StatelessWidget {
                           : KgColors.textMuted,
                     ),
                     const SizedBox(width: 8),
-                    Text(quality.label),
+                    Flexible(child: Text(quality.label)),
                   ],
                 ),
               ),
             )
             .toList(growable: false),
         child: Container(
-          height: compact ? 34 : 40,
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.065),
-            borderRadius: BorderRadius.circular(14),
-          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -64,11 +60,10 @@ class PlayerQualitySelector extends StatelessWidget {
                 size: 17,
               ),
               const SizedBox(width: 6),
-              Text(
-                _qualityLabel(state),
-                style: TextStyle(
-                  fontSize: compact ? 11 : 12,
-                  fontWeight: FontWeight.w700,
+              Flexible(
+                child: Text(
+                  _qualityLabel(state),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ),
               const Icon(Icons.arrow_drop_down_rounded, size: 18),

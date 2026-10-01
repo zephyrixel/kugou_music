@@ -8,6 +8,7 @@ import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:kgmusic/core/widgets/playback_song_tile.dart';
 import 'package:kgmusic/core/widgets/song_favorite_button.dart';
 import 'package:kgmusic/features/playlists/library_playlist_pager.dart';
 
@@ -241,7 +242,7 @@ class _SongCollectionView extends ConsumerWidget {
           }
           if (index > songs.length) return footers[index - songs.length - 1];
           final song = songs[index - 1];
-          return SongTile(
+          return PlaybackSongTile(
             song: song,
             variant: SongTileVariant.artwork,
             onTap: () => playSong(

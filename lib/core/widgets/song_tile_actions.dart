@@ -26,12 +26,12 @@ class SongTileActions extends ConsumerWidget {
     final liked = favorite.value ?? false;
     final ready = ref.watch(libraryReadyProvider);
     return SizedBox.square(
-      dimension: 40,
+      dimension: 48,
       child: PopupMenuButton<_SongAction>(
         tooltip: '更多操作',
         padding: EdgeInsets.zero,
         iconSize: 20,
-        icon: const Icon(Icons.more_vert_rounded),
+        icon: const Icon(Icons.more_horiz_rounded),
         onSelected: (action) async {
           switch (action) {
             case _SongAction.favorite:

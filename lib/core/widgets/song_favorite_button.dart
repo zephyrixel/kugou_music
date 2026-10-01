@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
@@ -23,13 +24,16 @@ class SongFavoriteButton extends ConsumerWidget {
       onPressed: favorite.isLoading || !ref.watch(libraryReadyProvider)
           ? null
           : () => toggleSongFavorite(context, ref, song),
-      constraints: compact
-          ? const BoxConstraints.tightFor(width: 40, height: 40)
-          : null,
       padding: compact ? const EdgeInsets.all(8) : null,
       iconSize: compact ? 20 : null,
-      icon: Icon(
-        liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+      icon: AnimatedSwitcher(
+        duration: KgMotion.resolve(context, KgMotion.fast),
+        transitionBuilder: (child, animation) =>
+            ScaleTransition(scale: animation, child: child),
+        child: Icon(
+          liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          key: ValueKey(liked),
+        ),
       ),
       color: liked ? KgColors.accent : null,
     );

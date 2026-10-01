@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/add_to_playlist_button.dart';
@@ -26,74 +27,55 @@ class PlayerControlDeck extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
-    final gap = compact ? 7.0 : 12.0;
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: 1.3,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _TrackHeading(item: item, song: song, compact: compact),
-          if (song != null) ...[
-            SizedBox(height: gap),
-            Row(
-              children: [
-                PlayerQualitySelector(
-                  handler: handler,
-                  song: song!,
-                  compact: compact,
-                ),
-                const Spacer(),
-                if (handler.isRecommendationQueue)
-                  _DislikeButton(handler: handler, compact: compact),
-              ],
-            ),
-          ],
-          SizedBox(height: gap),
-          RepaintBoundary(
-            child: PlaybackProgressBar(
-              durationStream: handler.durationStream,
-              positionStream: handler.positionStream,
-              bufferedPositionStream: handler.bufferedPositionStream,
-              initialDuration: item.duration,
-              initialPosition: handler.position,
-              initialBufferedPosition:
-                  handler.playbackState.value.bufferedPosition,
-              onSeek: handler.seek,
-              compact: compact,
-            ),
-          ),
-          SizedBox(height: compact ? 4 : 8),
-          PlayerPlaybackControls(handler: handler, compact: compact),
-        ],
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _TrackHeading(item: item, song: song, compact: compact),
+      SizedBox(height: compact ? 8 : 16),
+      RepaintBoundary(
+        child: PlaybackProgressBar(
+          durationStream: handler.durationStream,
+          positionStream: handler.positionStream,
+          bufferedPositionStream: handler.bufferedPositionStream,
+          initialDuration: item.duration,
+          initialPosition: handler.position,
+          initialBufferedPosition: handler.playbackState.value.bufferedPosition,
+          onSeek: handler.seek,
+          compact: compact,
+        ),
       ),
-    );
-  }
-}
-
-class _DislikeButton extends StatelessWidget {
-  const _DislikeButton({required this.handler, required this.compact});
-
-  final MusicAudioHandler handler;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) => TextButton.icon(
-    onPressed: () async {
-      try {
-        await handler.dislikeCurrent();
-      } catch (_) {
-        if (context.mounted) showAppError(context, '暂时无法处理这首歌曲，请稍后重试');
-      }
-    },
-    style: TextButton.styleFrom(
-      foregroundColor: KgColors.textMuted,
-      minimumSize: Size(0, compact ? 34 : 40),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-    ),
-    icon: const Icon(Icons.thumb_down_alt_outlined, size: 17),
-    label: Text('不感兴趣', style: TextStyle(fontSize: compact ? 11 : 12)),
+      SizedBox(height: compact ? 12 : 20),
+      PlayerPlaybackControls(handler: handler, compact: compact),
+      if (song != null) ...[
+        SizedBox(height: compact ? 8 : 16),
+        Row(
+          children: [
+            Flexible(
+              child: PlayerQualitySelector(
+                handler: handler,
+                song: song!,
+                compact: compact,
+              ),
+            ),
+            const SizedBox(width: 8),
+            AddToPlaylistButton(song: song!),
+            if (handler.isRecommendationQueue)
+              IconButton(
+                tooltip: '不感兴趣',
+                icon: const Icon(Icons.thumb_down_alt_outlined, size: 21),
+                onPressed: () async {
+                  try {
+                    await handler.dislikeCurrent();
+                  } catch (_) {
+                    if (context.mounted) showAppError(context, '操作失败，请重试');
+                  }
+                },
+              ),
+          ],
+        ),
+      ],
+    ],
   );
 }
 
@@ -109,50 +91,57 @@ class _TrackHeading extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              height: compact ? 28 : 34,
-              child: KgMarqueeText(
-                item.title,
-                style:
-                    (compact
-                            ? Theme.of(context).textTheme.titleLarge
-                            : Theme.of(context).textTheme.headlineSmall)
-                        ?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.35,
-                        ),
-              ),
-            ),
-            SizedBox(height: compact ? 2 : 4),
-            SizedBox(
-              height: compact ? 18 : 21,
-              child: KgMarqueeText(
-                [
-                  item.artist ?? '未知歌手',
-                  if (!compact && item.album?.trim().isNotEmpty == true)
-                    item.album!,
-                ].join(' · '),
-                velocity: 24,
-                style: TextStyle(
+  Widget build(BuildContext context) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final titleSize = compact ? 20.0 : 24.0;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (scaler.scale(14) > 21)
+                Text(
+                  item.title,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                )
+              else
+                SizedBox(
+                  height: scaler.scale(titleSize) * 1.4,
+                  child: KgMarqueeText(
+                    item.title,
+                    style: TextStyle(
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: KgSpacing.xxs),
+              Text(
+                item.artist ?? '未知歌手',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
                   color: KgColors.textMuted,
-                  fontSize: compact ? 12 : 14,
+                  fontSize: 14,
+                  height: 1.4,
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      if (song != null) ...[
-        const SizedBox(width: 6),
-        SongFavoriteButton(song: song!, compact: true),
-        AddToPlaylistButton(song: song!, compact: true),
+        if (song != null) ...[
+          const SizedBox(width: KgSpacing.xs),
+          SongFavoriteButton(song: song!),
+        ],
       ],
-    ],
-  );
+    );
+  }
 }

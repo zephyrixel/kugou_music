@@ -38,47 +38,49 @@ class _MembershipActionsSheetState
     final controller = ref.watch(membershipControllerProvider(widget.userId));
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('每日免费权益', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            const Text(
-              '每天可领取一次限时会员权益，领取后可继续升级畅听权益。',
-              style: TextStyle(color: KgColors.textMuted),
-            ),
-            const SizedBox(height: 18),
-            _RecordStatus(controller: controller),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: controller.busy || controller.claimedToday
-                  ? null
-                  : () => _claim(context, controller),
-              icon: controller.action == MembershipAction.claiming
-                  ? const KgBusyIndicator()
-                  : const Icon(Icons.redeem_rounded),
-              label: Text(controller.claimedToday ? '今日已领取' : '领取 1 天会员'),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: controller.busy || controller.upgradedToday
-                  ? null
-                  : () => _upgrade(context, controller),
-              icon: controller.action == MembershipAction.upgrading
-                  ? const KgBusyIndicator()
-                  : const Icon(Icons.upgrade_rounded),
-              label: Text(controller.upgradedToday ? '今日已升级' : '升级畅听 VIP'),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '请先领取当日会员权益，再进行畅听升级。',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: KgColors.textMuted, fontSize: 12),
-            ),
-          ],
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('每日权益', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              const Text(
+                '每天可领取一次，领取后可升级畅听权益。',
+                style: TextStyle(color: KgColors.textMuted),
+              ),
+              const SizedBox(height: 18),
+              _RecordStatus(controller: controller),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: controller.busy || controller.claimedToday
+                    ? null
+                    : () => _claim(context, controller),
+                icon: controller.action == MembershipAction.claiming
+                    ? const KgBusyIndicator()
+                    : const Icon(Icons.redeem_rounded),
+                label: Text(controller.claimedToday ? '今日已领取' : '领取 1 天会员'),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: controller.busy || controller.upgradedToday
+                    ? null
+                    : () => _upgrade(context, controller),
+                icon: controller.action == MembershipAction.upgrading
+                    ? const KgBusyIndicator()
+                    : const Icon(Icons.upgrade_rounded),
+                label: Text(controller.upgradedToday ? '今日已升级' : '升级畅听 VIP'),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '请先领取当日会员权益，再进行畅听升级。',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: KgColors.textMuted, fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
     );

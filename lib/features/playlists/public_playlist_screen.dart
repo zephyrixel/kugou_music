@@ -96,10 +96,10 @@ class _PublicPlaylistScreenState extends ConsumerState<PublicPlaylistScreen> {
       scrollController: _scrollController,
       onRefresh: () => _pager.reset(forceRefresh: true, keepItems: true),
       onRetry: () => _pager.reset(),
-      trailing: OutlinedButton.icon(
+      trailing: IconButton(
+        tooltip: '收藏歌单',
         onPressed: widget.playlist.globalCollectionId == null ? null : _collect,
         icon: const Icon(Icons.library_add_outlined),
-        label: const Text('收藏歌单'),
       ),
       footerSlivers: pagedListFooterSlivers(_pager),
       queueRequest: (songs) {

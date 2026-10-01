@@ -24,12 +24,21 @@ class KgSettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? KgColors.warning : null;
+    final color = destructive ? KgColors.error : null;
     return ListTile(
       enabled: enabled,
       leading: Icon(icon, color: color),
       title: Text(title, style: color == null ? null : TextStyle(color: color)),
-      subtitle: subtitle == null ? null : Text(subtitle!),
+      subtitle: subtitle == null
+          ? null
+          : Text(
+              subtitle!,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: KgColors.textMuted,
+              ),
+            ),
       trailing:
           trailing ??
           (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),

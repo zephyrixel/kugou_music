@@ -40,17 +40,6 @@ class MembershipCard extends ConsumerWidget {
         padding: EdgeInsets.zero,
         child: Container(
           padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                KgColors.accent.withValues(alpha: 0.15),
-                KgColors.elevated,
-              ],
-            ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -75,7 +64,7 @@ class MembershipCard extends ConsumerWidget {
                       children: [
                         Text(
                           summary.primary?.label ?? '普通用户',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 3),
                         Text(
@@ -87,22 +76,24 @@ class MembershipCard extends ConsumerWidget {
                   ),
                   TextButton(
                     onPressed: () => showMembershipActions(context, userId),
-                    child: const Text('免费权益'),
+                    child: const Text('领取权益'),
                   ),
                 ],
               ),
-              if (summary.items.isNotEmpty) ...[
+              if (summary.items.length > 1 ||
+                  summary.items.any((item) => item.paid || item.yearly)) ...[
                 const SizedBox(height: 16),
                 ...summary.items.map(
                   (item) => Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: Row(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Expanded(
-                          child: Text(
-                            item.label,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
+                        Text(
+                          item.label,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
                         if (item.yearly) const _MemberTag(label: '年费'),
                         if (item.paid) ...[

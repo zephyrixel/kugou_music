@@ -65,7 +65,7 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
               return Column(
                 children: [
                   SizedBox(
-                    height: widget.compact ? 25 : 32,
+                    height: 48,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
@@ -85,6 +85,9 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                           ),
                         ),
                         Slider(
+                          semanticFormatterCallback: (value) => formatDuration(
+                            Duration(milliseconds: value.round()),
+                          ),
                           value: value,
                           max: max,
                           onChangeStart: max <= 1
@@ -95,7 +98,10 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                                 }),
                           onChanged: max <= 1
                               ? null
-                              : (next) => setState(() => _dragValue = next),
+                              : (next) => setState(() {
+                                  _dragging = true;
+                                  _dragValue = next;
+                                }),
                           onChangeEnd: max <= 1
                               ? null
                               : (next) {

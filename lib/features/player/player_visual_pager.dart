@@ -6,7 +6,8 @@ import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
-import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
+import 'package:kgmusic/core/widgets/kg_choice_tabs.dart';
+import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/player/lyrics/lyrics_panel.dart';
 
@@ -41,18 +42,20 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
-      final selectorHeight = widget.compact ? 30.0 : 34.0;
+      final selectorHeight = math.max(
+        48.0,
+        26 + MediaQuery.textScalerOf(context).scale(14) * 1.5,
+      );
       final pageHeight = math.max(
         0.0,
         constraints.maxHeight - selectorHeight - 6,
       );
-      final artworkPadding = widget.compact ? 7.0 : 10.0;
-      final shadowInset = widget.compact ? 16.0 : 22.0;
+      final shadowInset = widget.compact ? 12.0 : 20.0;
       final artworkSize = math.max(
         0.0,
         math.min(
-          constraints.maxWidth - shadowInset * 2 - artworkPadding * 2,
-          pageHeight - shadowInset * 2 - artworkPadding * 2,
+          constraints.maxWidth - shadowInset * 2,
+          pageHeight - shadowInset * 2,
         ),
       );
       return Column(
@@ -64,10 +67,8 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
                 controller: _controller,
                 onPageChanged: (page) => setState(() => _page = page),
                 children: [
-                  _ArtworkPage(
-                    item: widget.item,
-                    size: artworkSize,
-                    compact: widget.compact,
+                  PlayerDismissRegion(
+                    child: _ArtworkPage(item: widget.item, size: artworkSize),
                   ),
                   if (widget.song == null)
                     const _UnavailableLyrics()
@@ -84,12 +85,15 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
           const SizedBox(height: 6),
           SizedBox(
             height: selectorHeight,
-            child: _PageSelector(
-              page: _page,
-              onSelected: (page) => _controller.animateToPage(
-                page,
-                duration: KgMotion.resolve(context, KgMotion.medium),
-                curve: Curves.easeOutCubic,
+            child: Center(
+              child: KgChoiceTabs<int>(
+                options: const {0: '封面', 1: '歌词'},
+                value: _page,
+                onChanged: (page) => _controller.animateToPage(
+                  page,
+                  duration: KgMotion.resolve(context, KgMotion.medium),
+                  curve: KgMotion.standard,
+                ),
               ),
             ),
           ),
@@ -100,50 +104,35 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
 }
 
 class _ArtworkPage extends StatelessWidget {
-  const _ArtworkPage({
-    required this.item,
-    required this.size,
-    required this.compact,
-  });
+  const _ArtworkPage({required this.item, required this.size});
 
   final MediaItem item;
   final double size;
-  final bool compact;
 
   @override
-  Widget build(BuildContext context) => RepaintBoundary(
-    child: Center(
-      child: Container(
-        padding: EdgeInsets.all(compact ? 7 : 10),
+  Widget build(BuildContext context) => Center(
+    child: Hero(
+      tag: 'player-artwork:${item.id}',
+      transitionOnUserGestures: true,
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(compact ? 28 : 36),
-          gradient: RadialGradient(
-            colors: [
-              KgColors.accent.withValues(alpha: 0.18),
-              Colors.transparent,
-            ],
-          ),
+          borderRadius: BorderRadius.circular(KgRadii.medium),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: compact ? 16 : 20,
-              offset: Offset(0, compact ? 7 : 10),
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 28,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: AnimatedSwitcher(
-          duration: KgMotion.resolve(context, KgMotion.slow),
-          switchInCurve: KgMotion.standard,
-          switchOutCurve: Curves.easeInCubic,
-          child: Hero(
+          duration: KgMotion.resolve(context, KgMotion.medium),
+          child: SongArtwork(
             key: ValueKey(item.id),
-            tag: 'player-artwork:${item.id}',
-            child: SongArtwork(
-              url: item.artUri?.toString(),
-              cacheId: 'song:${item.id}',
-              size: size,
-              radius: compact ? 22 : 28,
-            ),
+            url: item.artUri?.toString(),
+            cacheId: 'song:${item.id}',
+            size: size,
+            radius: KgRadii.medium,
           ),
         ),
       ),
@@ -161,92 +150,8 @@ class _UnavailableLyrics extends StatelessWidget {
       children: [
         Icon(Icons.lyrics_outlined, size: 34, color: KgColors.textMuted),
         SizedBox(height: 10),
-        Text('当前歌曲信息不足，无法加载歌词', style: TextStyle(color: KgColors.textMuted)),
+        Text('暂无歌词', style: TextStyle(color: KgColors.textMuted)),
       ],
-    ),
-  );
-}
-
-class _PageSelector extends StatelessWidget {
-  const _PageSelector({required this.page, required this.onSelected});
-
-  final int page;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: KgGlassSurface(
-      borderRadius: BorderRadius.circular(18),
-      color: KgColors.surface.withValues(alpha: 0.48),
-      blurSigma: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _PageIndicator(
-              active: page == 0,
-              icon: Icons.album_rounded,
-              label: '封面',
-              onTap: () => onSelected(0),
-            ),
-            _PageIndicator(
-              active: page == 1,
-              icon: Icons.lyrics_rounded,
-              label: '歌词',
-              onTap: () => onSelected(1),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _PageIndicator extends StatelessWidget {
-  const _PageIndicator({
-    required this.active,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final bool active;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: active ? KgColors.accentSoft : Colors.transparent,
-    borderRadius: BorderRadius.circular(15),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: AnimatedContainer(
-        duration: KgMotion.resolve(context, KgMotion.fast),
-        height: 28,
-        width: 64,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 14,
-              color: active ? KgColors.accent : KgColors.textMuted,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                color: active ? KgColors.accent : KgColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
     ),
   );
 }

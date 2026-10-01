@@ -29,7 +29,7 @@ class KgLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Padding(
+    child: SingleChildScrollView(
       padding: EdgeInsets.all(compact ? KgSpacing.md : KgSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -69,7 +69,18 @@ class _KgSkeletonState extends State<KgSkeleton>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context) ||
+        !TickerMode.valuesOf(context).enabled) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -134,7 +145,10 @@ class KgErrorView extends StatelessWidget {
     );
     if (compact) return body;
     return Center(
-      child: Padding(padding: const EdgeInsets.all(24), child: body),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: body,
+      ),
     );
   }
 }
@@ -153,29 +167,25 @@ class KgEmptyView extends StatelessWidget {
   final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              color: KgColors.elevated,
-              shape: BoxShape.circle,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => Center(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(constraints.maxHeight < 200 ? 16 : 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (constraints.maxHeight >= 200) ...[
+              Icon(icon, color: KgColors.textMuted, size: 32),
+              const SizedBox(height: 16),
+            ],
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: KgColors.textMuted),
             ),
-            child: Icon(icon, color: KgColors.textMuted, size: 30),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: KgColors.textMuted),
-          ),
-          if (action != null) ...[const SizedBox(height: 18), action!],
-        ],
+            if (action != null) ...[const SizedBox(height: 18), action!],
+          ],
+        ),
       ),
     ),
   );
@@ -217,7 +227,7 @@ void showAppMessage(BuildContext context, String message) {
     message: message,
     icon: Icons.info_outline_rounded,
     backgroundColor: KgColors.elevatedHigh,
-    foregroundColor: Colors.white,
+    foregroundColor: KgColors.textPrimary,
   );
 }
 

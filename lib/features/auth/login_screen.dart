@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_animated_size.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -60,171 +61,130 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
+    final codeField = TextField(
+      controller: _code,
+      focusNode: _codeFocus,
+      keyboardType: TextInputType.number,
+      autofillHints: const [AutofillHints.oneTimeCode],
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) {
+        if (!auth.busy) _submitLogin();
+      },
+      onChanged: (_) {
+        if (_codeError != null) setState(() => _codeError = null);
+      },
+      maxLength: 8,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      decoration: InputDecoration(
+        counterText: '',
+        labelText: '验证码',
+        errorText: _codeError,
+      ),
+    );
+    final sendCode = OutlinedButton(
+      onPressed: auth.busy || auth.resendSeconds > 0 ? null : _requestCode,
+      style: OutlinedButton.styleFrom(minimumSize: const Size(112, 56)),
+      child: auth.status == AuthStatus.sendingCode
+          ? const KgBusyIndicator(size: 20)
+          : Text(
+              auth.resendSeconds > 0 ? '${auth.resendSeconds} 秒后重试' : '获取验证码',
+            ),
+    );
     return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(-0.7, -0.8),
-            radius: 1.15,
-            colors: [Color(0xFF28284B), KgColors.background],
-          ),
-        ),
-        child: SafeArea(
-          child: KgContentWidth(
-            maxWidth: 540,
+      body: SafeArea(
+        child: KgContentWidth(
+          maxWidth: 480,
+          child: AutofillGroup(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                KgSpacing.xl,
-                48,
-                KgSpacing.xl,
-                KgSpacing.xxl,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                MediaQuery.viewInsetsOf(context).bottom > 0 ? 24 : 56,
+                24,
+                32,
               ),
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: KgColors.accentSoft,
-                    borderRadius: BorderRadius.circular(KgRadii.large),
-                  ),
-                  child: const Icon(
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Icon(
                     Icons.graphic_eq_rounded,
-                    size: 42,
+                    size: 40,
                     color: KgColors.accent,
                   ),
                 ),
-                const SizedBox(height: KgSpacing.xl),
-                Text('欢迎回来', style: Theme.of(context).textTheme.headlineLarge),
-                const SizedBox(height: KgSpacing.xs),
-                const Text(
-                  '使用短信验证码登录，继续你的音乐、收藏与歌单。',
-                  style: TextStyle(color: KgColors.textMuted, height: 1.5),
+                const SizedBox(height: 28),
+                Text(
+                  '登录 KGMusic',
+                  style: Theme.of(context).textTheme.headlineLarge,
                 ),
-                const SizedBox(height: KgSpacing.xxl),
-                KgSurface(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: _mobile,
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.next,
-                        onSubmitted: (_) => _codeFocus.requestFocus(),
-                        onChanged: (_) {
-                          if (_mobileError != null) {
-                            setState(() => _mobileError = null);
-                          }
-                        },
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                        ],
-                        decoration: InputDecoration(
-                          labelText: '手机号',
-                          hintText: '13800138000',
-                          prefixIcon: const Icon(Icons.phone_android_rounded),
-                          errorText: _mobileError,
-                        ),
-                      ),
-                      const SizedBox(height: KgSpacing.sm),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _code,
-                              focusNode: _codeFocus,
-                              keyboardType: TextInputType.number,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) {
-                                if (!auth.busy) _submitLogin();
-                              },
-                              onChanged: (_) {
-                                if (_codeError != null) {
-                                  setState(() => _codeError = null);
-                                }
-                              },
-                              maxLength: 8,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                              ],
-                              decoration: InputDecoration(
-                                counterText: '',
-                                labelText: '验证码',
-                                prefixIcon: const Icon(Icons.password_rounded),
-                                errorText: _codeError,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: KgSpacing.sm),
-                          SizedBox(
-                            height: 56,
-                            child: OutlinedButton(
-                              onPressed: auth.busy || auth.resendSeconds > 0
-                                  ? null
-                                  : _requestCode,
-                              child: auth.status == AuthStatus.sendingCode
-                                  ? const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        KgBusyIndicator(size: 16),
-                                        SizedBox(width: 8),
-                                        Text('发送中…'),
-                                      ],
-                                    )
-                                  : Text(
-                                      auth.resendSeconds > 0
-                                          ? '${auth.resendSeconds}s'
-                                          : '获取验证码',
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      AnimatedSize(
-                        duration: KgMotion.resolve(context, KgMotion.fast),
-                        child: auth.message == null
-                            ? const SizedBox.shrink()
-                            : Padding(
-                                padding: const EdgeInsets.only(
-                                  top: KgSpacing.sm,
-                                ),
-                                child: Text(
-                                  auth.message!,
-                                  style: const TextStyle(
-                                    color: KgColors.warning,
-                                  ),
-                                ),
-                              ),
-                      ),
-                      const SizedBox(height: KgSpacing.lg),
-                      FilledButton(
-                        onPressed: auth.busy ? null : _submitLogin,
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(56),
-                        ),
-                        child: auth.status == AuthStatus.signingIn
-                            ? const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  KgBusyIndicator(
-                                    size: 20,
-                                    color: Color(0xFF15182A),
-                                  ),
-                                  SizedBox(width: 10),
-                                  Text('正在登录…'),
-                                ],
-                              )
-                            : const Text('登录'),
-                      ),
-                    ],
+                const SizedBox(height: 8),
+                const Text(
+                  '使用酷狗账号的手机号登录',
+                  style: TextStyle(color: KgColors.textMuted),
+                ),
+                const SizedBox(height: 36),
+                TextField(
+                  controller: _mobile,
+                  keyboardType: TextInputType.phone,
+                  autofillHints: const [AutofillHints.telephoneNumberNational],
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _codeFocus.requestFocus(),
+                  onChanged: (_) {
+                    if (_mobileError != null) {
+                      setState(() => _mobileError = null);
+                    }
+                  },
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: '手机号',
+                    errorText: _mobileError,
                   ),
                 ),
-                const SizedBox(height: KgSpacing.md),
-                const Text(
-                  '登录时会验证当前设备以保护账号安全，手机号不会写入应用日志。',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: KgColors.textMuted, fontSize: 12),
+                const SizedBox(height: 16),
+                if (MediaQuery.textScalerOf(context).scale(14) > 21)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [codeField, const SizedBox(height: 12), sendCode],
+                  )
+                else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: codeField),
+                      const SizedBox(width: 12),
+                      sendCode,
+                    ],
+                  ),
+                KgAnimatedSize(
+                  duration: KgMotion.resolve(context, KgMotion.fast),
+                  child: auth.message == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Text(
+                            auth.message!,
+                            style: const TextStyle(color: KgColors.warning),
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: auth.busy ? null : _submitLogin,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                  ),
+                  child: auth.status == AuthStatus.signingIn
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            KgBusyIndicator(size: 20, color: KgColors.onAccent),
+                            SizedBox(width: 10),
+                            Text('正在登录'),
+                          ],
+                        )
+                      : const Text('登录'),
                 ),
               ],
             ),

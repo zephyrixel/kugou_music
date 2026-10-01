@@ -9,7 +9,7 @@ import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
-import 'package:kgmusic/core/widgets/account_avatar_button.dart';
+import 'package:kgmusic/core/widgets/kg_choice_tabs.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/features/search/search_results.dart';
 
@@ -159,94 +159,86 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget build(BuildContext context) => SafeArea(
     bottom: false,
     child: KgContentWidth(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              KgSpacing.lg,
-              KgSpacing.xl,
-              KgSpacing.lg,
-              KgSpacing.sm,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxHeight < 400;
+          final search = TextField(
+            controller: _controller,
+            onChanged: _onChanged,
+            textInputAction: TextInputAction.search,
+            onSubmitted: _runSearch,
+            decoration: InputDecoration(
+              hintText: _kind == SearchKind.songs ? '歌曲、歌手或专辑' : '搜索公开歌单',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _controller.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: '清空搜索',
+                      onPressed: _clearSearch,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const KgPageHeader(
-                  title: '搜索',
-                  subtitle: '发现歌曲与公开歌单',
-                  padding: EdgeInsets.zero,
-                  actions: [AccountAvatarButton()],
-                ),
-                const SizedBox(height: KgSpacing.lg),
-                SegmentedButton<SearchKind>(
-                  segments: const [
-                    ButtonSegment(
-                      value: SearchKind.songs,
-                      icon: Icon(Icons.music_note_rounded),
-                      label: Text('歌曲'),
-                    ),
-                    ButtonSegment(
-                      value: SearchKind.playlists,
-                      icon: Icon(Icons.queue_music_rounded),
-                      label: Text('歌单'),
-                    ),
+          );
+          final tabs = KgChoiceTabs<SearchKind>(
+            options: const {SearchKind.songs: '歌曲', SearchKind.playlists: '歌单'},
+            value: _kind,
+            onChanged: (next) {
+              setState(() => _kind = next);
+              if (_scrollController.hasClients) _scrollController.jumpTo(0);
+              if (_keyword.isNotEmpty) unawaited(_activePager.reset());
+            },
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, compact ? 12 : 24, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!compact) ...[
+                      const KgPageHeader(title: '搜索', padding: EdgeInsets.zero),
+                      const SizedBox(height: 20),
+                    ],
+                    if (compact && constraints.maxWidth >= 600)
+                      Row(
+                        children: [
+                          Expanded(child: search),
+                          const SizedBox(width: 20),
+                          tabs,
+                        ],
+                      )
+                    else ...[
+                      search,
+                      const SizedBox(height: 8),
+                      tabs,
+                    ],
+                    if (_keyword.isNotEmpty && _activePager.initialLoading)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: LinearProgressIndicator(minHeight: 2),
+                      ),
                   ],
-                  selected: {_kind},
-                  onSelectionChanged: (value) {
-                    final next = value.first;
-                    if (next == _kind) return;
-                    setState(() => _kind = next);
-                    if (_scrollController.hasClients) {
-                      _scrollController.jumpTo(0);
-                    }
-                    if (_keyword.isNotEmpty) {
-                      unawaited(_activePager.reset());
-                    }
-                  },
                 ),
-                const SizedBox(height: KgSpacing.sm),
-                TextField(
-                  controller: _controller,
-                  onChanged: _onChanged,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: _runSearch,
-                  decoration: InputDecoration(
-                    hintText: _kind == SearchKind.songs ? '歌曲、歌手或专辑' : '搜索公开歌单',
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _controller.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: '清空搜索',
-                            onPressed: _clearSearch,
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                  ),
-                ),
-                if (_keyword.isNotEmpty && _activePager.initialLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(top: KgSpacing.xs),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: KgMotion.resolve(context, KgMotion.medium),
-              switchInCurve: KgMotion.standard,
-              switchOutCurve: Curves.easeInCubic,
-              child: SearchResults(
-                key: ValueKey(_bodyKey),
-                kind: _kind,
-                keyword: _keyword,
-                songPager: _songPager,
-                playlistPager: _playlistPager,
-                scrollController: _scrollController,
               ),
-            ),
-          ),
-        ],
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: KgMotion.resolve(context, KgMotion.medium),
+                  switchInCurve: KgMotion.standard,
+                  switchOutCurve: Curves.easeInCubic,
+                  child: SearchResults(
+                    key: ValueKey(_bodyKey),
+                    kind: _kind,
+                    keyword: _keyword,
+                    songPager: _songPager,
+                    playlistPager: _playlistPager,
+                    scrollController: _scrollController,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     ),
   );

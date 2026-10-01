@@ -11,7 +11,7 @@ class LaunchPlaceholder extends StatelessWidget {
         gradient: RadialGradient(
           center: Alignment(-0.6, -0.7),
           radius: 1.2,
-          colors: [Color(0xFF242443), KgColors.background],
+          colors: [KgColors.surface, KgColors.background],
         ),
       ),
       child: Center(

@@ -20,7 +20,6 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final recommendations = ref.watch(dailyRecommendationsProvider);
-    final profile = ref.watch(userProfileProvider).value;
     final songs = recommendations.value ?? const <Song>[];
     return SafeArea(
       bottom: false,
@@ -42,32 +41,53 @@ class HomeScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DiscoverHeader(name: profile?.displayName),
+                      const DiscoverHeader(),
                       const SizedBox(height: KgSpacing.xl),
-                      DailyRecommendationHero(
-                        songs: songs,
-                        loading: recommendations.isLoading && songs.isEmpty,
-                        failed: recommendations.hasError && songs.isEmpty,
-                        onRetry: () =>
-                            ref.invalidate(dailyRecommendationsProvider),
-                        onPlay: songs.isEmpty
-                            ? null
-                            : () => _playHomeCollection(
-                                context,
-                                ref,
-                                songs.first,
-                                songs,
-                                '每日推荐',
-                                PlaybackQueueOriginKind.dailyRecommendations,
-                              ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final hero = DailyRecommendationHero(
+                            songs: songs,
+                            loading: recommendations.isLoading && songs.isEmpty,
+                            failed: recommendations.hasError && songs.isEmpty,
+                            onRetry: () =>
+                                ref.invalidate(dailyRecommendationsProvider),
+                            onPlay: songs.isEmpty
+                                ? null
+                                : () => _playHomeCollection(
+                                    context,
+                                    ref,
+                                    songs.first,
+                                    songs,
+                                    '每日推荐',
+                                    PlaybackQueueOriginKind
+                                        .dailyRecommendations,
+                                  ),
+                          );
+                          if (constraints.maxWidth >= 840 &&
+                              MediaQuery.textScalerOf(context).scale(14) <=
+                                  21) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: hero),
+                                const SizedBox(width: 24),
+                                const Expanded(
+                                  child: RecommendationCards(
+                                    minCardHeight: 180,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return Column(
+                            children: [
+                              hero,
+                              const SizedBox(height: KgSpacing.section),
+                              const RecommendationCards(),
+                            ],
+                          );
+                        },
                       ),
-                      const SizedBox(height: KgSpacing.section),
-                      const KgSectionHeader(
-                        title: '为你而播',
-                        subtitle: '越听越懂你的音乐喜好',
-                      ),
-                      const SizedBox(height: KgSpacing.md),
-                      const SizedBox(height: 184, child: RecommendationCards()),
                       const _RecentlyPlayedShelf(),
                     ],
                   ),
@@ -139,8 +159,7 @@ class _RecentlyPlayedShelf extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: KgSpacing.section),
       child: HomeSongShelf(
-        title: '最近听过',
-        subtitle: '从上次停下的地方继续',
+        title: '最近播放',
         songs: songs,
         scrollKey: 'recent',
         onSongTap: (song) => _playHomeCollection(

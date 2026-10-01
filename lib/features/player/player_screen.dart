@@ -2,13 +2,14 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
-import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
-import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
+import 'package:kgmusic/features/player/player_backdrop.dart';
 import 'package:kgmusic/features/player/player_control_deck.dart';
 import 'package:kgmusic/features/player/player_visual_pager.dart';
 
@@ -32,33 +33,32 @@ class PlayerScreen extends ConsumerWidget {
       value: overlayStyle,
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: KgColors.background,
         appBar: AppBar(
           forceMaterialTransparency: true,
           systemOverlayStyle: overlayStyle,
-          titleSpacing: 4,
-          title: StreamBuilder<PlaybackQueueState?>(
-            stream: handler.queueStateStream,
-            initialData: handler.queueState,
-            builder: (context, snapshot) => MediaQuery.withClampedTextScaling(
-              maxScaleFactor: 1.3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '正在播放',
-                    style: TextStyle(fontSize: 11, color: KgColors.textMuted),
+          leading: IconButton(
+            tooltip: '收起播放器',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
+          ),
+          titleSpacing: 0,
+          title: PlayerDismissRegion(
+            child: SizedBox(
+              width: double.infinity,
+              child: StreamBuilder<PlaybackQueueState?>(
+                stream: handler.queueStateStream,
+                initialData: handler.queueState,
+                builder: (context, snapshot) => Text(
+                  snapshot.data?.origin.displayTitle ?? '正在播放',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: KgColors.textMuted,
                   ),
-                  Text(
-                    snapshot.data?.origin.displayTitle ?? '播放队列',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -68,17 +68,12 @@ class PlayerScreen extends ConsumerWidget {
           initialData: handler.mediaItem.value,
           builder: (context, snapshot) {
             final item = snapshot.data;
-            if (item == null) {
-              return const ColoredBox(
-                color: KgColors.background,
-                child: Center(child: Text('还没有开始播放')),
-              );
-            }
+            if (item == null) return const Center(child: Text('暂无正在播放的歌曲'));
             final index = handler.currentIndex;
-            final currentSong = index >= 0 && index < handler.songs.length
+            final song = index >= 0 && index < handler.songs.length
                 ? handler.songs[index]
                 : null;
-            return _PlayerBody(handler: handler, item: item, song: currentSong);
+            return _PlayerBody(handler: handler, item: item, song: song);
           },
         ),
       ),
@@ -87,8 +82,11 @@ class PlayerScreen extends ConsumerWidget {
 }
 
 class _PlayerBody extends StatelessWidget {
-  const _PlayerBody({required this.handler, required this.item, this.song});
-
+  const _PlayerBody({
+    required this.handler,
+    required this.item,
+    required this.song,
+  });
   final MusicAudioHandler handler;
   final MediaItem item;
   final Song? song;
@@ -97,26 +95,14 @@ class _PlayerBody extends StatelessWidget {
   Widget build(BuildContext context) => Stack(
     fit: StackFit.expand,
     children: [
-      ArtworkBackdrop(
-        url: item.artUri?.toString(),
-        cacheId: 'song:${item.id}',
-        opacity: 0.54,
-        scrim: 0.62,
-        decodePixelSize: 320,
-        blurSigma: 42,
-      ),
-      DecoratedBox(
+      PlayerBackdrop(handler: handler, item: item),
+      const DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              KgColors.background.withValues(alpha: 0.5),
-              KgColors.background.withValues(alpha: 0.12),
-              KgColors.background.withValues(alpha: 0.4),
-              KgColors.background.withValues(alpha: 0.86),
-            ],
-            stops: const [0, 0.2, 0.62, 1],
+            colors: [Color(0x18101012), Color(0x18101012), Color(0xDB101012)],
+            stops: [0, 0.45, 1],
           ),
         ),
       ),
@@ -129,183 +115,84 @@ class _PlayerBody extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final landscape =
-                  constraints.maxWidth > constraints.maxHeight &&
-                  constraints.maxWidth >= 600;
-              return landscape
-                  ? _LandscapePlayer(
-                      handler: handler,
-                      item: item,
-                      song: song,
-                      constraints: constraints,
-                    )
-                  : _PortraitPlayer(
-                      handler: handler,
-                      item: item,
-                      song: song,
-                      constraints: constraints,
-                    );
+                  constraints.maxWidth >= 600 &&
+                  constraints.maxWidth > constraints.maxHeight;
+              final compact = constraints.maxHeight < (landscape ? 410 : 650);
+              final visual = PlayerVisualPager(
+                handler: handler,
+                item: item,
+                song: song,
+                compact: compact,
+              );
+              final controls = Padding(
+                padding: EdgeInsets.fromLTRB(24, compact ? 8 : 16, 24, 16),
+                child: RepaintBoundary(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PlayerControlDeck(
+                        handler: handler,
+                        item: item,
+                        song: song,
+                        compact: compact,
+                      ),
+                      _PlayerMessageBanner(handler: handler),
+                    ],
+                  ),
+                ),
+              );
+              if (landscape) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: visual),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: (constraints.maxWidth * 0.44).clamp(320, 480),
+                        child: Center(
+                          child: SingleChildScrollView(child: controls),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final largeText = MediaQuery.textScalerOf(context).scale(14) > 21;
+              if (largeText || constraints.maxHeight < 500) {
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      SizedBox(height: largeText ? 320 : 240, child: visual),
+                      controls,
+                    ],
+                  ),
+                );
+              }
+              return Column(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: visual,
+                    ),
+                  ),
+                  controls,
+                ],
+              );
             },
           ),
         ),
-      ),
-      Positioned(
-        left: 16,
-        right: 16,
-        bottom: MediaQuery.paddingOf(context).bottom + 12,
-        child: _PlayerMessageBanner(handler: handler),
       ),
     ],
   );
 }
 
-class _PortraitPlayer extends StatelessWidget {
-  const _PortraitPlayer({
-    required this.handler,
-    required this.item,
-    required this.song,
-    required this.constraints,
-  });
-
-  final MusicAudioHandler handler;
-  final MediaItem item;
-  final Song? song;
-  final BoxConstraints constraints;
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = constraints.maxHeight < 650;
-    return Column(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(16, compact ? 0 : 8, 16, 0),
-            child: PlayerVisualPager(
-              handler: handler,
-              item: item,
-              song: song,
-              compact: compact,
-            ),
-          ),
-        ),
-        SizedBox(height: compact ? 6 : 12),
-        _ControlSurface(
-          portrait: true,
-          compact: compact,
-          child: PlayerControlDeck(
-            handler: handler,
-            item: item,
-            song: song,
-            compact: compact,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LandscapePlayer extends StatelessWidget {
-  const _LandscapePlayer({
-    required this.handler,
-    required this.item,
-    required this.song,
-    required this.constraints,
-  });
-
-  final MusicAudioHandler handler;
-  final MediaItem item;
-  final Song? song;
-  final BoxConstraints constraints;
-
-  @override
-  Widget build(BuildContext context) {
-    final compact = constraints.maxHeight < 410;
-    final panelWidth = (constraints.maxWidth * 0.42)
-        .clamp(330.0, 460.0)
-        .toDouble();
-    return Padding(
-      padding: EdgeInsets.fromLTRB(18, compact ? 6 : 12, 18, compact ? 8 : 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: PlayerVisualPager(
-              handler: handler,
-              item: item,
-              song: song,
-              compact: compact,
-            ),
-          ),
-          SizedBox(width: compact ? 12 : 22),
-          SizedBox(
-            width: panelWidth,
-            child: Align(
-              alignment: Alignment.center,
-              child: _ControlSurface(
-                portrait: false,
-                compact: compact,
-                child: PlayerControlDeck(
-                  handler: handler,
-                  item: item,
-                  song: song,
-                  compact: compact,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ControlSurface extends StatelessWidget {
-  const _ControlSurface({
-    required this.portrait,
-    required this.compact,
-    required this.child,
-  });
-
-  final bool portrait;
-  final bool compact;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = portrait
-        ? const BorderRadius.vertical(top: Radius.circular(28))
-        : BorderRadius.circular(28);
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: [
-          BoxShadow(
-            color: KgColors.background.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: KgGlassSurface(
-        borderRadius: radius,
-        color: KgColors.surface.withValues(alpha: portrait ? 0.62 : 0.56),
-        blurSigma: 0,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            compact ? 18 : 22,
-            compact ? 10 : 16,
-            compact ? 18 : 22,
-            compact ? 8 : 14,
-          ),
-          child: RepaintBoundary(child: child),
-        ),
-      ),
-    );
-  }
-}
-
 class _PlayerMessageBanner extends StatelessWidget {
   const _PlayerMessageBanner({required this.handler});
-
   final MusicAudioHandler handler;
 
   @override
@@ -314,13 +201,15 @@ class _PlayerMessageBanner extends StatelessWidget {
     builder: (context, snapshot) {
       final message = snapshot.data;
       if (message == null || message.isEmpty) return const SizedBox.shrink();
-      return KgGlassSurface(
-        borderRadius: BorderRadius.circular(14),
-        color: KgColors.elevatedHigh.withValues(alpha: 0.82),
-        blurSigma: 0,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Text(message, style: const TextStyle(fontSize: 13)),
+      return Padding(
+        padding: const EdgeInsets.only(top: KgSpacing.xs),
+        child: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 12,
+            height: 1.4,
+            color: KgColors.warning,
+          ),
         ),
       );
     },

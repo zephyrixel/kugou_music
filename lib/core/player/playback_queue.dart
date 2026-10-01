@@ -34,7 +34,7 @@ extension PlaybackQueueOriginKindInfo on PlaybackQueueOriginKind {
     PlaybackQueueOriginKind.favorites => '我喜欢',
     PlaybackQueueOriginKind.history => '最近播放',
     PlaybackQueueOriginKind.personalFm => '猜你喜欢',
-    PlaybackQueueOriginKind.heartRadio => '红心电台',
+    PlaybackQueueOriginKind.heartRadio => '心动电台',
     PlaybackQueueOriginKind.discovery => '为你发现',
   };
 

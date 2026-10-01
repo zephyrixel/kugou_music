@@ -11,8 +11,8 @@ class SongArtwork extends StatelessWidget {
     super.key,
     this.url,
     this.cacheId,
-    this.size = 52,
-    this.radius = 14,
+    this.size = 48,
+    this.radius = 12,
     this.decodePixelSize,
     this.filterQuality = FilterQuality.low,
   });
@@ -43,13 +43,13 @@ class SongArtwork extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF303653), Color(0xFF12141D)],
-        ),
+        color: KgColors.elevated,
       ),
-      child: const Icon(Icons.graphic_eq_rounded, color: KgColors.accent),
+      child: Icon(
+        Icons.album_outlined,
+        size: (size * 0.36).clamp(16, 40),
+        color: KgColors.textMuted,
+      ),
     );
     final localUri = Uri.tryParse(url ?? '');
     if (localUri?.scheme == 'file') {

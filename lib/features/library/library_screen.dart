@@ -42,34 +42,28 @@ class LibraryScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      LibraryHeader(sync: sync),
+                      const LibraryHeader(),
                       const SizedBox(height: KgSpacing.xl),
                       LayoutBuilder(
                         builder: (context, constraints) {
-                          final stacked = constraints.maxWidth < 430;
+                          final stacked =
+                              MediaQuery.textScalerOf(context).scale(14) > 21;
                           final favorites = LibraryCollectionCard(
                             icon: Icons.favorite_rounded,
                             title: '我喜欢',
                             subtitle:
                                 '${favorite?.availableTrackCount ?? 0} 首歌曲',
-                            colors: const [
-                              Color(0xFF7C5CFF),
-                              Color(0xFFB574FF),
-                            ],
                             onTap: () => context.go('/library/favorites'),
                           );
                           final history = LibraryCollectionCard(
                             icon: Icons.history_rounded,
                             title: '最近播放',
                             subtitle: '$historyCount 条记录',
-                            colors: const [
-                              Color(0xFF167F9E),
-                              Color(0xFF45BBD0),
-                            ],
                             onTap: () => context.go('/library/history'),
                           );
                           if (stacked) {
                             return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 favorites,
                                 const SizedBox(height: KgSpacing.sm),
@@ -89,13 +83,26 @@ class LibraryScreen extends ConsumerWidget {
                       const SizedBox(height: KgSpacing.section),
                       KgSectionHeader(
                         title: '我的歌单',
-                        subtitle: '收藏和创建的歌单都在这里',
-                        action: IconButton.filledTonal(
-                          tooltip: '创建歌单',
-                          onPressed: ready
-                              ? () => _createPlaylist(context, ref)
-                              : null,
-                          icon: const Icon(Icons.add_rounded),
+                        action: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: sync?.failed == true ? '重试同步' : '同步音乐库',
+                              onPressed: sync?.syncing == true
+                                  ? null
+                                  : () => syncLibrary(context, ref),
+                              icon: sync?.syncing == true
+                                  ? const KgBusyIndicator(size: 20)
+                                  : const Icon(Icons.sync_rounded, size: 22),
+                            ),
+                            IconButton(
+                              tooltip: '创建歌单',
+                              onPressed: ready
+                                  ? () => _createPlaylist(context, ref)
+                                  : null,
+                              icon: const Icon(Icons.add_rounded),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -106,10 +113,10 @@ class LibraryScreen extends ConsumerWidget {
                 SliverToBoxAdapter(
                   child: sync?.failed == true
                       ? KgErrorView(
-                          message: '音乐库同步失败，重试后即可管理歌单',
+                          message: '音乐库同步失败',
                           onRetry: () => syncLibrary(context, ref),
                         )
-                      : const KgLoadingView(label: '正在准备音乐库，其他功能可正常使用'),
+                      : const KgLoadingView(label: '正在同步音乐库'),
                 )
               else
                 _playlistSliver(context, ref, playlists),

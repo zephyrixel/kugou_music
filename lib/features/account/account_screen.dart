@@ -13,7 +13,6 @@ import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_settings_group.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/membership/membership_card.dart';
-import 'package:kgmusic/features/membership/membership_presenter.dart';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -26,11 +25,17 @@ class AccountScreen extends ConsumerWidget {
     final sync = ref.watch(librarySyncStatusProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('个人中心')),
+      appBar: AppBar(title: const Text('账号与会员')),
       body: KgContentWidth(
         maxWidth: KgBreakpoints.readingMaxWidth,
         child: RefreshIndicator(
-          onRefresh: () => _refresh(ref),
+          onRefresh: () async {
+            try {
+              await _refresh(ref);
+            } catch (_) {
+              if (context.mounted) showAppError(context, '账号信息刷新失败，请重试');
+            }
+          },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(
@@ -42,7 +47,6 @@ class AccountScreen extends ConsumerWidget {
             children: [
               _ProfileCard(
                 profile: profile,
-                vip: vip,
                 fingerprint: auth.snapshot.fingerprintRegistered,
                 registeringDevice: auth.registeringDevice,
                 onRetryDevice: auth.retryDeviceRegistration,
@@ -69,10 +73,7 @@ class AccountScreen extends ConsumerWidget {
               const SizedBox(height: KgSpacing.md),
               _SyncCard(status: sync.value ?? const LibrarySyncStatus.idle()),
               const SizedBox(height: KgSpacing.section),
-              const KgSectionHeader(
-                title: '应用与账号',
-                subtitle: '管理播放偏好、本机存储与登录状态',
-              ),
+              const KgSectionHeader(title: '应用与账号'),
               const SizedBox(height: KgSpacing.sm),
               _SettingsCard(authBusy: auth.busy),
             ],
@@ -102,14 +103,12 @@ class AccountScreen extends ConsumerWidget {
 class _ProfileCard extends StatelessWidget {
   const _ProfileCard({
     required this.profile,
-    required this.vip,
     required this.fingerprint,
     required this.registeringDevice,
     required this.onRetryDevice,
   });
 
   final AsyncValue<UserProfile> profile;
-  final AsyncValue<UserVip> vip;
   final bool fingerprint;
   final bool registeringDevice;
   final Future<void> Function() onRetryDevice;
@@ -119,14 +118,6 @@ class _ProfileCard extends StatelessWidget {
     padding: EdgeInsets.zero,
     child: Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [KgColors.elevatedHigh, KgColors.elevated],
-        ),
-      ),
       child: profile.when(
         loading: () => const SizedBox(
           height: 90,
@@ -139,8 +130,8 @@ class _ProfileCard extends StatelessWidget {
               url: user.avatarUrl,
               cacheId:
                   'user:${user.userId ?? user.username ?? user.displayName}',
-              size: 72,
-              radius: 36,
+              size: 56,
+              radius: 28,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -155,14 +146,6 @@ class _ProfileCard extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      if (vip.value case final membership?)
-                        if (buildMembershipSummary(membership).primary
-                            case final primary?)
-                          Chip(
-                            label: Text(primary.label),
-                            visualDensity: VisualDensity.compact,
-                          ),
                     ],
                   ),
                   const SizedBox(height: 5),
@@ -214,7 +197,7 @@ class _SettingsCard extends ConsumerWidget {
       KgSettingsTile(
         icon: Icons.settings_outlined,
         title: '设置',
-        subtitle: '播放音质、缓存空间与诊断工具',
+        subtitle: '播放、存储与诊断',
         onTap: () => context.push('/account/settings'),
       ),
       KgSettingsTile(
@@ -240,7 +223,8 @@ class _SyncCard extends ConsumerWidget {
     final text = switch (status.phase) {
       LibrarySyncPhase.syncing => '正在同步音乐库…',
       LibrarySyncPhase.failed => '音乐库同步失败，请重试',
-      LibrarySyncPhase.idle => '音乐库已同步',
+      LibrarySyncPhase.idle =>
+        status.lastSyncedAt == null ? '音乐库尚未同步' : '音乐库已同步',
     };
     return KgSurface(
       padding: EdgeInsets.zero,
@@ -253,7 +237,7 @@ class _SyncCard extends ConsumerWidget {
                 color: color,
               ),
         title: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis),
-        subtitle: status.failed ? null : const Text('下拉页面可刷新账号与歌单信息'),
+
         trailing: status.failed
             ? IconButton(
                 tooltip: '重试同步',

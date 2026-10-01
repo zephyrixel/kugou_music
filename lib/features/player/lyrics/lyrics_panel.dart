@@ -173,9 +173,8 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        _lineExtent =
-            (92 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.45))
-                .toDouble();
+        final scaler = MediaQuery.textScalerOf(context);
+        _lineExtent = 24 + scaler.scale(20) * 2.6 + scaler.scale(13) * 1.5;
         final centerPadding = ((constraints.maxHeight - _lineExtent) / 2)
             .clamp(0.0, double.infinity)
             .toDouble();
@@ -211,7 +210,7 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
                   icon: const Icon(Icons.my_location_rounded, size: 16),
                   label: const Text('回到当前歌词'),
                   style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, 36),
+                    minimumSize: const Size(48, 48),
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                 ),
@@ -264,10 +263,8 @@ class _LyricLineTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: active
-                        ? Colors.white70
-                        : KgColors.textMuted.withValues(alpha: 0.65),
-                    fontSize: 12,
+                    color: active ? Colors.white70 : KgColors.textMuted,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -293,9 +290,9 @@ class _PrimaryLyricText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final baseStyle = TextStyle(
-      color: active ? Colors.white : KgColors.textMuted.withValues(alpha: 0.62),
-      fontSize: active ? 20 : 16,
-      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+      color: active ? Colors.white : KgColors.textMuted,
+      fontSize: 20,
+      fontWeight: active ? FontWeight.w600 : FontWeight.w400,
       height: 1.25,
     );
     if (!active || line.words.isEmpty) {

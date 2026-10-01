@@ -34,40 +34,27 @@ class PlaylistTile extends StatelessWidget {
         url: artworkUrl,
         cacheId: cacheId,
         size: 56,
-        radius: 16,
+        radius: 12,
       ),
     ),
     title: Text(
       title,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontWeight: FontWeight.w700),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
     ),
     subtitle: subtitle == null
         ? null
-        : Text(subtitle!, maxLines: 1, overflow: TextOverflow.ellipsis),
-    trailing: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (badge != null)
-          Container(
-            margin: const EdgeInsets.only(right: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: KgColors.accentSoft,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              badge!,
-              style: const TextStyle(
-                color: KgColors.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+        : Text(
+            [?badge, subtitle!].join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: KgColors.textMuted),
           ),
-        const Icon(Icons.chevron_right_rounded, size: 20),
-      ],
+    trailing: const Icon(
+      Icons.chevron_right_rounded,
+      size: 20,
+      color: KgColors.textMuted,
     ),
   );
 }

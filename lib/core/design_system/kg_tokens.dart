@@ -8,21 +8,23 @@ abstract final class KgSpacing {
   static const lg = 20.0;
   static const xl = 24.0;
   static const xxl = 32.0;
-  static const section = 36.0;
+  static const section = 32.0;
 }
 
 abstract final class KgRadii {
-  static const small = 10.0;
-  static const medium = 16.0;
-  static const large = 22.0;
-  static const hero = 30.0;
+  static const small = 8.0;
+  static const medium = 12.0;
+  static const large = 18.0;
+  static const hero = 24.0;
   static const pill = 999.0;
 }
 
 abstract final class KgMotion {
-  static const fast = Duration(milliseconds: 180);
-  static const medium = Duration(milliseconds: 280);
-  static const slow = Duration(milliseconds: 360);
+  static const fast = Duration(milliseconds: 160);
+  static const medium = Duration(milliseconds: 260);
+  static const slow = Duration(milliseconds: 320);
+  static const playerEnter = Duration(milliseconds: 420);
+  static const ambient = Duration(seconds: 12);
 
   static const Curve standard = Curves.easeOutCubic;
   static const Curve emphasized = Curves.easeInOutCubicEmphasized;

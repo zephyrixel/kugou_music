@@ -11,6 +11,7 @@ Future<bool> confirmDialog(
   final accepted = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
+      scrollable: true,
       title: Text(title),
       content: content == null ? null : Text(content),
       actions: [
@@ -43,6 +44,7 @@ Future<({String name, bool private})?> promptPlaylistName(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
+        scrollable: true,
         title: Text(title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -97,6 +99,7 @@ promptPlaylistEdit(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) => AlertDialog(
+        scrollable: true,
         title: const Text('编辑歌单'),
         content: Column(
           mainAxisSize: MainAxisSize.min,

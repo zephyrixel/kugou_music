@@ -6,9 +6,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
-import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
-import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
-import 'package:kgmusic/core/widgets/kg_marquee_text.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/player/player_queue_sheet.dart';
 
@@ -21,98 +19,57 @@ class MiniPlayer extends ConsumerWidget {
     return StreamBuilder<MediaItem?>(
       stream: handler.mediaItem,
       initialData: handler.mediaItem.value,
-      builder: (context, itemSnapshot) {
-        final item = itemSnapshot.data;
+      builder: (context, snapshot) {
+        final item = snapshot.data;
         if (item == null) return const SizedBox.shrink();
-        return Container(
-          margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(KgRadii.large),
-            boxShadow: [
-              BoxShadow(
-                color: KgColors.accent.withValues(alpha: 0.08),
-                blurRadius: 22,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: KgGlassSurface(
-            blurSigma: 0,
-            color: KgColors.surface.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(KgRadii.large),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => context.push('/player'),
-                child: Stack(
-                  alignment: Alignment.bottomCenter,
-                  children: [
-                    Positioned.fill(
-                      child: ArtworkBackdrop(
-                        url: item.artUri?.toString(),
-                        cacheId: 'song:${item.id}',
-                        opacity: 0.3,
-                        sourceSize: 48,
-                        decodePixelSize: 96,
-                        blurSigma: 24,
-                        overlayGradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            KgColors.surface.withValues(alpha: 0.34),
-                            KgColors.surface.withValues(alpha: 0.82),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: 70,
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          child: Material(
+            color: KgColors.elevated,
+            borderRadius: BorderRadius.circular(KgRadii.medium),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.push('/player'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 62),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
                       child: Row(
                         children: [
-                          const SizedBox(width: 10),
-                          AnimatedSwitcher(
-                            duration: KgMotion.resolve(
-                              context,
-                              KgMotion.medium,
-                            ),
-                            child: Hero(
-                              key: ValueKey(item.id),
-                              tag: 'player-artwork:${item.id}',
-                              child: SongArtwork(
-                                url: item.artUri?.toString(),
-                                cacheId: 'song:${item.id}',
-                                size: 48,
-                                radius: 12,
-                              ),
+                          Hero(
+                            tag: 'player-artwork:${item.id}',
+                            transitionOnUserGestures: true,
+                            child: SongArtwork(
+                              url: item.artUri?.toString(),
+                              cacheId: 'song:${item.id}',
+                              size: 44,
+                              radius: 8,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                SizedBox(
-                                  height: 21,
-                                  child: KgMarqueeText(
-                                    item.title,
-                                    key: ValueKey('title:${item.id}'),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(
-                                  height: 20,
-                                  child: KgMarqueeText(
-                                    item.artist ?? '未知歌手',
-                                    key: ValueKey('artist:${item.id}'),
-                                    velocity: 24,
-                                    style: const TextStyle(
-                                      color: KgColors.textMuted,
-                                      fontSize: 13,
-                                    ),
-                                  ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.artist ?? '未知歌手',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
                             ),
@@ -131,21 +88,28 @@ class MiniPlayer extends ConsumerWidget {
                               return IconButton(
                                 tooltip: loading
                                     ? '正在加载'
-                                    : (playing ? '暂停' : '播放'),
+                                    : playing
+                                    ? '暂停'
+                                    : '播放',
                                 onPressed: loading
                                     ? null
-                                    : (playing ? handler.pause : handler.play),
+                                    : playing
+                                    ? handler.pause
+                                    : handler.play,
                                 icon: loading
-                                    ? const SizedBox.square(
-                                        dimension: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
+                                    ? const KgBusyIndicator(size: 20)
+                                    : AnimatedSwitcher(
+                                        duration: KgMotion.resolve(
+                                          context,
+                                          KgMotion.fast,
                                         ),
-                                      )
-                                    : Icon(
-                                        playing
-                                            ? Icons.pause_rounded
-                                            : Icons.play_arrow_rounded,
+                                        child: Icon(
+                                          playing
+                                              ? Icons.pause_rounded
+                                              : Icons.play_arrow_rounded,
+                                          key: ValueKey(playing),
+                                          size: 28,
+                                        ),
                                       ),
                               );
                             },
@@ -154,15 +118,17 @@ class MiniPlayer extends ConsumerWidget {
                             tooltip: '播放队列',
                             onPressed: () =>
                                 showPlayerQueueSheet(context, handler),
-                            icon: const Icon(Icons.queue_music_rounded),
+                            icon: const Icon(
+                              Icons.queue_music_rounded,
+                              size: 22,
+                            ),
                           ),
-                          const SizedBox(width: 4),
                         ],
                       ),
                     ),
-                    _MiniProgress(handler: handler),
-                  ],
-                ),
+                  ),
+                  _MiniProgress(handler: handler),
+                ],
               ),
             ),
           ),

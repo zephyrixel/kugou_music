@@ -33,17 +33,7 @@ class PlaybackSettingsGroup extends StatelessWidget {
                 padding: EdgeInsets.all(12),
                 child: KgBusyIndicator(size: 18),
               )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    quality.label,
-                    style: const TextStyle(color: KgColors.textMuted),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.chevron_right_rounded),
-                ],
-              ),
+            : const Icon(Icons.chevron_right_rounded),
         onTap: onChooseQuality,
       ),
     ],
@@ -97,17 +87,10 @@ class StorageSettingsPanel extends StatelessWidget {
                           ? loadingUsage
                                 ? '正在统计本机占用…'
                                 : '暂时无法统计本机占用'
-                          : '已使用 ${formatByteSize(totalBytes)}',
+                          : '已使用 ${formatByteSize(totalBytes)} · 上限 ${formatByteSize(limitBytes)}',
                       style: const TextStyle(color: KgColors.textMuted),
                     ),
                   ],
-                ),
-              ),
-              Text(
-                '上限 ${formatByteSize(limitBytes)}',
-                style: const TextStyle(
-                  color: KgColors.textMuted,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

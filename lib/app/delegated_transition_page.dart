@@ -33,11 +33,125 @@ class DelegatedCustomTransitionPage<T> extends CustomTransitionPage<T> {
 class PlayerTransitionPage<T> extends DelegatedCustomTransitionPage<T> {
   const PlayerTransitionPage({required super.child, super.key})
     : super(
-        transitionDuration: KgMotion.slow,
-        reverseTransitionDuration: KgMotion.medium,
+        transitionDuration: KgMotion.playerEnter,
+        reverseTransitionDuration: KgMotion.slow,
         transitionsBuilder: _buildPlayerTransition,
         delegatedTransitionsBuilder: _buildPlayerDelegatedTransition,
       );
+
+  @override
+  Route<T> createRoute(BuildContext context) => _PlayerPageRoute<T>(this);
+}
+
+/// Opts only the header and cover into the route's dismiss gesture. Lyrics and
+/// playback controls retain their own scrolling and seeking gestures.
+class PlayerDismissRegion extends StatelessWidget {
+  const PlayerDismissRegion({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final route = context
+        .dependOnInheritedWidgetOfExactType<_PlayerRouteScope>()
+        ?.route;
+    if (route == null) return child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragStart: (_) =>
+          route.beginDrag(MediaQuery.sizeOf(context).height),
+      onVerticalDragUpdate: (details) => route.updateDrag(details.delta.dy),
+      onVerticalDragEnd: (details) =>
+          route.endDrag(details.primaryVelocity ?? 0),
+      onVerticalDragCancel: () => route.endDrag(0, cancelled: true),
+      child: child,
+    );
+  }
+}
+
+class _PlayerRouteScope extends InheritedWidget {
+  const _PlayerRouteScope({required this.route, required super.child});
+  final _PlayerPageRoute<dynamic> route;
+
+  @override
+  bool updateShouldNotify(_PlayerRouteScope oldWidget) =>
+      route != oldWidget.route;
+}
+
+class _PlayerPageRoute<T> extends _DelegatedCustomTransitionPageRoute<T> {
+  _PlayerPageRoute(super.page);
+
+  double _dragExtent = 1;
+  bool _dragging = false;
+  NavigatorState? _gestureNavigator;
+
+  void beginDrag(double height) {
+    if (!isCurrent ||
+        controller!.isAnimating ||
+        _gestureNavigator != null ||
+        popDisposition != RoutePopDisposition.pop) {
+      return;
+    }
+    _dragExtent = height.clamp(1, double.infinity);
+    _dragging = true;
+    _gestureNavigator = navigator;
+    _gestureNavigator!.didStartUserGesture();
+  }
+
+  void updateDrag(double delta) {
+    if (_dragging) {
+      controller!.value = (controller!.value - delta / _dragExtent).clamp(0, 1);
+    }
+  }
+
+  void endDrag(double velocity, {bool cancelled = false}) {
+    if (!_dragging) return;
+    _dragging = false;
+    final dismiss =
+        !cancelled &&
+        (velocity > 900 || (velocity >= -900 && controller!.value < 0.8));
+    controller!.addStatusListener(_finishGesture);
+    if (dismiss && isCurrent) {
+      navigator!.pop();
+    } else {
+      controller!.animateTo(
+        1,
+        duration: KgMotion.medium,
+        curve: KgMotion.standard,
+      );
+    }
+    if (!controller!.isAnimating) _stopGesture();
+  }
+
+  void _finishGesture(AnimationStatus status) {
+    if (status == AnimationStatus.completed ||
+        status == AnimationStatus.dismissed) {
+      _stopGesture();
+    }
+  }
+
+  void _stopGesture() {
+    controller?.removeStatusListener(_finishGesture);
+    _gestureNavigator?.didStopUserGesture();
+    _gestureNavigator = null;
+    _dragging = false;
+  }
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) => _PlayerRouteScope(
+    route: this,
+    child: super.buildPage(context, animation, secondaryAnimation),
+  );
+
+  @override
+  void dispose() {
+    _stopGesture();
+    super.dispose();
+  }
 }
 
 Widget _buildPlayerTransition(
@@ -47,24 +161,26 @@ Widget _buildPlayerTransition(
   Widget child,
 ) {
   if (MediaQuery.disableAnimationsOf(context)) return child;
-  final curved = CurvedAnimation(
-    parent: animation,
-    curve: Curves.easeOutCubic,
-    reverseCurve: Curves.easeInCubic,
-  );
-  final transitionChild = _SnapshotDuringTransition(
-    animation: animation,
+  final navigator = Navigator.of(context);
+  return ListenableBuilder(
+    listenable: navigator.userGestureInProgressNotifier,
     child: child,
-  );
-  return FadeTransition(
-    opacity: curved,
-    child: SlideTransition(
-      position: Tween(
-        begin: const Offset(0, 0.018),
-        end: Offset.zero,
-      ).animate(curved),
-      child: transitionChild,
-    ),
+    builder: (context, child) {
+      final progress = animation.drive(
+        CurveTween(
+          curve: navigator.userGestureInProgress
+              ? Curves.linear
+              : KgMotion.standard,
+        ),
+      );
+      return SlideTransition(
+        position: Tween(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(progress),
+        child: child,
+      );
+    },
   );
 }
 

@@ -22,9 +22,6 @@ class AddToPlaylistButton extends ConsumerWidget {
       onPressed: ref.watch(libraryReadyProvider)
           ? () => showAddToPlaylist(context, ref, song)
           : null,
-      constraints: compact
-          ? const BoxConstraints.tightFor(width: 40, height: 40)
-          : null,
       padding: compact ? const EdgeInsets.all(8) : null,
       iconSize: compact ? 21 : null,
       icon: const Icon(Icons.playlist_add_rounded),

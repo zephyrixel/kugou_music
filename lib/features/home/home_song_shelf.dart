@@ -38,7 +38,7 @@ class HomeSongShelf extends StatelessWidget {
             subtitle: subtitle,
             action: onPlayAll == null
                 ? null
-                : IconButton.filledTonal(
+                : IconButton(
                     tooltip: '播放全部',
                     onPressed: onPlayAll,
                     icon: const Icon(Icons.play_arrow_rounded),
@@ -46,7 +46,7 @@ class HomeSongShelf extends StatelessWidget {
           ),
           const SizedBox(height: KgSpacing.md),
           SizedBox(
-            height: cardWidth + 48,
+            height: _shelfHeight(context, cardWidth),
             child: ListView.separated(
               key: PageStorageKey('home-song-shelf:$scrollKey'),
               scrollDirection: Axis.horizontal,
@@ -81,7 +81,7 @@ class HomeSongShelfSkeleton extends StatelessWidget {
           const KgSkeleton(width: 180, height: 24, radius: KgRadii.small),
           const SizedBox(height: KgSpacing.md),
           SizedBox(
-            height: cardWidth + 48,
+            height: _shelfHeight(context, cardWidth),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               reverse: Directionality.of(context) == TextDirection.rtl,
@@ -148,13 +148,21 @@ class _HomeSongCard extends StatelessWidget {
                 song.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               Text(
                 song.artistLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: KgColors.textMuted, fontSize: 12),
+                style: const TextStyle(
+                  color: KgColors.textMuted,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -174,4 +182,10 @@ class _HomeSongCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+// Reserve space for scaled labels without constraining the page text scale.
+double _shelfHeight(BuildContext context, double coverSize) {
+  final scaler = MediaQuery.textScalerOf(context);
+  return coverSize + 12 + scaler.scale(14) * 1.5 + scaler.scale(12) * 1.4;
 }

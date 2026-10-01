@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_animated_size.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
-import 'package:kgmusic/core/widgets/kg_glass_surface.dart';
 import 'package:kgmusic/features/player/mini_player.dart';
 
 class AppShell extends StatelessWidget {
@@ -18,9 +18,9 @@ class AppShell extends StatelessWidget {
     ),
     NavigationDestination(icon: Icon(Icons.search_rounded), label: '搜索'),
     NavigationDestination(
-      icon: Icon(Icons.library_music_outlined),
-      selectedIcon: Icon(Icons.library_music_rounded),
-      label: '音乐库',
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: '我的',
     ),
   ];
 
@@ -31,12 +31,13 @@ class AppShell extends StatelessWidget {
         return _WideShell(navigationShell: navigationShell);
       }
       return Scaffold(
-        extendBody: true,
         body: navigationShell,
-        bottomNavigationBar: _CompactBottomDock(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: _goBranch,
-        ),
+        bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+            ? null
+            : _CompactBottomDock(
+                selectedIndex: navigationShell.currentIndex,
+                onDestinationSelected: _goBranch,
+              ),
       );
     },
   );
@@ -57,24 +58,23 @@ class _CompactBottomDock extends StatelessWidget {
   final ValueChanged<int> onDestinationSelected;
 
   @override
-  Widget build(BuildContext context) => KgGlassSurface(
-    borderRadius: BorderRadius.zero,
-    color: KgColors.surface.withValues(alpha: 0.72),
-    borderColor: Colors.transparent,
-    blurSigma: 20,
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      color: KgColors.surface,
+      border: Border(top: BorderSide(color: KgColors.divider, width: 0.5)),
+    ),
     child: SafeArea(
       top: false,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          AnimatedSize(
+          KgAnimatedSize(
             duration: KgMotion.resolve(context, KgMotion.medium),
-            curve: KgMotion.standard,
             alignment: Alignment.bottomCenter,
             child: const MiniPlayer(),
           ),
           NavigationBar(
-            height: 68,
+            height: 64,
             backgroundColor: Colors.transparent,
             selectedIndex: selectedIndex,
             onDestinationSelected: onDestinationSelected,
@@ -113,35 +113,25 @@ class _WideShell extends StatelessWidget {
                 size: 30,
               ),
             ),
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.explore_outlined),
-                selectedIcon: Icon(Icons.explore_rounded),
-                label: Text('发现'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.search_rounded),
-                label: Text('搜索'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.library_music_outlined),
-                selectedIcon: Icon(Icons.library_music_rounded),
-                label: Text('音乐库'),
-              ),
-            ],
+            destinations: AppShell.destinations
+                .map(
+                  (destination) => NavigationRailDestination(
+                    icon: destination.icon,
+                    selectedIcon: destination.selectedIcon,
+                    label: Text(destination.label),
+                  ),
+                )
+                .toList(growable: false),
           ),
           const VerticalDivider(width: 1),
           Expanded(
             child: Column(
               children: [
                 Expanded(child: navigationShell),
-                KgGlassSurface(
-                  borderRadius: BorderRadius.zero,
-                  color: KgColors.surface.withValues(alpha: 0.72),
-                  borderColor: Colors.transparent,
-                  child: AnimatedSize(
+                ColoredBox(
+                  color: KgColors.surface,
+                  child: KgAnimatedSize(
                     duration: KgMotion.resolve(context, KgMotion.medium),
-                    curve: KgMotion.standard,
                     alignment: Alignment.bottomCenter,
                     child: Align(
                       child: ConstrainedBox(

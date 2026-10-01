@@ -12,6 +12,7 @@ import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/playlist_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:kgmusic/core/widgets/playback_song_tile.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 
 enum SearchKind { songs, playlists }
@@ -67,7 +68,7 @@ class SearchResults extends ConsumerWidget {
             return footers[itemIndex - songs.length];
           }
           final song = songs[itemIndex];
-          return SongTile(
+          return PlaybackSongTile(
             song: song,
             variant: SongTileVariant.artwork,
             onTap: () => playSong(

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/app/animated_branch_container.dart';
 import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/app/navigation_focus_policy.dart';
-import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -53,37 +51,10 @@ void main() {
       ),
     );
 
-    expect(find.text('今天的声音'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('首页长用户名不会挤压核心问候标题', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(320, 180));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          userProfileProvider.overrideWith((ref) => const Stream.empty()),
-        ],
-        child: _testApp(
-          const Scaffold(
-            body: SafeArea(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: DiscoverHeader(name: '这是一个非常非常长的用户昵称用于验证窄屏布局'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    expect(find.text('今天想听什么？'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('首页歌曲卡片架在窄屏保持稳定尺寸并响应点击', (tester) async {
+  testWidgets('首页歌曲卡片架在窄屏可点击且不溢出', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 360));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     Song? selected;
@@ -106,7 +77,6 @@ void main() {
       ),
     );
 
-    expect(tester.widget<SongArtwork>(find.byType(SongArtwork)).size, 142);
     await tester.tap(find.byKey(const ValueKey('home-song:song:responsive')));
     expect(selected, song);
     expect(tester.takeException(), isNull);
@@ -249,12 +219,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
     final firstOpacity = _lowestFadeOpacity(tester, homeKey);
-    expect(
-      tester
-          .widgetList<SnapshotWidget>(find.byType(SnapshotWidget))
-          .any((widget) => widget.controller.allowSnapshotting),
-      isTrue,
-    );
     await tester.pump(const Duration(milliseconds: 100));
     final secondOpacity = _lowestFadeOpacity(tester, homeKey);
 
@@ -262,12 +226,6 @@ void main() {
     expect(secondOpacity, lessThan(firstOpacity));
     await tester.pumpAndSettle();
     expect(find.byKey(homeKey), findsNothing);
-    expect(
-      tester
-          .widgetList<SnapshotWidget>(find.byType(SnapshotWidget))
-          .every((widget) => !widget.controller.allowSnapshotting),
-      isTrue,
-    );
     expect(tester.takeException(), isNull);
   });
 

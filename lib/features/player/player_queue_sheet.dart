@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
-import 'package:kgmusic/core/widgets/song_artwork.dart';
+import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:audio_service/audio_service.dart';
 
 Future<void> showPlayerQueueSheet(
   BuildContext context,
@@ -48,47 +48,12 @@ class _PlayerQueueSheet extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final song = state.songs[index];
                     final current = index == state.currentIndex;
-                    return Padding(
+                    return _QueueSongRow(
                       key: ValueKey('${song.id}:$index'),
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Material(
-                        color: current
-                            ? KgColors.accentSoft.withValues(alpha: 0.72)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(KgRadii.medium),
-                        clipBehavior: Clip.antiAlias,
-                        child: ListTile(
-                          selected: current,
-                          leading: SongArtwork(
-                            url: song.artworkUrl,
-                            cacheId: 'song:${song.id}',
-                            size: 44,
-                            radius: 10,
-                          ),
-                          title: Text(
-                            song.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            current ? '正在播放' : song.artistLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onTap: () => handler.skipToQueueItem(index),
-                          trailing: current
-                              ? const Icon(
-                                  Icons.graphic_eq_rounded,
-                                  color: KgColors.accent,
-                                )
-                              : IconButton(
-                                  tooltip: '移除',
-                                  onPressed: () =>
-                                      handler.removeQueueItemAt(index),
-                                  icon: const Icon(Icons.close_rounded),
-                                ),
-                        ),
-                      ),
+                      handler: handler,
+                      state: state,
+                      index: index,
+                      current: current,
                     );
                   },
                 ),
@@ -129,10 +94,7 @@ class _QueueHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    state.origin.displayTitle,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  Text('播放队列', style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 3),
                   Text(
                     '${state.songs.length}${state.origin.totalCount == null ? '' : ' / ${state.origin.totalCount}'} 首 · ${state.order.label}',
@@ -160,13 +122,13 @@ class _QueueHeader extends StatelessWidget {
                                 : KgColors.textMuted,
                           ),
                           const SizedBox(width: 10),
-                          Text(order.label),
+                          Flexible(child: Text(order.label)),
                         ],
                       ),
                     ),
                   )
                   .toList(growable: false),
-              child: const Icon(Icons.repeat_rounded),
+              icon: const Icon(Icons.repeat_rounded),
             ),
             PopupMenuButton<String>(
               tooltip: '队列操作',
@@ -190,4 +152,51 @@ class _QueueHeader extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _QueueSongRow extends StatelessWidget {
+  const _QueueSongRow({
+    super.key,
+    required this.handler,
+    required this.state,
+    required this.index,
+    required this.current,
+  });
+  final MusicAudioHandler handler;
+  final PlaybackQueueState state;
+  final int index;
+  final bool current;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget row(bool playing) => SongTile(
+      song: state.songs[index],
+      onTap: () => handler.skipToQueueItem(index),
+      playback: !current
+          ? SongTilePlayback.none
+          : playing
+          ? SongTilePlayback.playing
+          : SongTilePlayback.paused,
+      trailing: current
+          ? SizedBox(
+              width: 48,
+              child: Icon(
+                playing ? Icons.graphic_eq_rounded : Icons.pause_rounded,
+                size: 22,
+                color: KgColors.accent,
+              ),
+            )
+          : IconButton(
+              tooltip: '移除',
+              onPressed: () => handler.removeQueueItemAt(index),
+              icon: const Icon(Icons.close_rounded, size: 20),
+            ),
+    );
+    if (!current) return row(false);
+    return StreamBuilder<PlaybackState>(
+      stream: handler.playbackState,
+      initialData: handler.playbackState.value,
+      builder: (context, snapshot) => row(snapshot.data?.playing ?? false),
+    );
+  }
 }

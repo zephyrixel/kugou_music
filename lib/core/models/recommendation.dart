@@ -5,7 +5,7 @@ enum RecommendationKind { personalFm, heartRadio }
 extension RecommendationKindInfo on RecommendationKind {
   String get title => switch (this) {
     RecommendationKind.personalFm => '猜你喜欢',
-    RecommendationKind.heartRadio => '红心电台',
+    RecommendationKind.heartRadio => '心动电台',
   };
 
   String get subtitle => switch (this) {

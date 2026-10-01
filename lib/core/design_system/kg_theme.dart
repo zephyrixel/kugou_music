@@ -3,17 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 
 abstract final class KgColors {
-  static const background = Color(0xFF090A0F);
-  static const surface = Color(0xFF11131A);
-  static const elevated = Color(0xFF181B24);
-  static const elevatedHigh = Color(0xFF222633);
-  static const accent = Color(0xFFAEB8FF);
-  static const accentSecondary = Color(0xFF78D7FF);
-  static const accentSoft = Color(0xFF292E4A);
-  static const textPrimary = Color(0xFFF4F5F8);
-  static const textMuted = Color(0xFF9BA3B4);
-  static const divider = Color(0xFF2A2E39);
-  static const warning = Color(0xFFFFC46B);
+  static const background = Color(0xFF101012);
+  static const surface = Color(0xFF19191C);
+  static const elevated = Color(0xFF242427);
+  static const elevatedHigh = Color(0xFF2D2D31);
+  static const accent = Color(0xFFE7B36A);
+  static const onAccent = Color(0xFF241A0D);
+  static const accentSecondary = Color(0xFFDAC6A9);
+  static const accentSoft = Color(0xFF352B20);
+  static const textPrimary = Color(0xFFF5F2EB);
+  static const textMuted = Color(0xFFABA8A2);
+  static const divider = Color(0xFF353538);
+  static const warning = Color(0xFFF1CE86);
+  static const error = Color(0xFFFFA59A);
 }
 
 ThemeData buildKgTheme() {
@@ -24,71 +26,154 @@ ThemeData buildKgTheme() {
         surface: KgColors.surface,
       ).copyWith(
         primary: KgColors.accent,
-        onPrimary: const Color(0xFF15182A),
+        onPrimary: KgColors.onAccent,
+        primaryContainer: KgColors.accentSoft,
+        onPrimaryContainer: KgColors.accent,
         secondary: KgColors.accentSecondary,
-        onSecondary: const Color(0xFF071A22),
+        onSecondary: KgColors.onAccent,
+        secondaryContainer: KgColors.elevated,
+        onSecondaryContainer: KgColors.textPrimary,
+        onSurface: KgColors.textPrimary,
+        onSurfaceVariant: KgColors.textMuted,
         surface: KgColors.surface,
         surfaceContainer: KgColors.elevated,
         surfaceContainerHigh: KgColors.elevatedHigh,
         outlineVariant: KgColors.divider,
+        error: KgColors.error,
       );
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
     scaffoldBackgroundColor: KgColors.background,
     colorScheme: scheme,
-    splashFactory: InkSparkle.splashFactory,
+    splashFactory: InkRipple.splashFactory,
     visualDensity: VisualDensity.standard,
     textTheme: const TextTheme(
       headlineLarge: TextStyle(
-        fontWeight: FontWeight.w800,
-        letterSpacing: -1.1,
+        fontSize: 28,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+        letterSpacing: 0,
         color: KgColors.textPrimary,
       ),
       headlineMedium: TextStyle(
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.8,
+        fontSize: 26,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+        letterSpacing: 0,
         color: KgColors.textPrimary,
       ),
       headlineSmall: TextStyle(
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.45,
+        fontSize: 24,
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+        letterSpacing: 0,
         color: KgColors.textPrimary,
       ),
       titleLarge: TextStyle(
-        fontWeight: FontWeight.w700,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        height: 1.35,
         color: KgColors.textPrimary,
       ),
       titleMedium: TextStyle(
-        fontWeight: FontWeight.w700,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        height: 1.4,
+        letterSpacing: 0,
         color: KgColors.textPrimary,
       ),
-      bodyLarge: TextStyle(height: 1.4, color: KgColors.textPrimary),
-      bodyMedium: TextStyle(height: 1.4, color: KgColors.textPrimary),
+      titleSmall: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: KgColors.textPrimary,
+        letterSpacing: 0,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        height: 1.5,
+        color: KgColors.textPrimary,
+        letterSpacing: 0,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        height: 1.5,
+        color: KgColors.textPrimary,
+        letterSpacing: 0,
+      ),
+      bodySmall: TextStyle(
+        fontSize: 12,
+        height: 1.4,
+        color: KgColors.textMuted,
+        letterSpacing: 0,
+      ),
+      labelLarge: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
+      ),
+      labelMedium: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0,
+      ),
+      labelSmall: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        letterSpacing: 0,
+      ),
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       centerTitle: false,
+      titleTextStyle: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: KgColors.textPrimary,
+      ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      height: 70,
-      backgroundColor: KgColors.surface.withValues(alpha: 0.98),
+      height: 64,
+      backgroundColor: KgColors.surface,
       indicatorColor: KgColors.accentSoft,
       elevation: 0,
+      indicatorShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KgRadii.medium),
+      ),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          size: 23,
+          color: states.contains(WidgetState.selected)
+              ? KgColors.accent
+              : KgColors.textMuted,
+        ),
+      ),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => TextStyle(
           color: states.contains(WidgetState.selected)
               ? KgColors.accent
               : KgColors.textMuted,
           fontWeight: FontWeight.w600,
+          fontSize: 12,
         ),
+      ),
+    ),
+    navigationRailTheme: const NavigationRailThemeData(
+      backgroundColor: KgColors.surface,
+      indicatorColor: KgColors.accentSoft,
+      selectedIconTheme: IconThemeData(color: KgColors.accent, size: 24),
+      unselectedIconTheme: IconThemeData(color: KgColors.textMuted, size: 24),
+      selectedLabelTextStyle: TextStyle(color: KgColors.accent, fontSize: 12),
+      unselectedLabelTextStyle: TextStyle(
+        color: KgColors.textMuted,
+        fontSize: 12,
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: KgColors.elevated,
+      fillColor: KgColors.surface,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: KgSpacing.md,
         vertical: KgSpacing.md,
@@ -116,7 +201,20 @@ ThemeData buildKgTheme() {
     ),
     listTileTheme: const ListTileThemeData(
       iconColor: KgColors.textMuted,
-      subtitleTextStyle: TextStyle(color: KgColors.textMuted, height: 1.3),
+      textColor: KgColors.textPrimary,
+      minTileHeight: 64,
+      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      titleTextStyle: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: KgColors.textPrimary,
+        height: 1.4,
+      ),
+      subtitleTextStyle: TextStyle(
+        fontSize: 13,
+        color: KgColors.textMuted,
+        height: 1.4,
+      ),
     ),
     dividerTheme: const DividerThemeData(
       color: KgColors.divider,
@@ -129,7 +227,7 @@ ThemeData buildKgTheme() {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(KgRadii.medium),
         ),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -142,21 +240,35 @@ ThemeData buildKgTheme() {
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
-      style: IconButton.styleFrom(minimumSize: const Size.square(44)),
+      style: IconButton.styleFrom(
+        minimumSize: const Size.square(48),
+        foregroundColor: KgColors.textPrimary,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
     ),
     tabBarTheme: const TabBarThemeData(
       dividerColor: Colors.transparent,
       indicatorColor: KgColors.accent,
-      labelColor: Colors.white,
+      labelColor: KgColors.textPrimary,
       unselectedLabelColor: KgColors.textMuted,
-      labelStyle: TextStyle(fontWeight: FontWeight.w700),
+      labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
       indicatorSize: TabBarIndicatorSize.label,
     ),
     bottomSheetTheme: const BottomSheetThemeData(
-      backgroundColor: KgColors.surface,
+      backgroundColor: KgColors.elevated,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
       modalBarrierColor: Color(0x99000000),
+      constraints: BoxConstraints(maxWidth: 560),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(KgRadii.hero)),
+      ),
+      clipBehavior: Clip.antiAlias,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: KgColors.elevated,
@@ -168,8 +280,8 @@ ThemeData buildKgTheme() {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: KgColors.elevatedHigh,
       contentTextStyle: const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
+        color: KgColors.textPrimary,
+        fontWeight: FontWeight.w400,
         height: 1.35,
       ),
       actionTextColor: KgColors.accent,
@@ -183,8 +295,14 @@ ThemeData buildKgTheme() {
       activeTrackColor: KgColors.accent,
       inactiveTrackColor: KgColors.divider,
       thumbColor: KgColors.accent,
-      overlayColor: Color(0x28AEB8FF),
+      overlayColor: Color(0x28E7B36A),
       trackHeight: 3,
+      thumbShape: RoundSliderThumbShape(
+        enabledThumbRadius: 5,
+        disabledThumbRadius: 4,
+      ),
+      overlayShape: RoundSliderOverlayShape(overlayRadius: 16),
+      trackShape: RoundedRectSliderTrackShape(),
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: KgColors.accent,

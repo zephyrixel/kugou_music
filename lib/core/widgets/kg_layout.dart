@@ -86,8 +86,8 @@ class KgSurface extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(18),
-    this.color = KgColors.elevated,
-    this.radius = 22,
+    this.color = KgColors.surface,
+    this.radius = KgRadii.large,
   });
 
   final Widget child;
@@ -96,12 +96,10 @@ class KgSurface extends StatelessWidget {
   final double radius;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
-    ),
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(radius),
+    clipBehavior: Clip.antiAlias,
     child: Padding(padding: padding, child: child),
   );
 }
