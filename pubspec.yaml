@@ -84,7 +84,7 @@ dev_dependencies:
   drift_dev: ^2.34.0
   flutter_launcher_icons: ^0.14.4
   freezed: 3.2.5
-  sqlite3: ^3.4.0
+  sqlite3: ^3.5.0
   msix: 3.18.0
 
 msix_config:
