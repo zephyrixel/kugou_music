@@ -16,6 +16,17 @@ class CachedResponses extends Table {
   Set<Column<Object>> get primaryKey => {cacheKey};
 }
 
+/// Durable player state, deliberately outside the disposable response cache.
+class StoredPlaybackQueues extends Table {
+  IntColumn get userId => integer()();
+  IntColumn get codecVersion => integer()();
+  TextColumn get payload => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {userId};
+}
+
 @DriftDatabase(
   tables: [
     StoredSongs,
@@ -25,14 +36,20 @@ class CachedResponses extends Table {
     StoredRecommendationProfiles,
     RecommendationSyncStates,
     CachedResponses,
+    StoredPlaybackQueues,
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(driftDatabase(name: 'kgmusic'));
-  AppDatabase.forTesting(super.executor);
+  AppDatabase({DateTime Function()? now})
+    : now = now ?? DateTime.now,
+      super(driftDatabase(name: 'kgmusic'));
+  AppDatabase.forTesting(super.executor, {DateTime Function()? now})
+    : now = now ?? DateTime.now;
+
+  final DateTime Function() now;
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   DateTime? _lastResponsePruneAt;
   int _responseWritesSincePrune = 0;
@@ -108,6 +125,17 @@ class AppDatabase extends _$AppDatabase {
         }
         await _createIndexes();
       }
+      if (from < 9) {
+        await migrator.createTable(storedPlaybackQueues);
+        await customStatement('''
+          INSERT OR REPLACE INTO stored_playback_queues
+            (user_id, codec_version, payload, updated_at)
+          SELECT account_user_id, codec_version, payload, updated_at
+          FROM cached_responses
+          WHERE cache_key = 'player/queue/v1/' || account_user_id
+        ''');
+        await deleteCachedResponsePrefix('player/queue/v1/');
+      }
     },
     beforeOpen: (details) async {
       // createAll() does not emit the indexes declared below.
@@ -142,7 +170,7 @@ class AppDatabase extends _$AppDatabase {
       cachedResponses,
     )..where((item) => item.cacheKey.equals(cacheKey))).getSingleOrNull();
     if (row == null) return null;
-    final now = DateTime.now();
+    final now = this.now();
     if (now.difference(row.lastAccessedAt) >= const Duration(hours: 1)) {
       await (update(cachedResponses)
             ..where((item) => item.cacheKey.equals(cacheKey)))
@@ -158,7 +186,7 @@ class AppDatabase extends _$AppDatabase {
     required String payload,
     DateTime? updatedAt,
   }) async {
-    final now = updatedAt ?? DateTime.now();
+    final now = updatedAt ?? this.now();
     await into(cachedResponses).insertOnConflictUpdate(
       CachedResponsesCompanion.insert(
         cacheKey: cacheKey,
@@ -204,7 +232,7 @@ class AppDatabase extends _$AppDatabase {
     int maxEntries = 500,
     Duration retention = const Duration(days: 30),
   }) async {
-    final cutoff = DateTime.now().subtract(retention);
+    final cutoff = now().subtract(retention);
     await (delete(
       cachedResponses,
     )..where((item) => item.lastAccessedAt.isSmallerThanValue(cutoff))).go();

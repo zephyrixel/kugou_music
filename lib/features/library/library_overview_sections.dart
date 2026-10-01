@@ -34,7 +34,7 @@ class LibraryHeader extends ConsumerWidget {
         tooltip: '立即同步',
         onPressed: sync?.syncing == true
             ? null
-            : () => unawaited(ref.read(libraryRepositoryProvider).syncNow()),
+            : () => unawaited(syncLibrary(context, ref)),
         icon: sync?.syncing == true
             ? const KgBusyIndicator(size: 20)
             : const Icon(Icons.sync_rounded),
@@ -114,4 +114,12 @@ class LibraryCollectionCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+Future<void> syncLibrary(BuildContext context, WidgetRef ref) async {
+  try {
+    await ref.read(libraryRepositoryProvider).syncNow();
+  } catch (_) {
+    if (context.mounted) showAppError(context, '音乐库同步失败，请稍后重试');
+  }
 }

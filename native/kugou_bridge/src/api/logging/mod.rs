@@ -1,3 +1,4 @@
+mod redaction;
 mod writer;
 
 use log::{Level, LevelFilter, Log, Metadata, Record};
@@ -73,7 +74,7 @@ impl NativeLogger {
             timestamp_ms: now_millis(),
             level: record.level(),
             target: record.target().to_owned(),
-            message,
+            message: redaction::redact(&message),
         };
         match self.sender.try_send(Command::Record(value)) {
             Ok(()) => {}

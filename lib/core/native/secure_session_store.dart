@@ -17,10 +17,10 @@ class SecureSessionStore {
     return value;
   }
 
-  Future<void> writeIfChanged(String value) {
+  Future<void> writeIfChanged(String value, {bool Function()? isCurrent}) {
     late final Future<void> next;
     next = _tail.catchError((_) {}).then((_) async {
-      if (_persistedValue == value) return;
+      if (isCurrent?.call() == false || _persistedValue == value) return;
       await _storage.write(key: key, value: value);
       _persistedValue = value;
     });

@@ -8,7 +8,7 @@ import 'package:kgmusic/core/native/music_sdk.dart';
 /// Local-first page cache for owned playlist tracks.
 class PlaylistTrackLoader {
   PlaylistTrackLoader(this._store, this._remote, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+    : _now = now ?? _store.database.now;
 
   static const freshFor = Duration(minutes: 15);
 
@@ -17,6 +17,7 @@ class PlaylistTrackLoader {
   final DateTime Function() _now;
   final Map<String, Future<SearchPage>> _pageLoads = {};
   final Map<String, Future<bool>> _fullLoads = {};
+  final Map<String, DateTime> _validatedPages = {};
   int _generation = 0;
 
   Stream<SearchPage> page(
@@ -25,6 +26,7 @@ class PlaylistTrackLoader {
     required int pageSize,
     required bool forceRefresh,
     required bool Function() isCurrent,
+    bool Function()? canCommit,
   }) async* {
     final playlist = await _store.playlist(localId);
     if (!isCurrent() || playlist == null) return;
@@ -33,6 +35,7 @@ class PlaylistTrackLoader {
       localId,
       page: page,
       pageSize: pageSize,
+      completeSnapshot: playlist.tracksLoaded,
     );
     if (!isCurrent()) return;
     final localPage = SearchPage(
@@ -52,29 +55,37 @@ class PlaylistTrackLoader {
     }
 
     final start = (page - 1) * pageSize;
-    final localCoversPage =
-        local.length == pageSize ||
-        (playlist.count <= start + local.length && local.isNotEmpty);
+    final key = '$localId/$page/$pageSize';
+    final validatedAt = _validatedPages[key];
+    if (!forceRefresh &&
+        validatedAt != null &&
+        _now().difference(validatedAt) < freshFor) {
+      if (local.isEmpty && !playlist.tracksLoaded) yield localPage;
+      return;
+    }
     final updatedAt = playlist.tracksUpdatedAt;
     final cacheFresh =
         updatedAt != null && _now().difference(updatedAt) < freshFor;
     if (!forceRefresh && playlist.tracksLoaded && cacheFresh) return;
-    if (!forceRefresh && localCoversPage && cacheFresh) return;
 
     try {
       final remote = await _coalescedPage(
         '$localId/$page/$pageSize',
         () => _remote.fetchTracksPage(playlist, page: page, pageSize: pageSize),
       );
+      if (!isCurrent() || canCommit?.call() == false) return;
+      await _store.database.transaction(() async {
+        if (!isCurrent() || canCommit?.call() == false) return;
+        await _store.replacePlaylistTrackPage(
+          localId,
+          remote.songs,
+          startPosition: start,
+          pageSize: pageSize,
+          totalCount: remote.total,
+        );
+      });
       if (!isCurrent()) return;
-      await _store.replacePlaylistTrackPage(
-        localId,
-        remote.songs,
-        startPosition: start,
-        pageSize: pageSize,
-        totalCount: remote.total,
-      );
-      if (!isCurrent()) return;
+      _validatedPages[key] = _now();
       final hasMore = _remoteHasNextPage(remote);
       // A terminal response for an arbitrary page is not proof that earlier
       // pages are present. Only page one (or an already complete snapshot)
@@ -133,11 +144,15 @@ class PlaylistTrackLoader {
         );
         if (!isCurrent() || generation != _generation) return false;
         total = response.total ?? total;
+        final previousCount = songs.length;
         for (final song in response.songs) {
           if (known.add(song.id)) songs.add(song);
         }
         if (!_remoteHasNextPage(response)) {
           break;
+        }
+        if (songs.length == previousCount) {
+          throw StateError('歌单分页未取得新数据');
         }
         page += 1;
       }
@@ -146,12 +161,19 @@ class PlaylistTrackLoader {
           canCommit?.call() == false) {
         return false;
       }
-      await _store.replacePlaylistTracksAtomic(
-        localId,
-        songs,
-        remoteTotalCount: total,
-      );
-      return true;
+      return _store.database.transaction(() async {
+        if (!isCurrent() ||
+            generation != _generation ||
+            canCommit?.call() == false) {
+          return false;
+        }
+        await _store.replacePlaylistTracksAtomic(
+          localId,
+          songs,
+          remoteTotalCount: total,
+        );
+        return true;
+      });
     }();
     _fullLoads[localId] = tracked;
     try {
@@ -177,7 +199,7 @@ class PlaylistTrackLoader {
     final existing = _pageLoads[key];
     if (existing != null) return existing;
     late final Future<SearchPage> tracked;
-    tracked = load().whenComplete(() {
+    tracked = Future<SearchPage>.sync(load).whenComplete(() {
       if (identical(_pageLoads[key], tracked)) _pageLoads.remove(key);
     });
     _pageLoads[key] = tracked;
@@ -188,5 +210,8 @@ class PlaylistTrackLoader {
     _generation += 1;
     _pageLoads.clear();
     _fullLoads.clear();
+    _validatedPages.clear();
   }
+
+  void invalidatePages() => _validatedPages.clear();
 }

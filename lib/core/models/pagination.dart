@@ -5,8 +5,14 @@ bool canLoadNextPage({
   required int lastPageItemCount,
   required int pageSize,
   int? total,
+  int? page,
+  bool? hasMore,
 }) {
-  if (total != null) return loadedItemCount < total;
+  if (lastPageItemCount == 0) return false;
+  if (hasMore != null) return hasMore;
+  if (total != null) {
+    return (page == null ? loadedItemCount : page * pageSize) < total;
+  }
   return lastPageItemCount >= pageSize;
 }
 
@@ -17,10 +23,12 @@ class PageSnapshot<T> {
     required this.page,
     required this.pageSize,
     this.total,
+    this.hasMore,
   });
 
   final List<T> items;
   final int page;
   final int pageSize;
   final int? total;
+  final bool? hasMore;
 }

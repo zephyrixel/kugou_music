@@ -4245,6 +4245,317 @@ class CachedResponsesCompanion extends UpdateCompanion<CachedResponse> {
   }
 }
 
+class $StoredPlaybackQueuesTable extends StoredPlaybackQueues
+    with TableInfo<$StoredPlaybackQueuesTable, StoredPlaybackQueue> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StoredPlaybackQueuesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<int> userId = GeneratedColumn<int>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _codecVersionMeta = const VerificationMeta(
+    'codecVersion',
+  );
+  @override
+  late final GeneratedColumn<int> codecVersion = GeneratedColumn<int>(
+    'codec_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    codecVersion,
+    payload,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'stored_playback_queues';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StoredPlaybackQueue> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('codec_version')) {
+      context.handle(
+        _codecVersionMeta,
+        codecVersion.isAcceptableOrUnknown(
+          data['codec_version']!,
+          _codecVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_codecVersionMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId};
+  @override
+  StoredPlaybackQueue map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StoredPlaybackQueue(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}user_id'],
+      )!,
+      codecVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}codec_version'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StoredPlaybackQueuesTable createAlias(String alias) {
+    return $StoredPlaybackQueuesTable(attachedDatabase, alias);
+  }
+}
+
+class StoredPlaybackQueue extends DataClass
+    implements Insertable<StoredPlaybackQueue> {
+  final int userId;
+  final int codecVersion;
+  final String payload;
+  final DateTime updatedAt;
+  const StoredPlaybackQueue({
+    required this.userId,
+    required this.codecVersion,
+    required this.payload,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<int>(userId);
+    map['codec_version'] = Variable<int>(codecVersion);
+    map['payload'] = Variable<String>(payload);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  StoredPlaybackQueuesCompanion toCompanion(bool nullToAbsent) {
+    return StoredPlaybackQueuesCompanion(
+      userId: Value(userId),
+      codecVersion: Value(codecVersion),
+      payload: Value(payload),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory StoredPlaybackQueue.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StoredPlaybackQueue(
+      userId: serializer.fromJson<int>(json['userId']),
+      codecVersion: serializer.fromJson<int>(json['codecVersion']),
+      payload: serializer.fromJson<String>(json['payload']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<int>(userId),
+      'codecVersion': serializer.toJson<int>(codecVersion),
+      'payload': serializer.toJson<String>(payload),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  StoredPlaybackQueue copyWith({
+    int? userId,
+    int? codecVersion,
+    String? payload,
+    DateTime? updatedAt,
+  }) => StoredPlaybackQueue(
+    userId: userId ?? this.userId,
+    codecVersion: codecVersion ?? this.codecVersion,
+    payload: payload ?? this.payload,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  StoredPlaybackQueue copyWithCompanion(StoredPlaybackQueuesCompanion data) {
+    return StoredPlaybackQueue(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      codecVersion: data.codecVersion.present
+          ? data.codecVersion.value
+          : this.codecVersion,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoredPlaybackQueue(')
+          ..write('userId: $userId, ')
+          ..write('codecVersion: $codecVersion, ')
+          ..write('payload: $payload, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(userId, codecVersion, payload, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StoredPlaybackQueue &&
+          other.userId == this.userId &&
+          other.codecVersion == this.codecVersion &&
+          other.payload == this.payload &&
+          other.updatedAt == this.updatedAt);
+}
+
+class StoredPlaybackQueuesCompanion
+    extends UpdateCompanion<StoredPlaybackQueue> {
+  final Value<int> userId;
+  final Value<int> codecVersion;
+  final Value<String> payload;
+  final Value<DateTime> updatedAt;
+  const StoredPlaybackQueuesCompanion({
+    this.userId = const Value.absent(),
+    this.codecVersion = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  StoredPlaybackQueuesCompanion.insert({
+    this.userId = const Value.absent(),
+    required int codecVersion,
+    required String payload,
+    required DateTime updatedAt,
+  }) : codecVersion = Value(codecVersion),
+       payload = Value(payload),
+       updatedAt = Value(updatedAt);
+  static Insertable<StoredPlaybackQueue> custom({
+    Expression<int>? userId,
+    Expression<int>? codecVersion,
+    Expression<String>? payload,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (codecVersion != null) 'codec_version': codecVersion,
+      if (payload != null) 'payload': payload,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  StoredPlaybackQueuesCompanion copyWith({
+    Value<int>? userId,
+    Value<int>? codecVersion,
+    Value<String>? payload,
+    Value<DateTime>? updatedAt,
+  }) {
+    return StoredPlaybackQueuesCompanion(
+      userId: userId ?? this.userId,
+      codecVersion: codecVersion ?? this.codecVersion,
+      payload: payload ?? this.payload,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<int>(userId.value);
+    }
+    if (codecVersion.present) {
+      map['codec_version'] = Variable<int>(codecVersion.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoredPlaybackQueuesCompanion(')
+          ..write('userId: $userId, ')
+          ..write('codecVersion: $codecVersion, ')
+          ..write('payload: $payload, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4263,6 +4574,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $CachedResponsesTable cachedResponses = $CachedResponsesTable(
     this,
   );
+  late final $StoredPlaybackQueuesTable storedPlaybackQueues =
+      $StoredPlaybackQueuesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4275,6 +4588,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     storedRecommendationProfiles,
     recommendationSyncStates,
     cachedResponses,
+    storedPlaybackQueues,
   ];
 }
 
@@ -6392,6 +6706,199 @@ typedef $$CachedResponsesTableProcessedTableManager =
       CachedResponse,
       PrefetchHooks Function()
     >;
+typedef $$StoredPlaybackQueuesTableCreateCompanionBuilder =
+    StoredPlaybackQueuesCompanion Function({
+      Value<int> userId,
+      required int codecVersion,
+      required String payload,
+      required DateTime updatedAt,
+    });
+typedef $$StoredPlaybackQueuesTableUpdateCompanionBuilder =
+    StoredPlaybackQueuesCompanion Function({
+      Value<int> userId,
+      Value<int> codecVersion,
+      Value<String> payload,
+      Value<DateTime> updatedAt,
+    });
+
+class $$StoredPlaybackQueuesTableFilterComposer
+    extends Composer<_$AppDatabase, $StoredPlaybackQueuesTable> {
+  $$StoredPlaybackQueuesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get codecVersion => $composableBuilder(
+    column: $table.codecVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$StoredPlaybackQueuesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StoredPlaybackQueuesTable> {
+  $$StoredPlaybackQueuesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get codecVersion => $composableBuilder(
+    column: $table.codecVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$StoredPlaybackQueuesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StoredPlaybackQueuesTable> {
+  $$StoredPlaybackQueuesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get codecVersion => $composableBuilder(
+    column: $table.codecVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$StoredPlaybackQueuesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StoredPlaybackQueuesTable,
+          StoredPlaybackQueue,
+          $$StoredPlaybackQueuesTableFilterComposer,
+          $$StoredPlaybackQueuesTableOrderingComposer,
+          $$StoredPlaybackQueuesTableAnnotationComposer,
+          $$StoredPlaybackQueuesTableCreateCompanionBuilder,
+          $$StoredPlaybackQueuesTableUpdateCompanionBuilder,
+          (
+            StoredPlaybackQueue,
+            BaseReferences<
+              _$AppDatabase,
+              $StoredPlaybackQueuesTable,
+              StoredPlaybackQueue
+            >,
+          ),
+          StoredPlaybackQueue,
+          PrefetchHooks Function()
+        > {
+  $$StoredPlaybackQueuesTableTableManager(
+    _$AppDatabase db,
+    $StoredPlaybackQueuesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StoredPlaybackQueuesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StoredPlaybackQueuesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$StoredPlaybackQueuesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> userId = const Value.absent(),
+                Value<int> codecVersion = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => StoredPlaybackQueuesCompanion(
+                userId: userId,
+                codecVersion: codecVersion,
+                payload: payload,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> userId = const Value.absent(),
+                required int codecVersion,
+                required String payload,
+                required DateTime updatedAt,
+              }) => StoredPlaybackQueuesCompanion.insert(
+                userId: userId,
+                codecVersion: codecVersion,
+                payload: payload,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$StoredPlaybackQueuesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StoredPlaybackQueuesTable,
+      StoredPlaybackQueue,
+      $$StoredPlaybackQueuesTableFilterComposer,
+      $$StoredPlaybackQueuesTableOrderingComposer,
+      $$StoredPlaybackQueuesTableAnnotationComposer,
+      $$StoredPlaybackQueuesTableCreateCompanionBuilder,
+      $$StoredPlaybackQueuesTableUpdateCompanionBuilder,
+      (
+        StoredPlaybackQueue,
+        BaseReferences<
+          _$AppDatabase,
+          $StoredPlaybackQueuesTable,
+          StoredPlaybackQueue
+        >,
+      ),
+      StoredPlaybackQueue,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6417,4 +6924,6 @@ class $AppDatabaseManager {
       );
   $$CachedResponsesTableTableManager get cachedResponses =>
       $$CachedResponsesTableTableManager(_db, _db.cachedResponses);
+  $$StoredPlaybackQueuesTableTableManager get storedPlaybackQueues =>
+      $$StoredPlaybackQueuesTableTableManager(_db, _db.storedPlaybackQueues);
 }

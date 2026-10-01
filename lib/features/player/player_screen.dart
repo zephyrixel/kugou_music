@@ -37,7 +37,7 @@ class PlayerScreen extends ConsumerWidget {
           forceMaterialTransparency: true,
           systemOverlayStyle: overlayStyle,
           titleSpacing: 4,
-          title: StreamBuilder<PlaybackQueueState>(
+          title: StreamBuilder<PlaybackQueueState?>(
             stream: handler.queueStateStream,
             initialData: handler.queueState,
             builder: (context, snapshot) => MediaQuery.withClampedTextScaling(

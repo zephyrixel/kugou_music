@@ -20,7 +20,7 @@ class SongFavoriteButton extends ConsumerWidget {
     final liked = favorite.value ?? false;
     return IconButton(
       tooltip: liked ? '取消喜欢' : '添加到我喜欢',
-      onPressed: favorite.isLoading
+      onPressed: favorite.isLoading || !ref.watch(libraryReadyProvider)
           ? null
           : () => toggleSongFavorite(context, ref, song),
       constraints: compact
@@ -42,7 +42,8 @@ Future<void> toggleSongFavorite(
   Song song,
 ) async {
   try {
-    await ref.read(libraryRepositoryProvider).toggleFavorite(song);
+    final liked = ref.read(songIsFavoriteProvider(song.id)).value ?? false;
+    await ref.read(libraryRepositoryProvider).setFavorite(song, liked: !liked);
   } catch (_) {
     if (context.mounted) showAppError(context, '未能更新“我喜欢”，请稍后重试');
   }

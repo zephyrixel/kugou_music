@@ -11,9 +11,110 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/player/audio_player_port.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
+import 'package:kgmusic/core/player/playback_queue.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('late song preparation preserves queue appends and edits', () async {
+    final sdk = _FakePlayerSdk();
+    final player = _FakeAudioPlayer();
+    final handler = _handler(sdk, player, []);
+    final source = _QueueSource();
+    final request = PlaybackQueueRequest(
+      origin: const PlaybackQueueOrigin(
+        kind: PlaybackQueueOriginKind.search,
+        title: 'Search',
+      ),
+      songs: const [songA, songB],
+      source: source,
+      hasMore: true,
+      nextPage: 2,
+      pageSize: 2,
+    );
+    await handler.playSong(songA, queueRequest: request);
+    sdk.controlled = true;
+    final switching = handler.skipToQueueItem(1);
+    await Future<void>.delayed(Duration.zero);
+    await handler.moveQueueItem(1, 0);
+    await handler.loadMoreQueue();
+    sdk.complete(songB, AudioQuality.standard);
+    await switching;
+    expect(handler.songs.map((song) => song.id), ['b', 'a', 'c']);
+    expect(handler.currentIndex, 0);
+    await handler.dispose();
+    await player.close();
+  });
+
+  test('failed end-of-queue prefetch stops until an explicit retry', () async {
+    final player = _FakeAudioPlayer();
+    final handler = _handler(_FakePlayerSdk(), player, []);
+    final source = _QueueSource()..failure = true;
+    await handler.playSong(
+      songA,
+      queueRequest: PlaybackQueueRequest(
+        origin: const PlaybackQueueOrigin(
+          kind: PlaybackQueueOriginKind.search,
+          title: 'Search',
+        ),
+        songs: const [songA],
+        source: source,
+        nextPage: 2,
+        hasMore: true,
+        pageSize: 1,
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(source.calls, 1);
+    expect(handler.queueState?.error, isNotNull);
+    source.failure = false;
+    await handler.loadMoreQueue();
+    expect(source.calls, 2);
+    expect(handler.queueState?.error, isNull);
+    await handler.dispose();
+    await player.close();
+  });
+
+  test(
+    'clearing a queue publishes an empty state to existing listeners',
+    () async {
+      final player = _FakeAudioPlayer();
+      final handler = _handler(_FakePlayerSdk(), player, []);
+      await handler.playSong(songA);
+      final empty = handler.queueStateStream.firstWhere(
+        (state) => state == null,
+      );
+      await handler.clearQueue();
+      expect(await empty, isNull);
+      expect(handler.songs, isEmpty);
+      await handler.dispose();
+      await player.close();
+    },
+  );
+
+  test(
+    'preview bounds apply again after replay and clamp system seeks',
+    () async {
+      final sdk = _FakePlayerSdk()..preview = true;
+      final player = _FakeAudioPlayer();
+      final handler = _handler(sdk, player, []);
+      await handler.playSong(songA);
+      player.emitPosition(const Duration(seconds: 1));
+      await Future<void>.delayed(Duration.zero);
+      expect(player.playing, isFalse);
+      await handler.play();
+      expect(player.position, Duration.zero);
+      expect(player.playing, isTrue);
+      player.emitPosition(const Duration(seconds: 1));
+      await Future<void>.delayed(Duration.zero);
+      expect(player.playing, isFalse);
+      await handler.seek(const Duration(seconds: 20));
+      expect(player.position, const Duration(seconds: 1));
+      expect(player.playing, isFalse);
+      await handler.dispose();
+      await player.close();
+    },
+  );
 
   test('stale playback preparation cannot replace a newer song', () async {
     final sdk = _FakePlayerSdk()..controlled = true;
@@ -179,6 +280,7 @@ MusicAudioHandler _handler(
 class _FakePlayerSdk implements PlayerSdk {
   bool controlled = false;
   bool unavailable = false;
+  bool preview = false;
   final Map<String, Completer<PlaybackResolution>> _resolutions = {};
   final List<AudioQuality> requestedQualities = [];
 
@@ -198,12 +300,17 @@ class _FakePlayerSdk implements PlayerSdk {
     return (_resolutions[song.id] ??= Completer()).future;
   }
 
-  PlayableResolution _resolution(Song song, AudioQuality quality) =>
-      PlayableResolution(
-        url: 'https://audio.example/${song.id}/${quality.name}.mp3',
-        quality: quality,
-        durationSecs: 180,
-      );
+  PlayableResolution _resolution(Song song, AudioQuality quality) => preview
+      ? PreviewResolution(
+          url: 'https://audio.example/${song.id}.mp3',
+          quality: quality,
+          endMs: 1000,
+        )
+      : PlayableResolution(
+          url: 'https://audio.example/${song.id}/${quality.name}.mp3',
+          quality: quality,
+          durationSecs: 180,
+        );
 
   @override
   Future<void> initialize() async {}
@@ -363,3 +470,25 @@ const songB = Song(
   title: 'B',
   hashes: AudioHashes(standard: 'b', high: 'b-high'),
 );
+
+class _QueueSource implements PlaybackQueueSource {
+  int calls = 0;
+  bool failure = false;
+  @override
+  Future<PlaybackQueuePage> loadPage(PlaybackQueueLoadRequest request) async {
+    calls++;
+    if (failure) throw StateError('offline');
+    return PlaybackQueuePage(
+      page: request.page,
+      pageSize: request.songs.length,
+      songs: const [
+        Song(
+          id: 'c',
+          title: 'C',
+          hashes: AudioHashes(standard: 'c'),
+        ),
+      ],
+      hasMore: false,
+    );
+  }
+}

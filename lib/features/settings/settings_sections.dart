@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/formatters.dart';
-import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/models/playback.dart';
 import 'package:kgmusic/core/preferences/app_settings.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_settings_group.dart';

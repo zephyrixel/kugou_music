@@ -26,7 +26,7 @@ class _PlayerQueueSheet extends StatelessWidget {
   Widget build(BuildContext context) => SafeArea(
     child: SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.78,
-      child: StreamBuilder<PlaybackQueueState>(
+      child: StreamBuilder<PlaybackQueueState?>(
         stream: handler.queueStateStream,
         initialData: handler.queueState,
         builder: (context, snapshot) {

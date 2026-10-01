@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:kgmusic/core/logging/log_redaction.dart';
 
 import 'package:kgmusic/core/logging/app_log_level.dart';
 
@@ -26,9 +27,9 @@ class AppLogEntry {
     'level': level.name,
     'source': source,
     'target': target,
-    'message': message,
-    if (error != null) 'error': error,
-    if (stackTrace != null) 'stackTrace': stackTrace,
+    'message': redactLogText(message),
+    if (error != null) 'error': redactLogText(error!),
+    if (stackTrace != null) 'stackTrace': redactLogText(stackTrace!),
   });
 
   static AppLogEntry? tryParse(String line) {

@@ -125,12 +125,12 @@ class RecommendationProfileStore {
     final syncState = await (_database.select(
       _database.librarySyncStates,
     )..where((row) => row.singletonId.equals(1))).getSingleOrNull();
-    final favorite =
-        syncState?.userId == userId && syncState?.baselineComplete == true
-        ? await (_database.select(
-            _database.storedPlaylists,
-          )..where((row) => row.isMyFavorite.equals(true))).getSingleOrNull()
-        : null;
+    if (syncState?.userId != userId || syncState?.baselineComplete != true) {
+      return const RecommendationProfileSnapshot.notReady();
+    }
+    final favorite = await (_database.select(
+      _database.storedPlaylists,
+    )..where((row) => row.isMyFavorite.equals(true))).getSingleOrNull();
     if (favorite != null && !favorite.tracksLoaded) {
       return const RecommendationProfileSnapshot.notReady();
     }
@@ -153,7 +153,7 @@ class RecommendationProfileStore {
       final fallbackTime =
           (favorite.fullSnapshotUpdatedAt ??
                   favorite.tracksUpdatedAt ??
-                  DateTime.now())
+                  _database.now())
               .millisecondsSinceEpoch;
       for (final row in await query.get()) {
         final song = row.readTable(_database.storedSongs);

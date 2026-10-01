@@ -32,6 +32,128 @@ void main() {
     await database.close();
   });
 
+  test(
+    'two quick favorite toggles serialize and restore the final count',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      await library.ensureFavoriteIndex();
+      final gate = Completer<void>();
+      sdk.addGate = gate;
+      sdk.addStarted = Completer<void>();
+      final first = library.toggleFavorite(localSong);
+      await sdk.addStarted!.future;
+      final second = library.toggleFavorite(localSong);
+      gate.complete();
+      await Future.wait([first, second]);
+      expect(await store.watchFavoriteSongs().first, isEmpty);
+      expect((await store.favoritePlaylist())!.count, 0);
+      expect(sdk.calls, ['add:2:${localSong.id}', 'remove:2:900']);
+    },
+  );
+
+  test(
+    'a queued unlike keeps its intent when the earlier like fails',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      await library.ensureFavoriteIndex();
+      sdk.addGate = Completer<void>();
+      sdk.addStarted = Completer<void>();
+      final first = expectLater(
+        library.setFavorite(localSong, liked: true),
+        throwsStateError,
+      );
+      await sdk.addStarted!.future;
+      final second = library.setFavorite(localSong, liked: false);
+      sdk.addGate!.completeError(StateError('offline'));
+      await first;
+      await second;
+      expect(await store.watchFavoriteSongs().first, isEmpty);
+      expect((await store.favoritePlaylist())!.count, 0);
+    },
+  );
+
+  test(
+    'a failed mutation after logout cannot restore the old library',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      await library.ensureFavoriteIndex();
+      sdk.addGate = Completer<void>();
+      sdk.addStarted = Completer<void>();
+      final mutation = expectLater(
+        library.toggleFavorite(localSong),
+        throwsStateError,
+      );
+      await sdk.addStarted!.future;
+      await library.deactivate();
+      sdk.addGate!.completeError(StateError('offline'));
+      await mutation;
+      expect(await store.watchFavoriteSongs().first, isEmpty);
+      expect(await store.watchPlaylists().first, isEmpty);
+    },
+  );
+
+  test(
+    'sync metadata cannot delete a playlist created while the pull was pending',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      sdk.historyGate = Completer<void>();
+      sdk.historyStarted = Completer<void>();
+      final sync = library.syncNow();
+      await sdk.historyStarted!.future;
+      final localId = await library.createPlaylist('New', private: false);
+      sdk.historyGate!.complete();
+      await sync;
+      await library.syncNow();
+      expect((await store.playlist(localId))?.name, 'New');
+    },
+  );
+
+  test(
+    'library sync updates the singleton instead of inserting extra state rows',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      await library.syncNow();
+      expect(
+        await database.select(database.librarySyncStates).get(),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'removal resolves the target playlist fileId instead of using input context',
+    () async {
+      sdk.playlists = const [_favoritePlaylist, _customPlaylist];
+      sdk.tracksByListId[4] = const [remoteSong];
+      await library.activate(99);
+      await store.replacePlaylistTracksAtomic('remote:4', const [
+        Song(
+          id: 'remote-1',
+          title: 'Target',
+          mixSongId: 420,
+          hashes: AudioHashes(standard: 'hash-remote'),
+        ),
+      ], remoteTotalCount: 1);
+      await library.removeSong(
+        'remote:4',
+        const Song(
+          id: 'remote-1',
+          title: 'Other playlist',
+          mixSongId: 420,
+          fileId: 999,
+          hashes: AudioHashes(standard: 'hash-remote'),
+        ),
+      );
+      expect(sdk.calls, contains('remove:4:420'));
+      expect(sdk.calls, isNot(contains('remove:4:999')));
+    },
+  );
+
   test('first activation replaces local state with cloud baseline', () async {
     sdk.playlists = const [_favoritePlaylist];
     sdk.tracksByListId[2] = const [remoteSong];
@@ -253,6 +375,53 @@ void main() {
     expect(history.last.song.mixSongId, 100);
   });
 
+  test(
+    'history walks past 100 old entries and retains the newest 100',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      sdk.historyPages[null] = HistoryPage(
+        items: [
+          for (var i = 0; i < 100; i++)
+            _historyEntry(
+              i + 1,
+              DateTime.utc(2026, 1, 1).add(Duration(minutes: i)),
+            ),
+        ],
+        hasMore: true,
+        cursor: 'new',
+      );
+      sdk.historyPages['new'] = HistoryPage(
+        items: [_historyEntry(101, DateTime.utc(2026, 2, 1))],
+        hasMore: false,
+      );
+      await library.activate(99);
+      final history = await store.watchHistory().first;
+      expect(history.length, 100);
+      expect(history.first.song.mixSongId, 101);
+      expect(history.any((entry) => entry.song.mixSongId == 1), isFalse);
+    },
+  );
+
+  test(
+    'cloud history cannot move a more recent local play backwards',
+    () async {
+      sdk.playlists = const [_favoritePlaylist];
+      await library.activate(99);
+      await store.recordPlayed(remoteSong, playedAt: DateTime.utc(2030));
+      sdk.historyItems = [
+        HistoryEntry(
+          song: remoteSong,
+          playedAt: DateTime.utc(2026),
+          playCount: 0,
+        ),
+      ];
+      await library.syncNow();
+      final latest = (await store.watchHistory().first).single;
+      expect(latest.playedAt.toUtc(), DateTime.utc(2030));
+      expect(latest.playCount, 1);
+    },
+  );
+
   test('stale account baseline cannot overwrite the active account', () async {
     sdk.playlists = const [_favoritePlaylist];
     final gate = Completer<void>();
@@ -420,6 +589,10 @@ class _FakeMusicSdk implements LibrarySdk {
   int cloudPlaylistCalls = 0;
   final List<HistoryUpload> historyUploads = [];
   bool addShouldFail = false;
+  Completer<void>? addGate;
+  Completer<void>? addStarted;
+  Completer<void>? historyGate;
+  Completer<void>? historyStarted;
 
   /// When set, [playlistTracks] slices [tracksByListId] into pages of this size.
   int? tracksPageSize;
@@ -431,6 +604,10 @@ class _FakeMusicSdk implements LibrarySdk {
 
   @override
   Future<HistoryPage> cloudHistory({String? cursor}) async {
+    if (historyGate != null) {
+      if (!historyStarted!.isCompleted) historyStarted!.complete();
+      await historyGate!.future;
+    }
     if (historyPages.isNotEmpty) {
       return historyPages[cursor] ??
           const HistoryPage(items: [], hasMore: false);
@@ -525,6 +702,17 @@ class _FakeMusicSdk implements LibrarySdk {
     required bool private,
   }) async {
     calls.add('create:$name');
+    playlists = [
+      ...playlists,
+      Playlist(
+        name: name,
+        isPrivate: private,
+        isMyFavorite: false,
+        isDefaultCollect: false,
+        listId: 88,
+        globalCollectionId: 'gid-88',
+      ),
+    ];
     return const PlaylistMutation(listId: 88, globalCollectionId: 'gid-88');
   }
 
@@ -555,6 +743,10 @@ class _FakeMusicSdk implements LibrarySdk {
     int listId,
     Song song,
   ) async {
+    if (addGate != null) {
+      if (!addStarted!.isCompleted) addStarted!.complete();
+      await addGate!.future;
+    }
     if (addShouldFail) throw StateError('add failed');
     calls.add('add:$listId:${song.id}');
     return const PlaylistTracksMutation(fileIds: [900]);

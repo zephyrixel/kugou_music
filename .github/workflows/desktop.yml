@@ -22,8 +22,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  checks:
+    if: github.event_name == 'workflow_dispatch' || github.event.deleted != true
+    uses: ./.github/workflows/checks.yml
+
   validation:
     name: Validate release
+    needs: checks
     if: github.event_name == 'workflow_dispatch' || github.event.deleted != true
     runs-on: ubuntu-24.04
     outputs:
@@ -84,30 +89,6 @@ jobs:
           echo "msix_version=$build_name.$build" >> "$GITHUB_OUTPUT"
           echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - uses: dtolnay/rust-toolchain@3a8b2ad3ea1212417907ff0e1b3d0c4e121bef40 # 1.94.0
-      - name: Install test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libmpv-dev libsecret-1-dev
-      - run: flutter pub get
-      - name: Verify generated Rust license notices
-        shell: bash
-        run: |
-          dart run tool/generate_rust_notices.dart \
-            --output "$RUNNER_TEMP/THIRD_PARTY_RUST_NOTICES.txt"
-          if ! cmp --silent THIRD_PARTY_RUST_NOTICES.txt \
-            "$RUNNER_TEMP/THIRD_PARTY_RUST_NOTICES.txt"; then
-            echo '::error::THIRD_PARTY_RUST_NOTICES.txt is stale. Run dart run tool/generate_rust_notices.dart.'
-            exit 1
-          fi
-      - run: flutter analyze
-      - run: flutter test
-      - run: cargo test --manifest-path native/kugou_bridge/Cargo.toml
 
   prepare_release:
     name: Prepare draft GitHub release

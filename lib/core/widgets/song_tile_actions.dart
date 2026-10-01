@@ -4,6 +4,7 @@ import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/add_to_playlist_button.dart';
 import 'package:kgmusic/core/widgets/song_favorite_button.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 
 enum _SongAction { favorite, addToPlaylist, remove }
 
@@ -23,6 +24,7 @@ class SongTileActions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final favorite = ref.watch(songIsFavoriteProvider(song.id));
     final liked = favorite.value ?? false;
+    final ready = ref.watch(libraryReadyProvider);
     return SizedBox.square(
       dimension: 40,
       child: PopupMenuButton<_SongAction>(
@@ -37,13 +39,17 @@ class SongTileActions extends ConsumerWidget {
             case _SongAction.addToPlaylist:
               await showAddToPlaylist(context, ref, song);
             case _SongAction.remove:
-              await onRemove?.call();
+              try {
+                await onRemove?.call();
+              } catch (_) {
+                if (context.mounted) showAppError(context, '未能移除歌曲，请稍后重试');
+              }
           }
         },
         itemBuilder: (context) => [
           PopupMenuItem(
             value: _SongAction.favorite,
-            enabled: !favorite.isLoading,
+            enabled: !favorite.isLoading && ready,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(
@@ -52,8 +58,9 @@ class SongTileActions extends ConsumerWidget {
               title: Text(liked ? '取消喜欢' : '添加到我喜欢'),
             ),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: _SongAction.addToPlaylist,
+            enabled: ready,
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.playlist_add_rounded),

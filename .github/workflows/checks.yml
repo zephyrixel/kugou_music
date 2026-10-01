@@ -1,0 +1,47 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.44.1'
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@3a8b2ad3ea1212417907ff0e1b3d0c4e121bef40 # 1.94.0
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmpv-dev libsecret-1-dev
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub
+      - run: cargo fmt --manifest-path native/kugou_bridge/Cargo.toml --all --check
+      - run: cargo clippy --manifest-path native/kugou_bridge/Cargo.toml --locked --all-targets -- -D warnings
+      - run: cargo test --manifest-path native/kugou_bridge/Cargo.toml --locked
+      - name: Verify Rust license notices
+        run: |
+          dart run tool/generate_rust_notices.dart --output "$RUNNER_TEMP/THIRD_PARTY_RUST_NOTICES.txt"
+          cmp THIRD_PARTY_RUST_NOTICES.txt "$RUNNER_TEMP/THIRD_PARTY_RUST_NOTICES.txt"
+      - run: flutter build apk --debug --target-platform android-arm64

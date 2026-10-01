@@ -57,6 +57,46 @@ void main() {
     expect(entries.single.message, isNot(contains('123456')));
   });
 
+  test(
+    'JSON credentials and full authorization values are redacted before encoding',
+    () async {
+      AppLog.info(
+        'body={"token":"json-secret","dfid":"device-secret","code":20017,"sms":{"code":"123456"}}',
+      );
+      AppLog.warn('Authorization: Bearer bearer-secret');
+      await store.flush();
+      final entries = await store.readEntries();
+      expect(entries.length, 2);
+      expect(entries.any((e) => e.message.contains('123456')), isFalse);
+      expect(entries.any((e) => e.message.contains('secret')), isFalse);
+      expect(entries.any((e) => e.message.contains('20017')), isTrue);
+    },
+  );
+
+  test(
+    'a burst of logs has bounded pending writes and reports dropped entries',
+    () async {
+      await Future.wait([
+        for (var i = 0; i < 1000; i++)
+          store.append(
+            AppLogEntry(
+              timestamp: DateTime.fromMillisecondsSinceEpoch(i),
+              level: AppLogLevel.debug,
+              source: 'flutter',
+              target: 'test',
+              message: 'entry-$i',
+            ),
+          ),
+      ]);
+      final all = await store.readEntries();
+      expect(all.length, lessThanOrEqualTo(257));
+      expect(all.any((e) => e.message.contains('丢弃')), isTrue);
+      final recent = await store.readEntries(limit: 3);
+      expect(recent.length, 3);
+      expect(recent.first.timestamp, all.first.timestamp);
+    },
+  );
+
   test('configured level filters verbose records', () async {
     AppLog.setLevel(AppLogLevel.warn);
     AppLog.info('hidden', target: 'test');

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:kgmusic/core/auth/account_session.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show ChangeNotifierProvider;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -24,6 +26,12 @@ import 'package:kgmusic/core/recommendation/recommendation_playback.dart';
 import 'package:kgmusic/core/recommendation/recommendation_reporter.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 import 'package:kgmusic/features/auth/auth_controller.dart';
+
+final accountSessionProvider = Provider<AccountSession>((ref) {
+  final session = AccountSession();
+  ref.onDispose(() => unawaited(session.dispose()));
+  return session;
+});
 
 final musicSdkProvider = Provider<MusicSdk>(
   (ref) => throw UnimplementedError('musicSdkProvider must be overridden'),
@@ -115,17 +123,25 @@ final authControllerProvider = ChangeNotifierProvider<AuthController>((ref) {
     ref.watch(secureStorageProvider),
     ref.watch(databaseProvider),
     ref.watch(libraryRepositoryProvider),
-    onSessionCleared: () => ref.watch(audioHandlerProvider).clearQueue(),
+    accountSession: ref.watch(accountSessionProvider),
+    onSessionCleared: () => ref.read(audioHandlerProvider).clearQueue(),
   );
   unawaited(controller.initialize());
   return controller;
 });
 
 final dailyRecommendationsProvider = StreamProvider<List<Song>>((ref) {
-  final auth = ref.watch(authControllerProvider);
+  final userId = ref.watch(
+    authControllerProvider.select((auth) => auth.snapshot.userId),
+  );
   return ref
       .watch(musicRepositoryProvider)
-      .everydayRecommendations(userId: auth.snapshot.userId);
+      .everydayRecommendations(userId: userId);
+});
+
+final libraryReadyProvider = Provider<bool>((ref) {
+  ref.watch(librarySyncStatusProvider);
+  return ref.watch(libraryRepositoryProvider).ready;
 });
 
 final favoriteSongsProvider = StreamProvider<List<Song>>(
@@ -165,15 +181,17 @@ final librarySyncStatusProvider = StreamProvider<LibrarySyncStatus>(
 );
 
 final userProfileProvider = StreamProvider<UserProfile>((ref) {
-  final auth = ref.watch(authControllerProvider);
-  final userId = auth.snapshot.userId;
+  final userId = ref.watch(
+    authControllerProvider.select((auth) => auth.snapshot.userId),
+  );
   if (userId == null) return const Stream.empty();
   return ref.watch(musicRepositoryProvider).userProfile(userId);
 });
 
 final userVipProvider = StreamProvider<UserVip>((ref) {
-  final auth = ref.watch(authControllerProvider);
-  final userId = auth.snapshot.userId;
+  final userId = ref.watch(
+    authControllerProvider.select((auth) => auth.snapshot.userId),
+  );
   if (userId == null) return const Stream.empty();
   return ref.watch(musicRepositoryProvider).userVip(userId);
 });

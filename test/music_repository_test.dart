@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/native.dart';
+import 'package:kgmusic/core/auth/account_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/cache/music_repository.dart';
 import 'package:kgmusic/core/database/app_database.dart';
@@ -20,6 +21,59 @@ void main() {
     id: 'fresh',
     title: 'Fresh',
     hashes: AudioHashes(standard: 'fresh-hash'),
+  );
+
+  test('synchronous SDK failures preserve their original error', () async {
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final failure = StateError('transport');
+    final remote = _FakeMusicSdk(() => throw failure);
+    final repository = MusicRepository(remote, database);
+    await expectLater(
+      repository.everydayRecommendations(userId: 7).last,
+      throwsA(same(failure)),
+    );
+  });
+
+  test(
+    'a response from a previous session cannot refill account cache',
+    () async {
+      final database = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(database.close);
+      final session = AccountSession()
+        ..update(
+          const AuthSnapshot(
+            authenticated: true,
+            fingerprintRegistered: true,
+            userId: 7,
+          ),
+        );
+      addTearDown(session.dispose);
+      final result = Completer<List<Song>>();
+      final started = Completer<void>();
+      final repository = MusicRepository(
+        _FakeMusicSdk(() {
+          started.complete();
+          return result.future;
+        }),
+        database,
+        accountSession: session,
+      );
+      final values = repository.everydayRecommendations(userId: 7).toList();
+      await started.future;
+      session.invalidate();
+      await database.clearAccountCache();
+      session.update(
+        const AuthSnapshot(
+          authenticated: true,
+          fingerprintRegistered: true,
+          userId: 7,
+        ),
+      );
+      result.complete(const [freshSong]);
+      expect(await values, isEmpty);
+      expect(await database.readCachedResponse('v1/user/7/daily'), isNull);
+    },
   );
 
   test('repository emits cached data before the refreshed response', () async {
@@ -104,9 +158,12 @@ void main() {
   test(
     'fresh cache suppresses repeated network requests until its TTL expires',
     () async {
-      final database = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(database.close);
       var now = DateTime.utc(2026, 7, 16, 8);
+      final database = AppDatabase.forTesting(
+        NativeDatabase.memory(),
+        now: () => now,
+      );
+      addTearDown(database.close);
       final remote = _FakeMusicSdk(() async => const [freshSong]);
       final repository = MusicRepository(remote, database, now: () => now);
 

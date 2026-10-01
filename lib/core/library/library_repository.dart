@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:kgmusic/core/auth/account_session.dart';
 
 import 'package:kgmusic/core/library/library_models.dart';
 import 'package:kgmusic/core/library/library_remote.dart';
@@ -18,11 +19,13 @@ class LibraryRepository {
     LibraryRemote remote, {
     RecommendationReporter? recommendationReporter,
     DateTime Function()? now,
+    AccountSession? accountSession,
   }) : _store = store,
        _remote = remote,
        _reporter = recommendationReporter,
-       _now = now ?? DateTime.now,
-       _trackLoader = PlaylistTrackLoader(store, remote, now: now);
+       _now = now ?? store.database.now,
+       _trackLoader = PlaylistTrackLoader(store, remote, now: now),
+       _session = accountSession;
 
   static const syncCooldown = Duration(minutes: 5);
 
@@ -31,6 +34,7 @@ class LibraryRepository {
   final RecommendationReporter? _reporter;
   final DateTime Function() _now;
   final PlaylistTrackLoader _trackLoader;
+  final AccountSession? _session;
 
   final StreamController<LibrarySyncStatus> _statuses =
       StreamController.broadcast(sync: true);
@@ -42,6 +46,13 @@ class LibraryRepository {
   int? _runningGeneration;
   Future<bool>? _favoriteIndexLoad;
   bool _disposed = false;
+  bool _ready = false;
+  int _activeMutations = 0;
+  bool _resyncRequested = false;
+  final Map<String, Future<void>> _mutations = {};
+
+  bool get ready => _ready && _userId != null && !_disposed;
+  DateTime Function() get now => _now;
 
   Stream<List<Playlist>> watchPlaylists() => _store.watchPlaylists();
   Stream<List<Song>> watchFavorites() => _store.watchFavoriteSongs();
@@ -55,7 +66,7 @@ class LibraryRepository {
     required int page,
     int pageSize = LibraryRemote.pageSize,
   }) async {
-    return loadPlaylistPage(localId, page: page, pageSize: pageSize).first;
+    return loadPlaylistPage(localId, page: page, pageSize: pageSize).last;
   }
 
   Stream<SearchPage> loadPlaylistPage(
@@ -67,12 +78,14 @@ class LibraryRepository {
     final generation = _generation;
     final userId = _userId;
     if (userId == null) return const Stream.empty();
+    final version = _membershipVersion;
     return _trackLoader.page(
       localId,
       page: page,
       pageSize: pageSize,
       forceRefresh: forceRefresh,
       isCurrent: () => _isCurrent(generation, userId),
+      canCommit: () => version == _membershipVersion && _activeMutations == 0,
     );
   }
 
@@ -88,6 +101,10 @@ class LibraryRepository {
     _favoriteIndexLoad = null;
     _trackLoader.cancelAll();
     final generation = ++_generation;
+    _ready = false;
+    _activeMutations = 0;
+    _mutations.clear();
+    _resyncRequested = false;
     _userId = userId;
     final state = await _store.syncState;
     if (!_isCurrent(generation, userId)) return;
@@ -101,6 +118,7 @@ class LibraryRepository {
       await _sync(generation, userId, wipe: true);
       return;
     }
+    _ready = true;
     final cachedState = state!;
     _emit(
       LibrarySyncStatus(
@@ -116,10 +134,12 @@ class LibraryRepository {
   }
 
   Future<void> deactivate() async {
-    await _reporter?.deactivate();
-    _trackLoader.cancelAll();
     _generation += 1;
     _userId = null;
+    _ready = false;
+    _resyncRequested = false;
+    _trackLoader.cancelAll();
+    await _reporter?.deactivate();
     _favoriteIndexLoad = null;
     await _store.clearLibrary();
     if (!_disposed) _emit(const LibrarySyncStatus.idle());
@@ -162,19 +182,27 @@ class LibraryRepository {
           );
           try {
             AppLog.info('开始同步音乐库 wipe=$wipe', target: 'library.sync');
+            final version = _membershipVersion;
             final playlists = await _remote.fetchAllPlaylists();
             if (!_isCurrent(generation, userId)) return;
             final history = await _remote.fetchHistory();
             if (!_isCurrent(generation, userId)) return;
-            if (wipe) {
-              await _store.clearLibrary();
-              if (!_isCurrent(generation, userId)) return;
-            }
-            await _store.replaceLibrary(
-              userId: userId,
-              playlists: playlists,
-              history: history,
-            );
+            final committed = await _store.database.transaction(() async {
+              if (!_isCurrent(generation, userId)) return false;
+              if (version != _membershipVersion || _activeMutations != 0) {
+                _resyncRequested = true;
+                return false;
+              }
+              if (wipe) await _store.clearLibrary();
+              await _store.replaceLibrary(
+                userId: userId,
+                playlists: playlists,
+                history: history,
+              );
+              return true;
+            });
+            if (!committed) return;
+            _ready = true;
             if (!_isCurrent(generation, userId)) return;
             await _store.setSyncResult(userId: userId);
             if (!_isCurrent(generation, userId)) return;
@@ -206,6 +234,7 @@ class LibraryRepository {
           if (identical(_running, tracked)) {
             _running = null;
             _runningGeneration = null;
+            _resumePendingSync();
           }
         });
     _running = tracked;
@@ -284,135 +313,173 @@ class LibraryRepository {
     );
   }
 
-  Future<void> toggleFavorite(Song song) async {
+  Future<void> toggleFavorite(Song song) => _changeFavorite(song, null);
+
+  /// Preserve the user's requested state even if an earlier queued write rolls back.
+  Future<void> setFavorite(Song song, {required bool liked}) =>
+      _changeFavorite(song, liked);
+
+  Future<void> _changeFavorite(
+    Song song,
+    bool? desired,
+  ) => _mutate('favorites', (isCurrent) async {
     var favorite = await _store.favoritePlaylist();
     if (favorite != null && !favorite.tracksLoaded) {
-      final ready = await ensureFavoriteIndex(force: true);
-      if (!ready) throw StateError('“我喜欢”索引尚未准备完成');
+      // The operation itself is serialized; index loading must remain able to commit.
+      final loaded = await ensureFavoriteIndex(force: true);
+      if (!loaded) throw StateError('“我喜欢”索引尚未准备完成');
       favorite = await _store.favoritePlaylist();
     }
     if (favorite?.localId == null || favorite?.listId == null) {
       throw StateError('账号没有可用的“我喜欢”歌单');
     }
+    if (!isCurrent()) return;
     final present = await _store.isTrackMember(favorite!.localId!, song.id);
-    await _setMembership(favorite, song, present: !present);
-  }
+    await _setMembership(
+      favorite,
+      song,
+      present: desired ?? !present,
+      isCurrent: isCurrent,
+    );
+  });
 
-  Future<void> addSong(String playlistLocalId, Song song) async {
-    final playlist = await _store.playlist(playlistLocalId);
-    if (playlist == null) throw StateError('歌单不存在');
-    await _setMembership(playlist, song, present: true);
-  }
+  Future<void> addSong(String playlistLocalId, Song song) =>
+      _mutatePlaylist(playlistLocalId, song, true);
 
-  Future<void> removeSong(String playlistLocalId, Song song) async {
-    final playlist = await _store.playlist(playlistLocalId);
+  Future<void> removeSong(String playlistLocalId, Song song) =>
+      _mutatePlaylist(playlistLocalId, song, false);
+
+  Future<void> _mutatePlaylist(String localId, Song song, bool present) async {
+    final generation = _generation;
+    final playlist = await _store.playlist(localId);
+    if (_generation != generation) throw StateError('账号已切换');
     if (playlist == null) throw StateError('歌单不存在');
-    await _setMembership(playlist, song, present: false);
+    return _mutate(
+      playlist.isMyFavorite ? 'favorites' : localId,
+      (isCurrent) => _setMembership(
+        playlist,
+        song,
+        present: present,
+        isCurrent: isCurrent,
+      ),
+    );
   }
 
   Future<void> _setMembership(
     Playlist playlist,
     Song song, {
     required bool present,
+    required bool Function() isCurrent,
   }) async {
-    _membershipVersion += 1;
     final localId = playlist.localId!;
     final listId = playlist.listId;
-    if (listId == null) {
-      throw StateError('歌单尚未绑定云端 ID');
-    }
-
-    final snapshot = await _store.setTrackMembershipLocal(
-      localId,
-      song,
-      present: present,
+    if (listId == null || !playlist.isWritable) throw StateError('歌单不可修改');
+    final snapshot = await _write(
+      isCurrent,
+      () => _store.setTrackMembershipLocal(localId, song, present: present),
     );
-    if (snapshot.wasPresent == present) return;
-
+    if (snapshot.wasPresent == present || !isCurrent()) return;
     try {
       if (present) {
         final result = await _remote.addSong(listId, song);
-        await _store.markTrackFileId(
-          localId,
-          song.id,
-          fileId: result.fileIds.firstOrNull,
+        await _write(
+          isCurrent,
+          () => _store.markTrackFileId(
+            localId,
+            song.id,
+            fileId: result.fileIds.firstOrNull,
+          ),
         );
       } else {
-        var fileId = snapshot.fileId ?? song.fileId;
-        fileId ??= await _remote.findTrackFileId(listId, song);
-        if (fileId == null) {
-          throw StateError('无法取得删除所需的 fileId');
-        }
+        final fileId =
+            snapshot.fileId ?? await _remote.findTrackFileId(listId, song);
+        if (!isCurrent()) return;
+        if (fileId == null) throw StateError('无法取得删除所需的 fileId');
         await _remote.removeSong(listId, fileId);
       }
-      _reporter?.reportFavoriteChanged(song, liked: present);
-    } catch (error) {
-      await _store.restoreTrackMembership(
-        localId,
-        song,
-        present: snapshot.wasPresent,
-        fileId: snapshot.fileId,
-        collectTimeSecs: snapshot.collectTimeSecs,
-        count: snapshot.previousCount,
-        snapshotCount: snapshot.previousSnapshotCount,
-      );
+      if (isCurrent()) _reporter?.reportFavoriteChanged(song, liked: present);
+    } catch (_) {
+      if (isCurrent()) {
+        await _write(
+          isCurrent,
+          () => _store.restoreTrackMembership(
+            localId,
+            song,
+            present: snapshot.wasPresent,
+            fileId: snapshot.fileId,
+            collectTimeSecs: snapshot.collectTimeSecs,
+            position: snapshot.position,
+            count: snapshot.previousCount,
+            snapshotCount: snapshot.previousSnapshotCount,
+          ),
+        );
+      }
       rethrow;
     }
   }
 
   /// Cloud-first create so the row always has a remote listId.
-  Future<String> createPlaylist(String name, {required bool private}) async {
-    final mutation = await _remote.createPlaylist(name, private: private);
-    final localId = Playlist.localIdForRemote(mutation.listId);
-    await _store.upsertPlaylist(
-      Playlist(
-        localId: localId,
-        listId: mutation.listId,
-        globalCollectionId: mutation.globalCollectionId,
-        name: name,
-        isPrivate: private,
-        isMyFavorite: false,
-        isDefaultCollect: false,
-        tracksLoaded: true,
-        count: 0,
-      ),
-    );
-    return localId;
-  }
+  Future<String> createPlaylist(String name, {required bool private}) =>
+      _mutate('metadata', (isCurrent) async {
+        final mutation = await _remote.createPlaylist(name, private: private);
+        final localId = Playlist.localIdForRemote(mutation.listId);
+        await _write(
+          isCurrent,
+          () => _store.upsertPlaylist(
+            Playlist(
+              localId: localId,
+              listId: mutation.listId,
+              globalCollectionId: mutation.globalCollectionId,
+              name: name,
+              isPrivate: private,
+              isMyFavorite: false,
+              isDefaultCollect: false,
+              tracksLoaded: true,
+              count: 0,
+            ),
+          ),
+        );
+        return localId;
+      });
 
-  Future<String> collectPlaylist(PlaylistSearchHit hit) async {
-    final gid = hit.globalCollectionId;
-    if (gid == null || gid.isEmpty) {
-      throw ArgumentError.value(gid, 'globalCollectionId', '收藏歌单缺少全局 ID');
-    }
-    final existing = (await _store.watchPlaylists().first)
-        .where((item) => item.globalCollectionId == gid)
-        .firstOrNull;
-    if (existing?.localId != null) return existing!.localId!;
+  Future<String> collectPlaylist(PlaylistSearchHit hit) =>
+      _mutate('metadata', (isCurrent) async {
+        final gid = hit.globalCollectionId;
+        if (gid == null || gid.isEmpty) {
+          throw ArgumentError.value(gid, 'globalCollectionId', '收藏歌单缺少全局 ID');
+        }
+        final existing = (await _store.watchPlaylists().first)
+            .where((item) => item.globalCollectionId == gid)
+            .firstOrNull;
+        if (existing?.localId != null) return existing!.localId!;
 
-    final mutation = await _remote.collectPlaylist(hit);
-    final localId = Playlist.localIdForRemote(mutation.listId);
-    await _store.upsertPlaylist(
-      Playlist(
-        localId: localId,
-        listId: mutation.listId,
-        globalCollectionId: mutation.globalCollectionId ?? gid,
-        name: hit.name,
-        intro: hit.intro,
-        artworkUrl: hit.artworkUrl,
-        count: hit.songCount ?? 0,
-        listType: 1,
-        creatorUserId: hit.creatorUserId,
-        creatorName: hit.creatorName,
-        isPrivate: false,
-        isMyFavorite: false,
-        isDefaultCollect: false,
-        tracksLoaded: false,
-        tags: hit.tags,
-      ),
-    );
-    return localId;
-  }
+        if (!isCurrent()) throw StateError('账号已切换');
+        final mutation = await _remote.collectPlaylist(hit);
+        final localId = Playlist.localIdForRemote(mutation.listId);
+        await _write(
+          isCurrent,
+          () => _store.upsertPlaylist(
+            Playlist(
+              localId: localId,
+              listId: mutation.listId,
+              globalCollectionId: mutation.globalCollectionId ?? gid,
+              name: hit.name,
+              intro: hit.intro,
+              artworkUrl: hit.artworkUrl,
+              count: hit.songCount ?? 0,
+              listType: 1,
+              creatorUserId: hit.creatorUserId,
+              creatorName: hit.creatorName,
+              isPrivate: false,
+              isMyFavorite: false,
+              isDefaultCollect: false,
+              tracksLoaded: false,
+              tags: hit.tags,
+            ),
+          ),
+        );
+        return localId;
+      });
 
   Future<void> editPlaylist(
     String localId, {
@@ -420,20 +487,24 @@ class LibraryRepository {
     required String intro,
     required String tags,
     required bool private,
-  }) async {
+  }) => _mutate(localId, (isCurrent) async {
     final playlist = await _store.playlist(localId);
     if (playlist == null) throw StateError('歌单不存在');
     if (playlist.listId == null) throw StateError('歌单尚未绑定云端 ID');
     if (playlist.isCollected) throw StateError('收藏歌单不可编辑');
 
     final previous = playlist;
-    await _store.updatePlaylistMeta(
-      localId,
-      name: name,
-      intro: intro,
-      tags: tags,
-      private: private,
+    await _write(
+      isCurrent,
+      () => _store.updatePlaylistMeta(
+        localId,
+        name: name,
+        intro: intro,
+        tags: tags,
+        private: private,
+      ),
     );
+    if (!isCurrent()) return;
     try {
       await _remote.editPlaylist(
         PlaylistEditInput(
@@ -445,33 +516,43 @@ class LibraryRepository {
         ),
       );
     } catch (error) {
-      await _store.updatePlaylistMeta(
-        localId,
-        name: previous.name,
-        intro: previous.intro ?? '',
-        tags: previous.tags ?? '',
-        private: previous.isPrivate,
-      );
+      if (isCurrent()) {
+        await _write(
+          isCurrent,
+          () => _store.updatePlaylistMeta(
+            localId,
+            name: previous.name,
+            intro: previous.intro ?? '',
+            tags: previous.tags ?? '',
+            private: previous.isPrivate,
+          ),
+        );
+      }
       rethrow;
     }
-  }
+  });
 
-  Future<void> deletePlaylist(String localId) async {
-    final playlist = await _store.playlist(localId);
-    if (playlist == null || playlist.isSystem) return;
-    final listId = playlist.listId;
-    if (listId != null) {
-      await _remote.deletePlaylist(
-        listId: listId,
-        collected: playlist.isCollected,
-      );
-    }
-    await _store.deletePlaylistLocal(localId);
-  }
+  Future<void> deletePlaylist(String localId) =>
+      _mutate(localId, (isCurrent) async {
+        final playlist = await _store.playlist(localId);
+        if (!isCurrent() || playlist == null || playlist.isSystem) return;
+        final listId = playlist.listId;
+        if (listId != null) {
+          await _remote.deletePlaylist(
+            listId: listId,
+            collected: playlist.isCollected,
+          );
+        }
+        await _write(isCurrent, () => _store.deletePlaylistLocal(localId));
+      });
 
   Future<void> recordPlayed(Song song) async {
-    if (_userId == null) return;
-    final entry = await _store.recordPlayed(song);
+    final userId = _userId;
+    final generation = _generation;
+    if (userId == null) return;
+    bool isCurrent() => _isCurrent(generation, userId);
+    final entry = await _write(isCurrent, () => _store.recordPlayed(song));
+    if (!isCurrent()) return;
     final mixSongId = entry.song.mixSongId;
     if (mixSongId == null) return;
     unawaited(
@@ -487,8 +568,62 @@ class LibraryRepository {
     );
   }
 
+  Future<T> _write<T>(bool Function() isCurrent, Future<T> Function() write) =>
+      _store.database.transaction(() async {
+        if (!isCurrent()) throw StateError('账号已切换');
+        return write();
+      });
+
+  Future<T> _mutate<T>(
+    String key,
+    Future<T> Function(bool Function()) operation,
+  ) {
+    final userId = _userId;
+    final generation = _generation;
+    if (userId == null || !ready) return Future.error(StateError('音乐库尚未准备完成'));
+    bool isCurrent() => _isCurrent(generation, userId);
+    final previous = _mutations[key] ?? Future<void>.value();
+    final result = previous.then((_) async {
+      if (!isCurrent()) throw StateError('账号已切换');
+      _activeMutations += 1;
+      _membershipVersion += 1;
+      _trackLoader.invalidatePages();
+      try {
+        return await operation(isCurrent);
+      } finally {
+        if (_generation == generation) {
+          _activeMutations -= 1;
+          _membershipVersion += 1;
+          _resumePendingSync();
+        }
+      }
+    });
+    late final Future<void> tail;
+    tail = result
+        .then<void>((_) {}, onError: (Object _, StackTrace _) {})
+        .whenComplete(() {
+          if (identical(_mutations[key], tail)) _mutations.remove(key);
+        });
+    _mutations[key] = tail;
+    return result;
+  }
+
+  void _resumePendingSync() {
+    if (!_resyncRequested ||
+        _activeMutations != 0 ||
+        _running != null ||
+        !ready) {
+      return;
+    }
+    _resyncRequested = false;
+    unawaited(syncNow().catchError((_) {}));
+  }
+
   bool _isCurrent(int generation, int userId) =>
-      !_disposed && _generation == generation && _userId == userId;
+      !_disposed &&
+      _generation == generation &&
+      _userId == userId &&
+      (_session == null || _session.userId == userId);
 
   bool _syncDue(DateTime? lastSyncedAt) =>
       lastSyncedAt == null || _now().difference(lastSyncedAt) >= syncCooldown;

@@ -1,9 +1,13 @@
-# KGMusic patch
+# KGMusic patches
 
-This directory vendors `just_audio 0.10.6` because its
-`LockCachingAudioSource` reads `Accept-Ranges` through `HttpHeaders.value()`.
-That API throws when KuGou CDN responses contain the header more than once.
+This directory vendors `just_audio 0.10.6` for two `LockCachingAudioSource` fixes:
 
-KGMusic changes only the range-support check to inspect all header values.
-Remove this vendored dependency once an upstream release includes the same
-fix, then restore the hosted dependency in the root `pubspec.yaml`.
+- Inspect all `Accept-Ranges` values because KuGou CDN responses can repeat the
+  header and `HttpHeaders.value()` rejects that response.
+- Report 100% download progress only after the sink is closed and the partial
+  file has been renamed. Forward download failures to the progress stream and
+  release the sink/client, so cache cleanup cannot mistake buffered bytes for a
+  completed file or retain a failed transfer indefinitely.
+
+Regression tests live in `test/audio_cache_test.dart`. Replace this vendored
+package with a hosted release only when it contains both behaviors.

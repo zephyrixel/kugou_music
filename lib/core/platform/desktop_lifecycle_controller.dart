@@ -37,7 +37,7 @@ class DesktopLifecycleController with WindowListener, TrayListener {
   final PreferenceStore preferences;
   final DesktopShutdown shutdown;
   final DesktopShutdown finalizeShutdown;
-  StreamSubscription<PlaybackState>? _playbackSubscription;
+  StreamSubscription<bool>? _playbackSubscription;
   Timer? _geometryTimer;
   bool _quitting = false;
   bool _maximized = false;
@@ -86,9 +86,20 @@ class DesktopLifecycleController with WindowListener, TrayListener {
     await trayManager.setIcon('assets/branding/app_icon.png');
     await trayManager.setToolTip('KGMusic');
     await _refreshTrayMenu(audioHandler.playbackState.value.playing);
-    _playbackSubscription = audioHandler.playbackState.listen(
-      (state) => unawaited(_refreshTrayMenu(state.playing)),
-    );
+    _playbackSubscription = audioHandler.playbackState
+        .map((state) => state.playing)
+        .distinct()
+        .listen((playing) {
+          unawaited(
+            _refreshTrayMenu(playing).catchError((Object error) {
+              AppLog.warn(
+                '更新托盘菜单失败',
+                target: 'desktop.lifecycle',
+                error: error,
+              );
+            }),
+          );
+        });
   }
 
   Future<void> recoverFromInitializationFailure() async {

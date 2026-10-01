@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:kgmusic/core/auth/account_session.dart';
+import 'package:kgmusic/core/models/pagination.dart';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/widgets.dart';
@@ -30,6 +33,7 @@ class MusicAudioHandler extends BaseAudioHandler
     PlaybackProfileRecorder? recordRecommendationPlayback,
     this.queueStore,
     this.queueSourceFactory,
+    this.accountSession,
     AudioPlayerPort? player,
     Future<void> Function()? configureSession,
     AudioQuality initialQuality = AudioQuality.standard,
@@ -46,12 +50,13 @@ class MusicAudioHandler extends BaseAudioHandler
        ) {
     _subscriptions.add(
       _player.playbackEventStream.listen((event) {
-        _recommendationPlayTracker.update(playing: _player.playing);
+        _updateRecommendationClock();
         _broadcastState(event);
       }),
     );
     _subscriptions.add(
       _player.processingStateStream.listen((state) {
+        _updateRecommendationClock();
         if (state == ProcessingState.completed) {
           unawaited(_advanceAfterCompletion());
         }
@@ -60,16 +65,27 @@ class MusicAudioHandler extends BaseAudioHandler
     _subscriptions.add(
       _player.positionStream.listen((position) {
         _enforcePreviewEnd(position);
-        _recommendationPlayTracker.update(playing: _player.playing);
+        _updateRecommendationClock();
       }),
     );
     _observingLifecycle = observeLifecycle;
     if (_observingLifecycle) WidgetsBinding.instance.addObserver(this);
-    unawaited((configureSession ?? _configureSession)());
-    if (restoreQueueOnStart) unawaited(_restoreQueue());
+    unawaited(
+      (configureSession ?? _configureSession)().catchError((Object error) {
+        AppLog.warn('配置音频会话失败', target: 'player.engine', error: error);
+      }),
+    );
+    if (restoreQueueOnStart) {
+      unawaited(
+        _restoreQueue().catchError((Object error) {
+          AppLog.warn('恢复播放队列失败', target: 'player.queue', error: error);
+        }),
+      );
+    }
   }
 
   final PlayerSdk _sdk;
+  final AccountSession? accountSession;
   final Future<void> Function(Song) _recordPlayed;
   final AudioCache _audioCache;
   final PlaybackQueueStore? queueStore;
@@ -80,7 +96,7 @@ class MusicAudioHandler extends BaseAudioHandler
   final StreamController<String?> _messages = StreamController.broadcast();
   final StreamController<PlaybackQualityState> _qualityStates =
       StreamController.broadcast(sync: true);
-  final StreamController<PlaybackQueueState> _queueStates =
+  final StreamController<PlaybackQueueState?> _queueStates =
       StreamController.broadcast(sync: true);
   final PlaybackQueueController _queueController = PlaybackQueueController();
   final List<StreamSubscription<Object?>> _subscriptions = [];
@@ -93,10 +109,11 @@ class MusicAudioHandler extends BaseAudioHandler
   Future<void> _commitTail = Future<void>.value();
   Future<void> _persistTail = Future<void>.value();
   bool _advancing = false;
-  PlaybackQueueRequest? _queueRequest;
+  PlaybackQueueRequest? get _queueRequest => _queueController.request;
   PlaybackQueueState? _queueState;
   bool _loadingMore = false;
   Future<void>? _loadMoreOperation;
+  Object? _loadMoreIdentity;
   Timer? _prefetchTimer;
   String? _prefetchAttemptedSongId;
   Duration? _restoredPosition;
@@ -109,7 +126,7 @@ class MusicAudioHandler extends BaseAudioHandler
   Stream<Duration> get bufferedPositionStream => _player.bufferedPositionStream;
   Stream<String?> get messages => _messages.stream;
   Stream<PlaybackQualityState> get qualityStateStream => _qualityStates.stream;
-  Stream<PlaybackQueueState> get queueStateStream => _queueStates.stream;
+  Stream<PlaybackQueueState?> get queueStateStream => _queueStates.stream;
   PlaybackQualityState get qualityState => _qualityState;
   PlaybackQueueState? get queueState => _queueState;
   Duration get position => _player.position;
@@ -248,18 +265,24 @@ class MusicAudioHandler extends BaseAudioHandler
   }
 
   void _startPlayer() {
+    if (_disposed) return;
     // just_audio completes play() only after pause, stop, or completion. Never
     // await it from the serialized transition queue or later switches deadlock.
     unawaited(
       _player.play().catchError((Object error) {
         AppLog.error('播放器启动播放失败', target: 'player.engine', error: error);
-        _messages.add('播放未能开始，请稍后重试');
+        if (!_disposed) _messages.add('播放未能开始，请稍后重试');
       }),
     );
   }
 
   @override
   Future<void> play() async {
+    if (_disposed) return;
+    if (_previewEnd != null &&
+        (_previewStopped || _player.position >= _previewEnd!)) {
+      await seek(Duration.zero);
+    }
     final request = _queueRequest;
     if (_player.processingState == ProcessingState.idle &&
         request != null &&
@@ -279,6 +302,7 @@ class MusicAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> pause() async {
+    if (_disposed) return;
     await _player.pause();
     unawaited(_persistQueue());
   }
@@ -292,7 +316,19 @@ class MusicAudioHandler extends BaseAudioHandler
       };
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) async {
+    if (_disposed) return;
+    final end = _previewEnd;
+    var target = position < Duration.zero ? Duration.zero : position;
+    if (end != null && target >= end) {
+      target = end;
+      _previewStopped = true;
+      await _player.pause();
+    } else {
+      _previewStopped = false;
+    }
+    await _player.seek(target);
+  }
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) =>
@@ -308,14 +344,16 @@ class MusicAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> stop() async {
+    if (_disposed) return;
     _loadGeneration += 1;
     _prefetchTimer?.cancel();
     _prefetchAttemptedSongId = null;
     await _persistQueue();
+    await _player.stop();
     _audioCache.setActive(null);
     await _finishRecommendationSession();
+    _currentAudioHandle?.release();
     _currentAudioHandle = null;
-    await _player.stop();
     await super.stop();
   }
 
@@ -329,14 +367,17 @@ class MusicAudioHandler extends BaseAudioHandler
       WidgetsBinding.instance.removeObserver(this);
       _observingLifecycle = false;
     }
+    await _disposeStep('等待音源切换结束', () => _commitTail);
     await _disposeStep('保存播放队列', _persistQueue);
     await _disposeStep('结束推荐播放会话', _finishRecommendationSession);
+    await _disposeStep('停止播放器', _player.stop);
     _audioCache.setActive(null);
+    _currentAudioHandle?.release();
+    _currentAudioHandle = null;
     for (final subscription in _subscriptions) {
       await _disposeStep('取消播放器订阅', subscription.cancel);
     }
     _subscriptions.clear();
-    await _disposeStep('停止播放器', _player.stop);
     await _disposeStep('释放播放器', _player.dispose);
     await _disposeStep('关闭播放器消息流', _messages.close);
     await _disposeStep('关闭音质状态流', _qualityStates.close);
@@ -363,6 +404,7 @@ class MusicAudioHandler extends BaseAudioHandler
   Future<void> skipToNext() => _skipToNextInternal();
 
   Future<void> _skipToNextInternal({bool honorRepeatOne = true}) async {
+    if (_disposed) return;
     if (_songs.isEmpty || _index < 0) return;
     if (honorRepeatOne && _order == PlaybackOrder.repeatOne) {
       await seek(Duration.zero);
@@ -420,6 +462,7 @@ class MusicAudioHandler extends BaseAudioHandler
 
   @override
   Future<void> skipToPrevious() async {
+    if (_disposed) return;
     if (_index <= 0) {
       if (_order == PlaybackOrder.repeatAll && _songs.length > 1) {
         final request = _queueRequest;
@@ -488,6 +531,13 @@ class MusicAudioHandler extends BaseAudioHandler
 
   void _broadcastState(PlaybackEvent event) =>
       _publishSystemPlaybackState(event);
+
+  void _updateRecommendationClock() => _recommendationPlayTracker.update(
+    playing:
+        !_disposed &&
+        _player.playing &&
+        _player.processingState == ProcessingState.ready,
+  );
 
   Future<void> _finishRecommendationSession() async {
     try {

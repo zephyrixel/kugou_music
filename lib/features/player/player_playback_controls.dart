@@ -89,7 +89,7 @@ class _ModeButton extends StatelessWidget {
   final MusicAudioHandler handler;
 
   @override
-  Widget build(BuildContext context) => StreamBuilder<PlaybackQueueState>(
+  Widget build(BuildContext context) => StreamBuilder<PlaybackQueueState?>(
     stream: handler.queueStateStream,
     initialData: handler.queueState,
     builder: (context, snapshot) => IconButton(

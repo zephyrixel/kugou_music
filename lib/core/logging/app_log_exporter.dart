@@ -1,8 +1,9 @@
 import 'dart:io';
 
+import 'package:kgmusic/core/logging/log_redaction.dart';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:kgmusic/core/logging/app_log.dart';
-import 'package:kgmusic/core/logging/app_log_entry.dart';
 import 'package:kgmusic/core/logging/app_log_store.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -15,12 +16,30 @@ class AppLogExporter {
 
   Future<File> _buildExport() async {
     await flushNative();
-    final entries = await store.readEntries();
-    entries.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final temporary = await getTemporaryDirectory();
     final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
     final file = File('${temporary.path}/kgmusic-logs-$timestamp.txt');
-    await file.writeAsString(_format(entries), flush: true);
+    final sink = file.openWrite();
+    try {
+      sink.write(_header());
+      await for (final entry in store.chronologicalEntries()) {
+        sink.writeln(
+          '${entry.timestamp.toIso8601String()} [${entry.level.name.toUpperCase()}] [${entry.source}/${entry.target}] ${redactLogText(entry.message)}',
+        );
+        if (entry.error != null) {
+          sink.writeln('  error: ${redactLogText(entry.error!)}');
+        }
+        if (entry.stackTrace != null) {
+          sink.writeln(redactLogText(entry.stackTrace!));
+        }
+      }
+      await sink.flush();
+    } catch (_) {
+      await sink.close();
+      await _deleteTemporary(file);
+      rethrow;
+    }
+    await sink.close();
     return file;
   }
 
@@ -75,25 +94,10 @@ class AppLogExporter {
     }
   }
 
-  String _format(List<AppLogEntry> entries) {
-    final buffer = StringBuffer()
-      ..writeln('KGMusic diagnostics')
-      ..writeln('Exported: ${DateTime.now().toIso8601String()}')
-      ..writeln(
-        'Warning: trace logs may contain tokens, cookies and HTTP payloads.',
-      )
-      ..writeln();
-    for (final entry in entries) {
-      buffer
-        ..write(entry.timestamp.toIso8601String())
-        ..write(' [${entry.level.name.toUpperCase()}]')
-        ..write(' [${entry.source}/${entry.target}] ')
-        ..writeln(entry.message);
-      if (entry.error case final value?) buffer.writeln('  error: $value');
-      if (entry.stackTrace case final value?) buffer.writeln(value);
-    }
-    return buffer.toString();
-  }
+  String _header() =>
+      'KGMusic diagnostics\n'
+      'Exported: ${DateTime.now().toIso8601String()}\n'
+      'Review diagnostics before sharing: logs may contain private account data.\n\n';
 
   Future<void> _deleteTemporary(File file) async {
     try {

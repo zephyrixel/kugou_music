@@ -125,7 +125,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _debounce?.cancel();
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
-      setState(() => _keyword = '');
+      _clearSearch();
       return;
     }
     setState(() {});
@@ -136,12 +136,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Future<void> _runSearch(String keyword) async {
+    _debounce?.cancel();
+    if (!mounted) return;
     final normalized = keyword.trim();
     if (normalized.isEmpty) {
-      setState(() => _keyword = '');
+      _clearSearch();
       return;
     }
     final keywordChanged = normalized != _keyword;
+    if (keywordChanged) {
+      _songPager.clear();
+      _playlistPager.clear();
+    }
     setState(() => _keyword = normalized);
     if (keywordChanged && _scrollController.hasClients) {
       _scrollController.jumpTo(0);
@@ -259,6 +265,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _clearSearch() {
     _debounce?.cancel();
     _controller.clear();
+    _songPager.clear();
+    _playlistPager.clear();
     setState(() => _keyword = '');
   }
 }

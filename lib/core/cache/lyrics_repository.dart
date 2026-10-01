@@ -9,7 +9,7 @@ import 'package:kgmusic/core/native/lyrics_sdk.dart';
 
 class LyricsRepository {
   LyricsRepository(this._remote, this._database, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+    : _now = now ?? _database.now;
 
   static const _codecVersion = 1;
   static const _notFoundTtl = Duration(hours: 24);
@@ -38,6 +38,7 @@ class LyricsRepository {
           cacheKey: key,
           accountUserId: null,
           codecVersion: _codecVersion,
+          updatedAt: _now(),
           payload: jsonEncode(
             document == null
                 ? const <String, Object?>{'found': false}
@@ -90,13 +91,9 @@ class LyricsRepository {
     final existing = _inFlight[key];
     if (existing != null) return existing;
     late final Future<LyricDocument?> tracked;
-    tracked = () async {
-      try {
-        return await load();
-      } finally {
-        if (identical(_inFlight[key], tracked)) _inFlight.remove(key);
-      }
-    }();
+    tracked = Future<LyricDocument?>.sync(load).whenComplete(() {
+      if (identical(_inFlight[key], tracked)) _inFlight.remove(key);
+    });
     _inFlight[key] = tracked;
     return tracked;
   }

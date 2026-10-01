@@ -3485,8 +3485,6 @@ class LockCachingAudioSource extends StreamAudioSource {
       throw Exception('HTTP Status Error: ${response.statusCode}');
     }
     (await _partialCacheFile).createSync(recursive: true);
-    // TODO: Should close sink after done, but it throws an error.
-    // ignore: close_sinks
     final sink = (await _partialCacheFile).openWrite();
     final sourceLength =
         response.contentLength == -1 ? null : response.contentLength;
@@ -3510,6 +3508,26 @@ class LockCachingAudioSource extends StreamAudioSource {
       }
     }
 
+    var failed = false;
+    Future<void> failDownload(Object error, StackTrace stackTrace) async {
+      if (failed) return;
+      failed = true;
+      httpClient.close(force: true);
+      try { await sink.close(); } catch (_) { /* Keep the original failure. */ }
+      final partial = await _partialCacheFile;
+      try { if (await partial.exists()) await partial.delete(); } catch (_) { /* Best effort. */ }
+      for (final request in _requests) { request.fail(error, stackTrace); }
+      _requests.clear();
+      for (final response in inProgressResponses) {
+        if (!response.controller.isClosed) {
+          response.controller.addError(error, stackTrace);
+          response.controller.close();
+        }
+      }
+      _downloading = false;
+      _downloadProgressSubject.addError(error, stackTrace);
+    }
+
     _progress = 0;
     subscription = response.listen((data) async {
       _progress += data.length;
@@ -3518,7 +3536,9 @@ class LockCachingAudioSource extends StreamAudioSource {
           : (sourceLength == 0)
               ? 100
               : (100 * _progress ~/ sourceLength);
-      updateProgress(newPercentProgress);
+      // 100% means the completed file is available, not just that its last
+      // network chunk arrived. Consumers may prune partial files at 100%.
+      updateProgress(min(99, newPercentProgress));
       sink.add(data);
       final readyRequests = _requests
           .where((request) =>
@@ -3623,33 +3643,21 @@ class LockCachingAudioSource extends StreamAudioSource {
         });
       }
     }, onDone: () async {
-      if (sourceLength == null) {
-        updateProgress(100);
-      }
-      for (var cacheResponse in inProgressResponses) {
-        if (!cacheResponse.controller.isClosed) {
-          cacheResponse.controller.close();
+      try {
+        await sink.flush();
+        await sink.close();
+        for (var cacheResponse in inProgressResponses) {
+          if (!cacheResponse.controller.isClosed) cacheResponse.controller.close();
         }
+        await (await _partialCacheFile).rename(cacheFile.path);
+        await subscription.cancel();
+        httpClient.close();
+        _downloading = false;
+        updateProgress(100);
+      } catch (error, stackTrace) {
+        await failDownload(error, stackTrace);
       }
-      (await _partialCacheFile).renameSync(cacheFile.path);
-      await subscription.cancel();
-      httpClient.close();
-      _downloading = false;
-    }, onError: (Object e, StackTrace stackTrace) async {
-      (await _partialCacheFile).deleteSync();
-      httpClient.close();
-      // Fail all pending requests
-      for (final req in _requests) {
-        req.fail(e, stackTrace);
-      }
-      _requests.clear();
-      // Close all in progress requests
-      for (final res in inProgressResponses) {
-        res.controller.addError(e, stackTrace);
-        res.controller.close();
-      }
-      _downloading = false;
-    }, cancelOnError: true);
+    }, onError: failDownload, cancelOnError: true);
     return response;
   }
 

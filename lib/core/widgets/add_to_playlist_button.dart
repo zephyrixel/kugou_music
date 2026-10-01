@@ -19,7 +19,9 @@ class AddToPlaylistButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       tooltip: '添加到歌单',
-      onPressed: () => showAddToPlaylist(context, ref, song),
+      onPressed: ref.watch(libraryReadyProvider)
+          ? () => showAddToPlaylist(context, ref, song)
+          : null,
       constraints: compact
           ? const BoxConstraints.tightFor(width: 40, height: 40)
           : null,
@@ -65,7 +67,7 @@ Future<void> showAddToPlaylist(
         ),
       ),
     );
-    if (selected == null) return;
+    if (selected == null || !context.mounted) return;
     await ref.read(libraryRepositoryProvider).addSong(selected, song);
     if (context.mounted) showAppMessage(context, '已添加到歌单');
   } catch (_) {

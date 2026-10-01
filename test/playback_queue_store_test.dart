@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:drift/native.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/database/app_database.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -11,6 +14,54 @@ void main() {
     title: '测试歌曲',
     artist: '测试歌手',
     hashes: AudioHashes(standard: 'hash'),
+  );
+
+  test(
+    'v8 queue migrates with frozen enum values and survives cache cleanup',
+    () async {
+      final legacy = sqlite.sqlite3.openInMemory();
+      legacy.execute(
+        'CREATE TABLE cached_responses (cache_key TEXT PRIMARY KEY, account_user_id INTEGER, codec_version INTEGER, payload TEXT, updated_at INTEGER, last_accessed_at INTEGER)',
+      );
+      legacy.execute('INSERT INTO cached_responses VALUES (?, ?, ?, ?, ?, ?)', [
+        'player/queue/v1/7',
+        7,
+        1,
+        jsonEncode({
+          'origin': {'kind': 2, 'title': 'Search', 'id': 'test'},
+          'songs': [
+            {
+              'id': 'a',
+              'title': 'A',
+              'hashes': {'standard': 'a'},
+            },
+          ],
+          'currentIndex': 0,
+          'order': 3,
+          'positionMs': 3000,
+        }),
+        1,
+        1,
+      ]);
+      legacy.execute('PRAGMA user_version = 8');
+      final database = AppDatabase.forTesting(NativeDatabase.opened(legacy));
+      addTearDown(database.close);
+      final store = PlaybackQueueStore(database);
+      final restored = await store.read(7);
+      expect(restored, isNotNull);
+      expect(restored!.order, PlaybackOrder.shuffle);
+      expect(restored.request.origin.kind, PlaybackQueueOriginKind.search);
+      expect(restored.positionMs, 3000);
+      await database.clearResponseCache();
+      await database.pruneResponseCache(maxEntries: 0);
+      expect(await store.read(7), isNotNull);
+      await store.write(7, restored);
+      final row = await database
+          .select(database.storedPlaybackQueues)
+          .getSingle();
+      expect(jsonDecode(row.payload)['order'], 'shuffle');
+      expect(row.codecVersion, 2);
+    },
   );
 
   test(

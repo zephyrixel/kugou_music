@@ -9,7 +9,6 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
-import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/song_tile_actions.dart';
 import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
 import 'package:kgmusic/features/playlists/library_playlist_pager.dart';
@@ -25,9 +24,8 @@ class LibraryPlaylistScreen extends ConsumerStatefulWidget {
 }
 
 class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
-  Object? _loadError;
   final _scrollController = ScrollController();
-  late final PagedListController<Song> _pager;
+  late final LibraryPlaylistPager _pager;
 
   @override
   void initState() {
@@ -42,18 +40,8 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     _scrollController.addListener(_onScroll);
   }
 
-  Future<void> _load({bool force = false}) async {
-    if (force && mounted) setState(() => _loadError = null);
-    try {
-      if (force) {
-        await _pager.reset(forceRefresh: true, keepItems: true);
-      } else if (!_pager.initialLoading && _pager.items.isEmpty) {
-        await _pager.loadMore(reset: true);
-      }
-    } catch (error) {
-      if (mounted) setState(() => _loadError = error);
-    }
-  }
+  Future<void> _load({bool force = false}) =>
+      force ? _pager.reset(forceRefresh: true) : _pager.retry();
 
   void _onPagerChanged() {
     if (mounted) setState(() {});
@@ -120,7 +108,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         songs: songs,
         // Only full-screen spinner when nothing to show yet.
         loading: _pager.initialLoading && songs.isEmpty,
-        error: _loadError ?? _pager.initialError,
+        error: _pager.initialError,
         scrollController: _scrollController,
         onRefresh: () => _load(force: true),
         onRetry: _load,
@@ -144,8 +132,8 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
               playlist: playlist,
               songs: items,
               count: count,
-              nextPage: ((items.length + 99) ~/ 100) + 1,
-              hasMore: items.length < count,
+              nextPage: _pager.nextPage,
+              hasMore: _pager.hasMore,
             ),
       ),
     );

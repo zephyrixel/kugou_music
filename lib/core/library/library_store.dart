@@ -126,6 +126,7 @@ class LibraryStore {
     String localId, {
     required int page,
     required int pageSize,
+    bool completeSnapshot = false,
   }) async {
     final offset = (page - 1) * pageSize;
     final query =
@@ -140,6 +141,18 @@ class LibraryStore {
           ..where(database.storedPlaylistTracks.playlistLocalId.equals(localId))
           ..orderBy([OrderingTerm.asc(database.storedPlaylistTracks.position)])
           ..limit(pageSize, offset: offset);
+    if (!completeSnapshot) {
+      // Sparse remote pages have absolute positions. OFFSET would turn a cached
+      // third page into page one when preceding pages have not been loaded.
+      query
+        ..where(
+          database.storedPlaylistTracks.position.isBiggerOrEqualValue(offset) &
+              database.storedPlaylistTracks.position.isSmallerThanValue(
+                offset + pageSize,
+              ),
+        )
+        ..limit(pageSize);
+    }
     final rows = await query.get();
     return rows
         .map(
@@ -255,9 +268,10 @@ class LibraryStore {
         .into(database.librarySyncStates)
         .insertOnConflictUpdate(
           LibrarySyncStatesCompanion.insert(
+            singletonId: const Value(1),
             userId: userId,
             baselineComplete: const Value(true),
-            lastSyncedAt: Value(DateTime.now()),
+            lastSyncedAt: Value(database.now()),
             lastError: const Value(null),
           ),
         );
@@ -270,7 +284,7 @@ class LibraryStore {
           .write(
             LibrarySyncStatesCompanion(
               lastSyncedAt: error == null
-                  ? Value(DateTime.now())
+                  ? Value(database.now())
                   : const Value.absent(),
               lastError: Value(error),
             ),
@@ -312,7 +326,7 @@ class LibraryStore {
     )..where((row) => row.localId.equals(localId))).write(
       StoredPlaylistsCompanion(
         count: totalCount == null ? const Value.absent() : Value(totalCount),
-        tracksUpdatedAt: Value(DateTime.now()),
+        tracksUpdatedAt: Value(database.now()),
       ),
     );
   });
@@ -343,8 +357,8 @@ class LibraryStore {
             : Value(remoteTotalCount),
         tracksLoaded: const Value(true),
         trackSnapshotCount: Value(actualCount),
-        tracksUpdatedAt: Value(DateTime.now()),
-        fullSnapshotUpdatedAt: Value(DateTime.now()),
+        tracksUpdatedAt: Value(database.now()),
+        fullSnapshotUpdatedAt: Value(database.now()),
       ),
     );
   });
@@ -384,8 +398,8 @@ class LibraryStore {
             : Value(remoteTotalCount),
         tracksLoaded: const Value(true),
         trackSnapshotCount: Value(songs.length),
-        tracksUpdatedAt: Value(DateTime.now()),
-        fullSnapshotUpdatedAt: Value(DateTime.now()),
+        tracksUpdatedAt: Value(database.now()),
+        fullSnapshotUpdatedAt: Value(database.now()),
       ),
     );
   });
@@ -403,7 +417,7 @@ class LibraryStore {
     // the newest-first ordering picks it up, and front-insert sortOrder as the
     // fallback for the pre-v8 rows it is sorted against.
     final createdAt =
-        playlist.createdAt ?? existing?.createdAt ?? DateTime.now();
+        playlist.createdAt ?? existing?.createdAt ?? database.now();
     await database
         .into(database.storedPlaylists)
         .insertOnConflictUpdate(
@@ -452,6 +466,7 @@ class LibraryStore {
       int? collectTimeSecs,
       int previousCount,
       int? previousSnapshotCount,
+      int? position,
     })
   >
   setTrackMembershipLocal(
@@ -480,6 +495,7 @@ class LibraryStore {
         collectTimeSecs: existing?.collectTimeSecs,
         previousCount: playlistRow.count,
         previousSnapshotCount: playlistRow.trackSnapshotCount,
+        position: existing?.position,
       );
     }
 
@@ -492,10 +508,10 @@ class LibraryStore {
             StoredPlaylistTracksCompanion.insert(
               playlistLocalId: playlistLocalId,
               songId: song.id,
-              fileId: Value(song.fileId),
+              // fileId belongs to the target playlist, not to the input song.
+              fileId: const Value(null),
               collectTimeSecs: Value(
-                song.collectTimeSecs ??
-                    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                database.now().millisecondsSinceEpoch ~/ 1000,
               ),
               position: Value(position),
             ),
@@ -532,6 +548,7 @@ class LibraryStore {
       collectTimeSecs: existing?.collectTimeSecs,
       previousCount: playlistRow.count,
       previousSnapshotCount: playlistRow.trackSnapshotCount,
+      position: existing?.position,
     );
   });
 
@@ -543,6 +560,7 @@ class LibraryStore {
     int? collectTimeSecs,
     required int count,
     required int? snapshotCount,
+    int? position,
   }) => database.transaction(() async {
     await (database.delete(database.storedPlaylistTracks)..where(
           (row) =>
@@ -552,16 +570,17 @@ class LibraryStore {
         .go();
     if (present) {
       await _upsertSong(song);
-      final position = await _nextFrontPosition(playlistLocalId);
+      final restoredPosition =
+          position ?? await _nextFrontPosition(playlistLocalId);
       await database
           .into(database.storedPlaylistTracks)
           .insert(
             StoredPlaylistTracksCompanion.insert(
               playlistLocalId: playlistLocalId,
               songId: song.id,
-              fileId: Value(fileId ?? song.fileId),
+              fileId: Value(fileId),
               collectTimeSecs: Value(collectTimeSecs ?? song.collectTimeSecs),
-              position: Value(position),
+              position: Value(restoredPosition),
             ),
           );
     }
@@ -593,7 +612,7 @@ class LibraryStore {
           database.storedSongs,
         )..where((row) => row.id.equals(song.id))).getSingleOrNull();
         final count = (existing?.playCount ?? 0) + 1;
-        final at = playedAt ?? DateTime.now();
+        final at = playedAt ?? database.now();
         await _upsertSong(song, lastPlayedAt: at, playCount: count);
         return HistoryEntry(song: song, playedAt: at, playCount: count);
       });
@@ -655,8 +674,18 @@ class LibraryStore {
             hashFlac: Value(song.hashes.flac ?? existing?.hashFlac),
             hashHiRes: Value(song.hashes.hiRes ?? existing?.hashHiRes),
             hashSuper: Value(song.hashes.superHash ?? existing?.hashSuper),
-            lastPlayedAt: Value(lastPlayedAt ?? existing?.lastPlayedAt),
-            playCount: Value(playCount ?? existing?.playCount ?? 0),
+            lastPlayedAt: Value(
+              existing?.lastPlayedAt != null &&
+                      (lastPlayedAt == null ||
+                          existing!.lastPlayedAt!.isAfter(lastPlayedAt))
+                  ? existing!.lastPlayedAt
+                  : lastPlayedAt,
+            ),
+            playCount: Value(
+              (playCount ?? 0) > (existing?.playCount ?? 0)
+                  ? playCount!
+                  : existing?.playCount ?? 0,
+            ),
           ),
         );
   }

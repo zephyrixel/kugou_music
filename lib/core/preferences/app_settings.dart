@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/models/playback.dart';
 import 'package:kgmusic/core/preferences/preference_store.dart';
 
 abstract final class AudioCacheLimits {

@@ -18,9 +18,10 @@ KGMusic 是一个支持 Android、Linux 与 Windows 的 Flutter 音乐客户端�
 - Drift 本地音乐库读模型（收藏/歌单/历史秒开）与在线写回
 - SMS 登录、登录后设备指纹登记与 12 小时前台 token 刷新
 - 用户资料、Lite VIP、收藏、最近播放及完整歌单管理
-- 收藏、播放历史和歌单操作乐观写入本地并立即回写 Lite 云端（失败回滚）
+- 收藏、歌单曲目和编辑先更新本地并写回云端（失败回滚）；创建与删除歌单由云端确认
+- 登录后即可进入首页，音乐库后台同步，失败可单独重试
 - `flutter_secure_storage` 保存 Lite 会话；会话不会写入 Drift，普通日志不记录完整网络数据；
-  只有用户临时启用 Trace 时才可能记录凭据、请求/响应头和正文
+  用户临时启用 Trace 时可记录更详细网络诊断，凭据与敏感设备字段在写盘前脱敏
 - Android 明文网络仅允许 `kugou.com` 域及其子域
 - Linux 使用 MPRIS，Windows 使用 SMTC；两端支持硬件媒体键
 - 桌面窗口关闭后隐藏到系统托盘，托盘菜单可控制播放或彻底退出
@@ -54,7 +55,8 @@ dart run msix:create --build-windows false
 Windows 使用系统 WinRT `MediaPlayer` 音频后端，不随安装包分发预编译 libmpv/FFmpeg DLL；
 可播放编码范围取决于目标 Windows 的 Media Foundation 支持。
 
-GitHub Actions 只在推送 `vMAJOR.MINOR.PATCH`（可选 `+BUILD`）tag 或手动触发时运行。
+普通 PR 和主分支提交会运行 `Checks`：Flutter/Rust 静态检查与测试、许可证校验及 Android Debug 构建。
+发布工作流仅在推送 `vMAJOR.MINOR.PATCH`（可选 `+BUILD`）tag 或手动触发时运行。
 两种方式都会验证 Flutter/Rust，构建 Android、Linux 与 Windows，并将 APK、AAB、
 AppImage、DEB 与 MSIX 上传到对应的 GitHub Release。手动触发时必须填写 release tag；
 如果同名 tag 已存在，它必须指向本次选择的 commit，否则工作流会拒绝发布。

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:kgmusic/core/auth/account_session.dart';
 import 'package:kgmusic/core/cache/cache_codec.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
 import 'package:kgmusic/core/database/app_database.dart';
@@ -12,13 +13,19 @@ import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 
 class MusicRepository {
-  MusicRepository(this._remote, this._database, {DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  MusicRepository(
+    this._remote,
+    this._database, {
+    DateTime Function()? now,
+    AccountSession? accountSession,
+  }) : _now = now ?? _database.now,
+       _session = accountSession;
 
   static const _keyVersion = 'v1';
 
   final BrowseSdk _remote;
   final AppDatabase _database;
+  final AccountSession? _session;
   final DateTime Function() _now;
   final Map<String, Future<Object?>> _inFlight = {};
   final Map<String, DateTime> _lastRemoteRequestAt = {};
@@ -134,6 +141,12 @@ class MusicRepository {
     required CacheLoadMode mode,
     required Future<T> Function() remote,
   }) async* {
+    final generation = _session?.generation;
+    bool isCurrent() =>
+        _session == null ||
+        (_session.isCurrent(generation!) &&
+            (accountUserId == null || _session.userId == accountUserId));
+    if (!isCurrent()) throw const StaleSessionException();
     T? cached;
     DateTime? updatedAt;
     try {
@@ -154,6 +167,7 @@ class MusicRepository {
       // A cache read must never make an otherwise valid remote request fail.
     }
 
+    if (!isCurrent()) return;
     if (cached != null) yield cached;
 
     final now = _now();
@@ -172,22 +186,29 @@ class MusicRepository {
     }
 
     try {
-      final fresh = await _coalesced(key, () {
+      final fresh = await _coalesced('$generation/$key', () {
         _lastRemoteRequestAt[key] = _now();
+        if (_lastRemoteRequestAt.length > 500) {
+          _lastRemoteRequestAt.remove(_lastRemoteRequestAt.keys.first);
+        }
         return remote();
       });
+      if (!isCurrent()) return;
       try {
-        await _database.writeCachedResponse(
-          cacheKey: key,
-          accountUserId: accountUserId,
-          codecVersion: codec.version,
-          payload: codec.encode(fresh),
-          updatedAt: _now(),
-        );
+        await _database.transaction(() async {
+          if (!isCurrent()) return;
+          await _database.writeCachedResponse(
+            cacheKey: key,
+            accountUserId: accountUserId,
+            codecVersion: codec.version,
+            payload: codec.encode(fresh),
+            updatedAt: _now(),
+          );
+        });
       } catch (_) {
         // The network result remains useful even when local persistence fails.
       }
-      yield fresh;
+      if (isCurrent()) yield fresh;
     } on MusicSdkException catch (error) {
       if (cached != null && error.retryable) return;
       rethrow;
@@ -199,13 +220,9 @@ class MusicRepository {
     if (existing != null) return existing.then((value) => value as T);
 
     late final Future<T> tracked;
-    tracked = () async {
-      try {
-        return await load();
-      } finally {
-        if (identical(_inFlight[key], tracked)) _inFlight.remove(key);
-      }
-    }();
+    tracked = Future<T>.sync(load).whenComplete(() {
+      if (identical(_inFlight[key], tracked)) _inFlight.remove(key);
+    });
     _inFlight[key] = tracked;
     return tracked;
   }

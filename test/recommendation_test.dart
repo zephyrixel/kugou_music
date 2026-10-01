@@ -21,9 +21,12 @@ void main() {
   late AppDatabase database;
   late RecommendationProfileStore profileStore;
 
-  setUp(() {
+  setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
     profileStore = RecommendationProfileStore(database);
+    await LibraryStore(
+      database,
+    ).replaceLibrary(userId: 7, playlists: const [], history: const []);
   });
 
   tearDown(() => database.close());
@@ -384,6 +387,9 @@ void main() {
     value.onPersonalFmSuccess(syncNeed: 1, syncPoint: 0);
     await started.future;
     await value.deactivate();
+    await LibraryStore(
+      database,
+    ).replaceLibrary(userId: 8, playlists: const [], history: const []);
     value.activate(8);
     await value.recordPlayback(
       songB,

@@ -128,7 +128,10 @@ class SearchResults extends ConsumerWidget {
             cacheId:
                 'playlist:${playlist.globalCollectionId ?? playlist.specialId}',
             enabled: playlist.globalCollectionId != null,
-            onTap: () => context.push('/playlist', extra: playlist),
+            onTap: () => context.push(
+              '/playlist',
+              extra: PlaylistTarget.public(playlist),
+            ),
           );
         },
       );

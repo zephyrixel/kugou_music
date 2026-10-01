@@ -1,4 +1,6 @@
 import 'dart:async';
+
+import 'package:kgmusic/core/logging/log_redaction.dart';
 import 'dart:developer' as developer;
 
 import 'package:kgmusic/core/logging/app_log_entry.dart';
@@ -6,15 +8,6 @@ import 'package:kgmusic/core/logging/app_log_level.dart';
 import 'package:kgmusic/core/logging/app_log_store.dart';
 
 abstract final class AppLog {
-  static final _credentialPattern = RegExp(
-    r'(token|signature|vip_token|authorization|cookie|password|passwd)(\s*[=:]\s*)([^\s&,;}]+)',
-    caseSensitive: false,
-  );
-  static final _verificationCodePattern = RegExp(
-    r'(sms[_-]?code|verify[_-]?code|验证码)(\s*[=:：]\s*)(\d{4,8})',
-    caseSensitive: false,
-  );
-  static final _mobilePattern = RegExp(r'(?<!\d)1\d{10}(?!\d)');
   static AppLogStore? _store;
   static AppLogLevel _level = AppLogLevel.info;
 
@@ -69,8 +62,8 @@ abstract final class AppLog {
     StackTrace? stackTrace,
   }) {
     if (!_level.allows(level)) return;
-    final safeMessage = _redact(message);
-    final safeError = error == null ? null : _redact(error.toString());
+    final safeMessage = redactLogText(message);
+    final safeError = error == null ? null : redactLogText(error.toString());
     final entry = AppLogEntry(
       timestamp: DateTime.now(),
       level: level,
@@ -78,7 +71,9 @@ abstract final class AppLog {
       target: target,
       message: safeMessage,
       error: safeError,
-      stackTrace: stackTrace?.toString(),
+      stackTrace: stackTrace == null
+          ? null
+          : redactLogText(stackTrace.toString()),
     );
     final store = _store;
     if (store == null) {
@@ -100,21 +95,5 @@ abstract final class AppLog {
         );
       }),
     );
-  }
-
-  static String _redact(String value) {
-    var result = value.replaceAllMapped(
-      _credentialPattern,
-      (match) => '${match[1]}${match[2]}***',
-    );
-    result = result.replaceAllMapped(
-      _verificationCodePattern,
-      (match) => '${match[1]}${match[2]}***',
-    );
-    result = result.replaceAllMapped(
-      _mobilePattern,
-      (match) => '${match[0]!.substring(0, 3)}****${match[0]!.substring(7)}',
-    );
-    return result;
   }
 }

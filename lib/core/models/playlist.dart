@@ -181,3 +181,32 @@ class PlaylistEditInput {
   final String? intro;
   final String? tags;
 }
+
+/// Validated navigation input; generated SDK objects never cross this boundary.
+sealed class PlaylistTarget {
+  const PlaylistTarget();
+  const factory PlaylistTarget.library(Playlist playlist) =
+      LibraryPlaylistTarget;
+  const factory PlaylistTarget.public(PlaylistSearchHit playlist) =
+      PublicPlaylistTarget;
+
+  static PlaylistTarget? parse(Object? value) => switch (value) {
+    LibraryPlaylistTarget(:final playlist)
+        when playlist.localId?.isNotEmpty == true =>
+      value,
+    PublicPlaylistTarget(:final playlist)
+        when playlist.globalCollectionId?.isNotEmpty == true =>
+      value,
+    _ => null,
+  };
+}
+
+final class LibraryPlaylistTarget extends PlaylistTarget {
+  const LibraryPlaylistTarget(this.playlist);
+  final Playlist playlist;
+}
+
+final class PublicPlaylistTarget extends PlaylistTarget {
+  const PublicPlaylistTarget(this.playlist);
+  final PlaylistSearchHit playlist;
+}

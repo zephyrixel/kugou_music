@@ -24,17 +24,20 @@ class LibraryRemote {
         pageSize: pageSize,
       );
       if (response.items.isEmpty) break;
+      final before = result.length;
       for (final item in response.items) {
         final playlist = _withLocalId(item);
         final id = playlist.localId!;
         if (known.add(id)) result.add(playlist);
       }
-      if (!canLoadNextPage(
-        loadedItemCount: result.length,
-        lastPageItemCount: response.items.length,
-        pageSize: response.pageSize,
-        total: response.total,
-      )) {
+      if (result.length == before ||
+          !canLoadNextPage(
+            loadedItemCount: result.length,
+            lastPageItemCount: response.items.length,
+            pageSize: response.pageSize,
+            total: response.total,
+            page: page,
+          )) {
         break;
       }
       page += 1;
@@ -49,11 +52,12 @@ class LibraryRemote {
     int pageSize = LibraryRemote.pageSize,
   }) => _sdk.playlistTracks(playlist, page: page, pageSize: pageSize);
 
-  /// Cloud history is oldest→newest; walk until limit then return newest-first.
+  /// Cloud history is oldest→newest. Walk every cursor with bounded storage.
   Future<List<HistoryEntry>> fetchHistory() async {
     final entries = <String, HistoryEntry>{};
     String? cursor;
-    while (entries.length < historyLimit) {
+    final cursors = <String>{};
+    while (true) {
       final response = await _sdk.cloudHistory(cursor: cursor);
       for (final item in response.items) {
         final current = entries[item.song.id];
@@ -61,8 +65,22 @@ class LibraryRemote {
           entries[item.song.id] = item;
         }
       }
+      if (entries.length > historyLimit) {
+        final newest = entries.values.toList()
+          ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
+        entries
+          ..clear()
+          ..addEntries(
+            newest
+                .take(historyLimit)
+                .map((entry) => MapEntry(entry.song.id, entry)),
+          );
+      }
       final next = response.cursor;
-      if (!response.hasMore || next == null || next.isEmpty || next == cursor) {
+      if (!response.hasMore ||
+          next == null ||
+          next.isEmpty ||
+          !cursors.add(next)) {
         break;
       }
       cursor = next;

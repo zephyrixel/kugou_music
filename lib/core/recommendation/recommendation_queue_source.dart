@@ -25,7 +25,9 @@ abstract interface class RecommendationFeedbackSource {
 
 class RecommendationQueueSource
     implements PlaybackQueueSource, RecommendationFeedbackSource {
-  RecommendationQueueSource(this._sdk, this._reporter, {required this.kind});
+  RecommendationQueueSource(this._sdk, this._reporter, {required this.kind})
+    : _generation = _reporter.generation;
+  final int _generation;
 
   @override
   final RecommendationKind kind;
@@ -91,6 +93,7 @@ class RecommendationQueueSource
 
   Future<void> _recordDislike(RecommendationFeedbackContext context) async {
     try {
+      if (!_reporter.isCurrent(_generation)) return;
       await _reporter.recordTrash(context.song);
       if (kind == RecommendationKind.personalFm) {
         final batch = await _serialized(
@@ -106,7 +109,9 @@ class RecommendationQueueSource
         );
       }
     } catch (error) {
-      _reporter.reportError('不感兴趣', error);
+      if (_reporter.isCurrent(_generation)) {
+        _reporter.reportError('不感兴趣', error);
+      }
     }
   }
 
@@ -117,6 +122,7 @@ class RecommendationQueueSource
     int? playtimeSecs,
     List<Song> fallbackHeartSongs = const [],
   }) async {
+    if (!_reporter.isCurrent(_generation)) throw const StaleSessionException();
     final batch = switch (kind) {
       RecommendationKind.personalFm => _sdk.personalFm(
         PersonalFmInput(
@@ -138,6 +144,7 @@ class RecommendationQueueSource
       ),
     };
     final value = await batch;
+    if (!_reporter.isCurrent(_generation)) throw const StaleSessionException();
     if (kind == RecommendationKind.personalFm && currentSong != null) {
       _reporter.onPersonalFmSuccess(
         syncNeed: value.syncNeed,

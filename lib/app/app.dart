@@ -10,7 +10,6 @@ import 'package:kgmusic/app/app_router.dart';
 import 'package:kgmusic/app/notification_navigation_controller.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
-import 'package:kgmusic/core/platform/android_display_mode.dart';
 import 'package:kgmusic/core/widgets/app_error_bus.dart';
 
 class KgMusicApp extends ConsumerStatefulWidget {
@@ -31,9 +30,6 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     super.initState();
     final auth = ref.read(authControllerProvider);
     _router = createAppRouter(auth);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(AndroidDisplayMode.preferHighestRefreshRate());
-    });
     _notificationNavigationController = NotificationNavigationController(
       router: _router,
       hasMediaItem: () =>

@@ -135,14 +135,20 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
 
   Future<void> _refresh() async {
     if (mounted) setState(() => _loading = true);
-    final logging = ref.read(appLoggingControllerProvider);
-    final snapshot = await logging.loadSnapshot();
-    if (!mounted) return;
-    setState(() {
-      _entries = snapshot.entries;
-      _totalBytes = snapshot.totalBytes;
-      _loading = false;
-    });
+    try {
+      final snapshot = await ref
+          .read(appLoggingControllerProvider)
+          .loadSnapshot();
+      if (!mounted) return;
+      setState(() {
+        _entries = snapshot.entries;
+        _totalBytes = snapshot.totalBytes;
+      });
+    } catch (_) {
+      if (mounted) showAppError(context, '日志读取失败，请重试');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _changeLevel(AppLogLevel level) async {

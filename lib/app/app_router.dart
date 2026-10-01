@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/models/playlist.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/animated_branch_container.dart';
 import 'package:kgmusic/app/app_shell.dart';
@@ -100,7 +101,7 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
       path: '/playlist',
       pageBuilder: (_, state) => _fadeThroughPage(
         state: state,
-        child: PlaylistDetailScreen(source: state.extra!),
+        child: PlaylistDetailScreen(source: PlaylistTarget.parse(state.extra)),
       ),
     ),
   ],

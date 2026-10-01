@@ -1,30 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/errors/app_error_bus.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 
-class AppErrorBus {
-  final StreamController<String> _messages = StreamController.broadcast();
-  final Map<String, DateTime> _recent = {};
-
-  Stream<String> get messages => _messages.stream;
-
-  void add(String message) {
-    final now = DateTime.now();
-    final previous = _recent[message];
-    if (previous != null &&
-        now.difference(previous) < const Duration(seconds: 8)) {
-      return;
-    }
-    _recent[message] = now;
-    _recent.removeWhere(
-      (_, timestamp) => now.difference(timestamp) > const Duration(minutes: 1),
-    );
-    _messages.add(message);
-  }
-
-  Future<void> dispose() => _messages.close();
-}
+export 'package:kgmusic/core/errors/app_error_bus.dart';
 
 class AppErrorListener extends StatefulWidget {
   const AppErrorListener({

@@ -9,12 +9,10 @@ final homeDiscoveryCardProvider = StreamProvider.family<DiscoveryCard, int>((
   ref,
   cardId,
 ) {
-  final auth = ref.watch(authControllerProvider);
+  final userId = ref.watch(
+    authControllerProvider.select((auth) => auth.snapshot.userId),
+  );
   return ref
       .watch(musicRepositoryProvider)
-      .discoveryCard(
-        cardId,
-        userId: auth.snapshot.userId,
-        pageSize: homeDiscoveryPageSize,
-      );
+      .discoveryCard(cardId, userId: userId, pageSize: homeDiscoveryPageSize);
 });

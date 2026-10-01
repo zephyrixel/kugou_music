@@ -5,6 +5,91 @@ import 'package:kgmusic/core/models/pagination.dart';
 import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 
 void main() {
+  test('empty pages terminate even when the server total is too large', () {
+    expect(
+      canLoadNextPage(
+        loadedItemCount: 1,
+        lastPageItemCount: 0,
+        pageSize: 30,
+        total: 1000,
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'cache emission keeps the request busy until network completes',
+    () async {
+      final network = Completer<void>();
+      final cached = Completer<void>();
+      var calls = 0;
+      final controller = PagedListController<String>(
+        pageSize: 1,
+        itemId: (s) => s,
+        fetchPage: (page, size, refresh) async* {
+          calls++;
+          yield PageSnapshot(
+            items: ['cached'],
+            page: page,
+            pageSize: size,
+            total: 3,
+          );
+          cached.complete();
+          await network.future;
+          yield PageSnapshot(
+            items: ['fresh'],
+            page: page,
+            pageSize: size,
+            total: 3,
+          );
+        },
+      );
+      final load = controller.reset();
+      await cached.future;
+      await controller.loadMore();
+      expect(calls, 1);
+      expect(controller.loadingMore, isTrue);
+      network.complete();
+      await load;
+      expect(controller.items, ['fresh']);
+      controller.dispose();
+    },
+  );
+
+  test(
+    'clear invalidates a pending search without fetching an empty keyword',
+    () async {
+      final response = Completer<PageSnapshot<String>>();
+      final controller = PagedListController<String>(
+        itemId: (s) => s,
+        fetchPage: (_, _, _) => response.future.asStream(),
+      );
+      final load = controller.reset();
+      controller.clear();
+      response.complete(
+        const PageSnapshot(items: ['old'], page: 1, pageSize: 30),
+      );
+      await load;
+      expect(controller.items, isEmpty);
+      expect(controller.initialLoading, isFalse);
+      controller.dispose();
+    },
+  );
+
+  test('duplicate remote pages stop pagination', () async {
+    final controller = PagedListController<String>(
+      pageSize: 1,
+      itemId: (s) => s,
+      fetchPage: (page, size, _) => Stream.value(
+        PageSnapshot(items: ['a'], page: page, pageSize: size, total: 100),
+      ),
+    );
+    await controller.reset();
+    await controller.loadMore();
+    expect(controller.hasMore, isFalse);
+    controller.dispose();
+  });
+
   group('canLoadNextPage', () {
     test('uses the server total when it is available', () {
       expect(

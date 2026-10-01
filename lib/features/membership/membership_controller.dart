@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:kgmusic/core/auth/account_session.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -18,10 +20,27 @@ class MembershipController extends ChangeNotifier {
     this._storage,
     this.userId,
     this._refreshLogin,
-    this._onMembershipChanged,
-  );
+    this._onMembershipChanged, {
+    AccountSession? accountSession,
+    DateTime Function()? now,
+  }) : _session = accountSession,
+       _generation = accountSession?.generation,
+       _now = now ?? DateTime.now;
 
   final MembershipSdk _sdk;
+  final AccountSession? _session;
+  final int? _generation;
+  final DateTime Function() _now;
+  Future<void>? _initialization;
+  String? _recordMonth;
+  bool get _current =>
+      !_disposed &&
+      (_session == null ||
+          (_session.isCurrent(_generation!) && _session.userId == userId));
+  void _requireCurrent() {
+    if (!_current) throw const StaleSessionException();
+  }
+
   final FlutterSecureStorage _storage;
   final int userId;
   final Future<void> Function() _refreshLogin;
@@ -44,23 +63,40 @@ class MembershipController extends ChangeNotifier {
               .contains(_today) ??
           false);
   bool get upgradedToday => _upgradedDate == _today;
-  String get _today => vipDateKey(DateTime.now());
+  String get _today => vipDateKey(_now());
   String get _claimKey => 'kugou_lite_vip_claimed_$userId';
   String get _upgradeKey => 'kugou_lite_vip_upgraded_$userId';
 
-  Future<void> initialize() async {
-    _claimedDate = await _storage.read(key: _claimKey);
-    _upgradedDate = await _storage.read(key: _upgradeKey);
+  Future<void> initialize() => _initialization ??= _initialize();
+
+  Future<void> _initialize() async {
+    try {
+      final claimed = await _storage.read(key: _claimKey);
+      final upgraded = await _storage.read(key: _upgradeKey);
+      if (!_current) return;
+      _claimedDate = claimed;
+      _upgradedDate = upgraded;
+    } catch (error) {
+      AppLog.warn('读取会员本机状态失败', target: 'membership', error: error);
+    }
     _notify();
   }
 
   Future<void> loadRecord() async {
-    if (action == MembershipAction.loadingRecord || record != null) return;
+    await initialize();
+    if (!_current ||
+        busy ||
+        (record != null && _recordMonth == _today.substring(0, 7))) {
+      return;
+    }
     action = MembershipAction.loadingRecord;
     recordUnavailable = false;
     _notify();
     try {
-      record = await _sdk.monthVipRecord();
+      final result = await _sdk.monthVipRecord();
+      if (!_current) return;
+      record = result;
+      _recordMonth = _today.substring(0, 7);
     } catch (error) {
       AppLog.warn('读取会员领取记录失败', target: 'membership', error: error);
       recordUnavailable = true;
@@ -71,6 +107,8 @@ class MembershipController extends ChangeNotifier {
   }
 
   Future<VipClaimResult> claim() async {
+    await initialize();
+    _requireCurrent();
     if (busy) throw const MusicSdkException('已有会员操作正在进行');
     if (claimedToday) throw const MusicSdkException('今天已经领取过会员权益');
     action = MembershipAction.claiming;
@@ -78,8 +116,9 @@ class MembershipController extends ChangeNotifier {
     _notify();
     try {
       final result = await _sdk.claimDayVip();
+      _requireCurrent();
       final claimedAt = result.serverTimeSecs == null
-          ? DateTime.now()
+          ? _now()
           : DateTime.fromMillisecondsSinceEpoch(
               result.serverTimeSecs! * 1000,
               isUtc: true,
@@ -106,6 +145,8 @@ class MembershipController extends ChangeNotifier {
   }
 
   Future<VipUpgradeResult> upgrade() async {
+    await initialize();
+    _requireCurrent();
     if (busy) throw const MusicSdkException('已有会员操作正在进行');
     if (upgradedToday) throw const MusicSdkException('今天已经升级过畅听会员');
     action = MembershipAction.upgrading;
@@ -113,6 +154,7 @@ class MembershipController extends ChangeNotifier {
     _notify();
     try {
       final result = await _sdk.upgradeDayVip();
+      _requireCurrent();
       _upgradedDate = _today;
       try {
         await _storage.write(key: _upgradeKey, value: _upgradedDate);
@@ -129,12 +171,14 @@ class MembershipController extends ChangeNotifier {
   }
 
   Future<void> _refreshMembership() async {
+    if (!_current) return;
     try {
       await _refreshLogin();
     } catch (error) {
       AppLog.warn('刷新会员登录状态失败', target: 'membership', error: error);
       refreshWarning = '权益已生效，会员状态将在稍后自动更新。';
     }
+    if (!_current) return;
     try {
       await _onMembershipChanged();
     } catch (error) {
@@ -144,7 +188,7 @@ class MembershipController extends ChangeNotifier {
   }
 
   void _notify() {
-    if (!_disposed) notifyListeners();
+    if (_current) notifyListeners();
   }
 
   @override
@@ -168,6 +212,8 @@ final membershipControllerProvider = ChangeNotifierProvider.autoDispose
               .last;
           ref.invalidate(userVipProvider);
         },
+        accountSession: ref.read(accountSessionProvider),
+        now: ref.read(databaseProvider).now,
       );
       unawaited(controller.initialize());
       return controller;

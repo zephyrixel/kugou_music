@@ -3,7 +3,7 @@ import 'package:kgmusic/features/auth/auth_controller.dart';
 import 'package:kgmusic/features/auth/auth_route_policy.dart';
 
 void main() {
-  test('启动和音乐库初始化期间停留在启动页', () {
+  test('启动期间停留在启动页', () {
     expect(
       authRedirect(
         status: AuthStatus.booting,
@@ -11,14 +11,6 @@ void main() {
         location: '/',
       ),
       '/launch',
-    );
-    expect(
-      authRedirect(
-        status: AuthStatus.syncingLibrary,
-        authenticated: false,
-        location: '/launch',
-      ),
-      isNull,
     );
   });
 

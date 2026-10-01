@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:kgmusic/core/auth/account_session.dart';
+
 import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/native/music_sdk.dart';
 import 'package:kgmusic/core/recommendation/recommendation_profile_store.dart';
-import 'package:kgmusic/core/widgets/app_error_bus.dart';
+import 'package:kgmusic/core/errors/app_error_bus.dart';
 
 class RecommendationReporter {
   RecommendationReporter(
@@ -14,10 +16,18 @@ class RecommendationReporter {
     this._errors, {
     DateTime Function()? now,
     int Function()? jitterSeconds,
+    this._accountSession,
   }) : _now = now ?? DateTime.now,
        _jitterSeconds = jitterSeconds ?? (() => Random().nextInt(61));
 
   final RecommendationSdk _sdk;
+  final AccountSession? _accountSession;
+  bool _disposed = false;
+  int get generation => _sessionGeneration;
+  bool isCurrent(int generation) =>
+      !_disposed &&
+      generation == _sessionGeneration &&
+      (_accountSession == null || _accountSession.userId == _userId);
   final RecommendationProfileStore _store;
   final AppErrorBus _errors;
   final DateTime Function() _now;
@@ -32,7 +42,7 @@ class RecommendationReporter {
   int _profileTriggerVersion = 0;
 
   void activate(int userId) {
-    if (_userId == userId) return;
+    if (_disposed || _userId == userId) return;
     _sessionGeneration += 1;
     _userId = userId;
     _profileSyncPending = false;
@@ -54,7 +64,7 @@ class RecommendationReporter {
     required int sourceBits,
   }) async {
     final userId = _userId;
-    if (userId == null) return;
+    if (userId == null || !isCurrent(_sessionGeneration)) return;
     await _store.recordPlayback(
       userId: userId,
       song: song,
@@ -66,7 +76,7 @@ class RecommendationReporter {
 
   Future<void> recordTrash(Song song) async {
     final userId = _userId;
-    if (userId == null) return;
+    if (userId == null || !isCurrent(_sessionGeneration)) return;
     await _store.recordTrash(userId: userId, song: song, occurredAt: _now());
   }
 
@@ -90,14 +100,14 @@ class RecommendationReporter {
   }
 
   void onPersonalFmSuccess({required int? syncNeed, required int? syncPoint}) {
-    if (syncNeed != 1 || syncPoint != 0 || _userId == null) return;
+    if (_disposed || syncNeed != 1 || syncPoint != 0 || _userId == null) return;
     _profileTriggerVersion += 1;
     _profileSyncPending = true;
     _startProfileSync();
   }
 
   void notifyProfileReady() {
-    if (!_profileSyncPending) return;
+    if (_disposed || !_profileSyncPending) return;
     if (_syncInFlight != null) {
       _profileReadySignalPending = true;
       return;
@@ -127,18 +137,19 @@ class RecommendationReporter {
   }
 
   void reportError(String label, Object error) {
+    if (_disposed) return;
     AppLog.warn('推荐$label失败', target: 'recommendation.report', error: error);
     _errors.add('推荐反馈暂未同步，不影响继续播放');
   }
 
   void _startProfileSync() {
-    if (_syncInFlight != null) return;
+    if (_disposed || _syncInFlight != null) return;
     final generation = _sessionGeneration;
     final triggerVersion = _profileTriggerVersion;
     late final Future<void> tracked;
     tracked = _syncProfile(generation)
         .catchError((Object error) {
-          if (generation == _sessionGeneration) {
+          if (isCurrent(generation)) {
             reportError('画像同步', error);
           }
         })
@@ -162,9 +173,9 @@ class RecommendationReporter {
 
   Future<void> _syncProfile(int generation) async {
     final userId = _userId;
-    if (userId == null || generation != _sessionGeneration) return;
+    if (userId == null || !isCurrent(generation)) return;
     final snapshot = await _store.snapshot(userId);
-    if (generation != _sessionGeneration || _userId != userId) return;
+    if (!isCurrent(generation) || _userId != userId) return;
     if (!snapshot.ready) return;
     _profileSyncPending = false;
     if (snapshot.items.isEmpty) return;
@@ -172,7 +183,7 @@ class RecommendationReporter {
     final now = _now();
     final dayKey = _dayKey(now);
     final policy = await _store.syncPolicy(userId, dayKey);
-    if (generation != _sessionGeneration || _userId != userId) return;
+    if (!isCurrent(generation) || _userId != userId) return;
     if (policy.syncCount >= RecommendationProfilePolicy.dailySyncLimit) {
       return;
     }
@@ -202,7 +213,7 @@ class RecommendationReporter {
         ),
       ),
     );
-    if (generation != _sessionGeneration || _userId != userId) return;
+    if (!isCurrent(generation) || _userId != userId) return;
 
     var previousSyncPoint = 0;
     String? lastUploadHash;
@@ -225,7 +236,7 @@ class RecommendationReporter {
         nextSyncPoint: nextSyncPoint,
         lastUploadHash: lastUploadHash,
       );
-      if (generation != _sessionGeneration || _userId != userId) return;
+      if (!isCurrent(generation) || _userId != userId) return;
       previousSyncPoint = nextSyncPoint;
       final hash = wireItems.first.standardHash?.trim();
       lastUploadHash = hash?.isNotEmpty == true ? hash : null;
@@ -239,14 +250,23 @@ class RecommendationReporter {
   void _enqueueFeedback(String label, Future<void> Function() action) {
     final generation = _sessionGeneration;
     _feedbackTail = _feedbackTail.catchError((_) {}).then((_) async {
-      if (generation != _sessionGeneration || _userId == null) return;
+      if (!isCurrent(generation) || _userId == null) return;
       try {
         await action();
         AppLog.debug('推荐$label上报成功', target: 'recommendation.report');
       } catch (error) {
-        reportError('$label上报', error);
+        if (isCurrent(generation)) reportError('$label上报', error);
       }
     });
+  }
+
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    _sessionGeneration++;
+    _profileSyncPending = _profileReadySignalPending = false;
+    await _feedbackTail;
+    await _syncInFlight;
   }
 }
 

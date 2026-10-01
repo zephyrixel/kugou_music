@@ -12,7 +12,8 @@ KGMusic 是使用 Flutter 与 Rust 构建的酷狗 Lite 音乐客户端。此目
 | --- | --- |
 | 安装、登录并使用应用 | [项目概览](overview.md) → [使用指南](user-guide.md) → [平台支持](platforms.md) |
 | 在本地运行、调试或测试 | [开发与测试](development.md) → [架构](architecture.md) |
-| 修改业务、数据或 Rust Bridge | [架构](architecture.md) → [开发与测试](development.md) → [贡献指南](contributing.md) |
+| 修改业务、数据或 Rust Bridge | [修复与重构记录](refactoring.md) | 本轮改动、数据兼容和验证边界 | 开发者、评审者 |
+| [架构](architecture.md) → [开发与测试](development.md) → [贡献指南](contributing.md) |
 | 构建并发布版本 | [发布指南](releasing.md) → [安全与隐私](security.md) |
 | 评估数据与安全边界 | [安全与隐私](security.md) → [架构](architecture.md) |
 

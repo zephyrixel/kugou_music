@@ -5,10 +5,10 @@ import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
-import 'package:kgmusic/core/widgets/paged_list_controller.dart';
 import 'package:kgmusic/core/widgets/paged_list_footer.dart';
 import 'package:kgmusic/core/widgets/play_song.dart';
 import 'package:kgmusic/core/widgets/song_tile.dart';
+import 'package:kgmusic/core/widgets/song_favorite_button.dart';
 import 'package:kgmusic/features/playlists/library_playlist_pager.dart';
 
 enum LibraryCollectionKind { favorites, history }
@@ -38,7 +38,7 @@ class _FavoriteSongs extends ConsumerStatefulWidget {
 
 class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
   final _scrollController = ScrollController();
-  PagedListController<Song>? _pager;
+  LibraryPlaylistPager? _pager;
   String? _localId;
 
   @override
@@ -117,15 +117,12 @@ class _FavoriteSongsState extends ConsumerState<_FavoriteSongs> {
                     playlist: favorite!,
                     songs: items,
                     count: favorite.availableTrackCount,
-                    nextPage: ((items.length + 99) ~/ 100) + 1,
-                    hasMore:
-                        !favorite.tracksLoaded ||
-                        items.length < favorite.availableTrackCount,
+                    nextPage: _pager?.nextPage ?? 1,
+                    hasMore: _pager?.hasMore ?? true,
                   ),
         trailingBuilder: (song) => IconButton(
           tooltip: '取消喜欢',
-          onPressed: () =>
-              ref.read(libraryRepositoryProvider).toggleFavorite(song),
+          onPressed: () => toggleSongFavorite(context, ref, song),
           icon: const Icon(Icons.favorite_rounded, size: 20),
         ),
       ),
@@ -179,7 +176,7 @@ class _SongCollectionView extends ConsumerWidget {
   final Widget Function(Song song)? trailingBuilder;
   final PlaybackQueueRequest Function(List<Song> songs)? queueRequest;
   final ScrollController? scrollController;
-  final PagedListController<Song>? pager;
+  final LibraryPlaylistPager? pager;
   final Future<void> Function()? onRefresh;
 
   @override
@@ -187,10 +184,19 @@ class _SongCollectionView extends ConsumerWidget {
     if (songs.isEmpty && (pager?.initialLoading ?? false)) {
       return const KgLoadingView(label: '正在加载歌曲');
     }
+    if (songs.isEmpty && pager?.error != null) {
+      return KgErrorView(message: '收藏加载失败，请重试', onRetry: pager!.retry);
+    }
     if (songs.isEmpty) {
       return KgEmptyView(emptyMessage, icon: Icons.music_note_rounded);
     }
-    final footers = pager == null ? const <Widget>[] : pagedListFooters(pager!);
+    final footers = pager == null
+        ? const <Widget>[]
+        : loadMoreFooters(
+            loading: pager!.loadingMore,
+            error: pager!.error,
+            onRetry: pager!.retry,
+          );
     return RefreshIndicator(
       onRefresh: onRefresh ?? () async {},
       child: ListView.builder(

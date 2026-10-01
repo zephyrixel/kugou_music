@@ -12,10 +12,15 @@ void main() {
   late RecommendationProfileStore profiles;
   late LibraryStore library;
 
-  setUp(() {
+  setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
     profiles = RecommendationProfileStore(database);
     library = LibraryStore(database);
+    await library.replaceLibrary(
+      userId: 7,
+      playlists: const [],
+      history: const [],
+    );
   });
 
   tearDown(() => database.close());
@@ -113,7 +118,7 @@ void main() {
 
     final snapshot = await profiles.snapshot(8);
 
-    expect(snapshot.ready, isTrue);
+    expect(snapshot.ready, isFalse);
     expect(snapshot.items, isEmpty);
   });
 }

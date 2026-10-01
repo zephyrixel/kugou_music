@@ -18,6 +18,7 @@ class LibraryScreen extends ConsumerWidget {
     final playlists = ref.watch(libraryPlaylistsProvider);
     final historyCount = ref.watch(historyEntriesProvider).value?.length ?? 0;
     final sync = ref.watch(librarySyncStatusProvider).value;
+    final ready = ref.watch(libraryReadyProvider);
     final favorite = playlists.value
         ?.where((playlist) => playlist.isMyFavorite)
         .firstOrNull;
@@ -25,7 +26,7 @@ class LibraryScreen extends ConsumerWidget {
       bottom: false,
       child: KgContentWidth(
         child: RefreshIndicator(
-          onRefresh: () => ref.read(libraryRepositoryProvider).syncNow(),
+          onRefresh: () => syncLibrary(context, ref),
           child: CustomScrollView(
             key: const PageStorageKey('library-overview-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
@@ -91,7 +92,9 @@ class LibraryScreen extends ConsumerWidget {
                         subtitle: '收藏和创建的歌单都在这里',
                         action: IconButton.filledTonal(
                           tooltip: '创建歌单',
-                          onPressed: () => _createPlaylist(context, ref),
+                          onPressed: ready
+                              ? () => _createPlaylist(context, ref)
+                              : null,
                           icon: const Icon(Icons.add_rounded),
                         ),
                       ),
@@ -99,7 +102,17 @@ class LibraryScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              _playlistSliver(context, ref, playlists),
+              if (!ready)
+                SliverToBoxAdapter(
+                  child: sync?.failed == true
+                      ? KgErrorView(
+                          message: '音乐库同步失败，重试后即可管理歌单',
+                          onRetry: () => syncLibrary(context, ref),
+                        )
+                      : const KgLoadingView(label: '正在准备音乐库，其他功能可正常使用'),
+                )
+              else
+                _playlistSliver(context, ref, playlists),
               SliverToBoxAdapter(
                 child: SizedBox(
                   height: MediaQuery.paddingOf(context).bottom + KgSpacing.xxl,
@@ -163,7 +176,10 @@ class LibraryScreen extends ConsumerWidget {
                   : playlist.isPrivate
                   ? '私密'
                   : null,
-              onTap: () => context.push('/playlist', extra: playlist),
+              onTap: () => context.push(
+                '/playlist',
+                extra: PlaylistTarget.library(playlist),
+              ),
             );
           },
         ),

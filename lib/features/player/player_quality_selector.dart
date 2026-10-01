@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/models/playback.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 

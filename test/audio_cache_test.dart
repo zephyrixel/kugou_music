@@ -79,13 +79,51 @@ void main() {
       cacheFile: File('${directory.path}/song.mp3'),
     );
 
+    final completed = source.downloadProgressStream
+        .firstWhere((progress) => progress == 1)
+        .then((_) {
+          expect(
+            File('${directory.path}/song.mp3').existsSync(),
+            isTrue,
+            reason: '100% must mean the final cache file is already available',
+          );
+        });
     final response = await source.request();
     final bytes = await response.stream.expand((chunk) => chunk).toList();
 
     expect(response.rangeRequestsSupported, isTrue);
     expect(bytes, hasLength(64));
-    await source.downloadProgressStream.firstWhere((progress) => progress == 1);
+    await completed;
+    expect(await File('${directory.path}/song.mp3').readAsBytes(), bytes);
   });
+
+  test(
+    'unused preparations release cache protection without starting a download',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'kgmusic-unused-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final manager = await AudioCacheManager.create(
+        directory: directory,
+        maxBytes: 1,
+      );
+      final handle = await manager.sourceFor(
+        song,
+        const PlayableResolution(
+          url: 'https://example.com/unrequested.mp3',
+          quality: AudioQuality.standard,
+        ),
+      );
+      await handle.file.writeAsBytes([1, 2, 3]);
+      await manager.prune();
+      expect(await handle.file.exists(), isTrue);
+      handle.release();
+      await manager.prune();
+      expect(await handle.file.exists(), isFalse);
+      await manager.dispose();
+    },
+  );
 
   test('audio cache prunes least recently used completed files', () async {
     final directory = await Directory.systemTemp.createTemp('kgmusic-lru-');
@@ -181,6 +219,7 @@ void main() {
         ),
       );
       await expected.file.writeAsBytes(List.filled(8, 1));
+      expected.release();
       final active = await manager.sourceFor(
         song,
         const PlayableResolution(

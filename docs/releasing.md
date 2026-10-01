@@ -29,7 +29,7 @@ git push origin v1.2.3+4
 
 ## CI 阶段与产物
 
-1. `validation`：解析版本，执行 `flutter analyze`、`flutter test` 和 Rust 测试。
+1. `checks`：复用日常 Flutter/Rust 检查、测试、许可证校验和 Android Debug 构建；`validation` 在检查通过后解析发布版本。
 2. `prepare_release`：创建缺失的 draft Release，或复用已有 draft；已公开的同 tag Release
    会被拒绝重跑，避免替换公开附件。
 3. `android`：构建并校验签名的 universal、`armeabi-v7a`、`arm64-v8a` APK，以及 AAB。

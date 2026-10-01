@@ -8,45 +8,23 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     bool autoPlay = true,
     bool recordHistory = true,
   }) async {
+    if (_disposed || index < 0 || index >= request.songs.length) return;
     final generation = ++_loadGeneration;
-    if (index < 0 || index >= request.songs.length) return;
+    final queueIdentity = identical(request, _queueRequest)
+        ? _queueController.identity
+        : null;
     final song = request.songs[index];
-    AppLog.debug(
-      '准备播放 song=${song.id} queueIndex=$index queueSize=${request.songs.length}',
-      target: 'player.transition',
-    );
     final requestedQuality = _preferredQuality;
+    final previousQuality = _qualityState;
     _messages.add(null);
     _emitQualityState(
       PlaybackQualityState(requested: requestedQuality, switching: true),
     );
-
     try {
-      final prepared = await _preparePlayback(
-        song,
-        requestedQuality,
-        initialPosition: initialPosition,
-      );
-      if (!_isCurrentRequest(generation)) return;
-      await _commitPlayback(
-        prepared,
-        request: request,
-        index: index,
-        generation: generation,
-        autoPlay: autoPlay,
-        recordHistory: recordHistory,
-      );
-      AppLog.info(
-        '播放切换完成 song=${song.id} generation=$generation',
-        target: 'player.transition',
-      );
-    } on MusicSdkException catch (error) {
-      if (!_isCurrentRequest(generation)) return;
-      if (error.code == 20028) {
+      for (var attempt = 0; attempt < 2; attempt++) {
+        _PreparedPlayback? prepared;
         try {
-          await _sdk.registerDevice();
-          if (!_isCurrentRequest(generation)) return;
-          final prepared = await _preparePlayback(
+          prepared = await _preparePlayback(
             song,
             requestedQuality,
             initialPosition: initialPosition,
@@ -57,20 +35,34 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
             request: request,
             index: index,
             generation: generation,
+            queueIdentity: queueIdentity,
             autoPlay: autoPlay,
             recordHistory: recordHistory,
           );
           return;
-        } catch (_) {
-          // Keep the original security challenge as the user-facing error.
+        } on MusicSdkException catch (error) {
+          if (!_isCurrentRequest(generation)) return;
+          if (attempt == 0 && error.code == 20028) {
+            await _sdk.registerDevice();
+            if (!_isCurrentRequest(generation)) return;
+            continue;
+          }
+          rethrow;
+        } finally {
+          if (prepared != null &&
+              !identical(prepared.audioHandle, _currentAudioHandle)) {
+            prepared.audioHandle.release();
+          }
         }
       }
-      _failPlayback(requestedQuality, error);
-      rethrow;
     } catch (error) {
       if (!_isCurrentRequest(generation)) return;
       _failPlayback(requestedQuality, error);
       rethrow;
+    } finally {
+      if (_isCurrentRequest(generation) && _qualityState.switching) {
+        _emitQualityState(previousQuality);
+      }
     }
   }
 
@@ -117,13 +109,21 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     required PlaybackQueueRequest request,
     required int index,
     required int generation,
+    required Object? queueIdentity,
     required bool autoPlay,
     required bool recordHistory,
   }) {
     late final Future<void> next;
     next = _commitTail.catchError((_) {}).then((_) async {
       if (!_isCurrentRequest(generation)) return;
+      if (queueIdentity != null &&
+          (!identical(queueIdentity, _queueController.identity) ||
+              !_songs.any((song) => song.id == prepared.song.id))) {
+        return;
+      }
       final previousAudioHandle = _currentAudioHandle;
+      final previousPosition = _player.position;
+      final previousPlaying = _player.playing;
       Duration? actualDuration;
       try {
         actualDuration = await _player.setAudioSource(
@@ -131,17 +131,40 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
           initialPosition: prepared.initialPosition,
         );
       } catch (_) {
-        _audioCache.setActive(previousAudioHandle);
+        if (_isCurrentRequest(generation) && previousAudioHandle != null) {
+          try {
+            await _player.setAudioSource(
+              previousAudioHandle.source,
+              initialPosition: previousPosition,
+            );
+            if (_isCurrentRequest(generation) && previousPlaying) {
+              _startPlayer();
+            }
+          } catch (error) {
+            AppLog.warn('恢复上一音源失败', target: 'player.engine', error: error);
+          }
+        }
         rethrow;
       }
       if (!_isCurrentRequest(generation)) {
         await _player.stop();
         return;
       }
+      if (recordHistory) await _finishRecommendationSession();
+      if (!_isCurrentRequest(generation)) {
+        await _player.stop();
+        return;
+      }
+      if (queueIdentity != null &&
+          (!identical(queueIdentity, _queueController.identity) ||
+              !_songs.any((song) => song.id == prepared.song.id))) {
+        await _player.stop();
+        return;
+      }
       _audioCache.setActive(prepared.audioHandle);
       _currentAudioHandle = prepared.audioHandle;
+      previousAudioHandle?.release();
       _currentMediaDuration = actualDuration;
-      if (recordHistory) await _finishRecommendationSession();
       _recommendationPlayTracker.activate(
         prepared.song,
         sourceBits: request.origin.profileSourceBits,
@@ -150,21 +173,20 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       _restoredPosition = null;
       _previewEnd = prepared.previewEnd;
       _previewStopped = false;
-      final replacingQueue = !identical(_queueRequest, request);
-      if (replacingQueue) _prefetchAttemptedSongId = null;
-      final committedQueue = [...request.songs];
-      committedQueue[index] = prepared.song;
-      _queueRequest = request.copyWith(songs: committedQueue);
-      _queueController.commit(
-        committedQueue,
-        index,
-        replacingQueue: replacingQueue,
-      );
+      if (queueIdentity == null) {
+        _prefetchAttemptedSongId = null;
+        _loadingMore = false;
+        final songs = [...request.songs];
+        songs[index] = prepared.song;
+        _queueController.replace(request.copyWith(songs: songs), index);
+      } else {
+        _queueController.selectSong(prepared.song);
+      }
       _publishMediaQueue();
       mediaItem.add(
         _toMediaItem(prepared.song, actualDuration: _currentMediaDuration),
       );
-      _emitQueueState();
+      _emitQueueState(clearError: queueIdentity == null);
       _publishSystemPlaybackState();
       unawaited(_cacheArtwork(prepared.song, generation));
       _emitQualityState(
@@ -179,7 +201,11 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       );
       unawaited(_persistQueue());
       if (recordHistory && _isCurrentRequest(generation)) {
-        await _recordPlayed(prepared.song);
+        try {
+          await _recordPlayed(prepared.song);
+        } catch (error) {
+          AppLog.warn('记录播放历史失败', target: 'player.history', error: error);
+        }
       }
       if (!_isCurrentRequest(generation)) return;
       if (autoPlay) {
@@ -204,6 +230,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
   }
 
   void _emitQualityState(PlaybackQualityState state) {
+    if (_disposed) return;
     _qualityState = state;
     _qualityStates.add(state);
   }
@@ -246,10 +273,13 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
     return song.copyWith(artworkUrl: artworkUrl);
   }
 
-  bool _isCurrentRequest(int generation) => generation == _loadGeneration;
+  bool _isCurrentRequest(int generation) =>
+      !_disposed &&
+      generation == _loadGeneration &&
+      (accountSession == null || accountSession!.snapshot.authenticated);
 
   Future<void> _advanceAfterCompletion() async {
-    if (_advancing) return;
+    if (_disposed || _advancing) return;
     _advancing = true;
     try {
       await _finishRecommendationSession();
@@ -314,7 +344,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
       }
     } catch (error) {
       AppLog.error('自动切换下一首失败', target: 'player.transition', error: error);
-      _messages.add('暂时无法切换到下一首，请稍后重试');
+      if (!_disposed) _messages.add('暂时无法切换到下一首，请稍后重试');
     } finally {
       _advancing = false;
     }
@@ -322,7 +352,7 @@ extension _MusicAudioTransitionRuntime on MusicAudioHandler {
 
   void _enforcePreviewEnd(Duration position) {
     final end = _previewEnd;
-    if (end == null || _previewStopped || position < end) return;
+    if (_disposed || end == null || _previewStopped || position < end) return;
     _previewStopped = true;
     unawaited(_player.pause());
     _messages.add('试听片段已结束');

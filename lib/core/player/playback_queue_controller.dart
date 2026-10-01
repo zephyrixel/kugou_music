@@ -11,7 +11,43 @@ class PlaybackQueueController {
   PlaybackQueueController({Random? random}) : _random = random ?? Random();
 
   final Random _random;
-  List<Song> _songs = const [];
+  PlaybackQueueRequest? _request;
+  Object? _identity;
+  PlaybackQueueRequest? get request => _request;
+  Object? get identity => _identity;
+  List<Song> get _songs => _request?.songs ?? const [];
+  set _songs(List<Song> value) {
+    _request =
+        _request?.copyWith(songs: value) ??
+        PlaybackQueueRequest.snapshot(title: '播放队列', songs: value);
+  }
+
+  void replace(PlaybackQueueRequest request, int index) {
+    _request = request;
+    commit(request.songs, index, replacingQueue: true);
+  }
+
+  void updatePagination({
+    required int nextPage,
+    required bool hasMore,
+    int? total,
+  }) {
+    _request = _request?.copyWith(
+      nextPage: nextPage,
+      hasMore: hasMore,
+      origin: _request!.origin.copyWith(totalCount: total),
+    );
+  }
+
+  bool selectSong(Song song) {
+    final index = _songs.indexWhere((item) => item.id == song.id);
+    if (index < 0) return false;
+    final updated = [..._songs];
+    updated[index] = song;
+    commit(updated, index, replacingQueue: false);
+    return true;
+  }
+
   int _currentIndex = -1;
   PlaybackOrder _order = PlaybackOrder.sequential;
   final Set<String> _shuffleRemaining = {};
@@ -22,6 +58,7 @@ class PlaybackQueueController {
   bool get hasShuffleCandidates => _shuffleRemaining.isNotEmpty;
 
   void commit(List<Song> songs, int index, {required bool replacingQueue}) {
+    if (replacingQueue) _identity = Object();
     _songs = List.unmodifiable(songs);
     _currentIndex = index.clamp(-1, _songs.length - 1);
     if (_order != PlaybackOrder.shuffle) return;
@@ -77,7 +114,11 @@ class PlaybackQueueController {
   }
 
   bool clearUpcoming() {
-    if (_currentIndex < 0 || _currentIndex + 1 >= _songs.length) return false;
+    if (_currentIndex < 0) return false;
+    final changed =
+        _currentIndex + 1 < _songs.length || _request?.hasMore == true;
+    if (!changed) return false;
+    _request = _request?.copyWith(hasMore: false);
     _songs = List.unmodifiable(_songs.take(_currentIndex + 1));
     _shuffleRemaining.clear();
     return true;
@@ -106,7 +147,8 @@ class PlaybackQueueController {
   }
 
   void clear() {
-    _songs = const [];
+    _request = null;
+    _identity = null;
     _currentIndex = -1;
     _shuffleRemaining.clear();
   }

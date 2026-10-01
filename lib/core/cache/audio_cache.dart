@@ -8,15 +8,27 @@ import 'package:crypto/crypto.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:kgmusic/core/logging/app_log.dart';
 import 'package:kgmusic/core/models/song.dart';
-import 'package:kgmusic/core/native/music_sdk.dart';
+import 'package:kgmusic/core/models/playback.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 class CachedAudioHandle {
-  const CachedAudioHandle({required this.source, required this.file});
+  CachedAudioHandle({
+    required this.source,
+    required this.file,
+    this._onRelease,
+  });
 
   final LockCachingAudioSource source;
   final File file;
+  final void Function()? _onRelease;
+  bool _released = false;
+
+  void release() {
+    if (_released) return;
+    _released = true;
+    _onRelease?.call();
+  }
 }
 
 class AudioCacheUsage {
@@ -38,8 +50,17 @@ class AudioCacheManager implements AudioCache {
 
   final Directory _directory;
   int _maxBytes;
-  String? _activePath;
-  final Set<String> _downloadingPaths = {};
+  CachedAudioHandle? _activeHandle;
+  String? get _activePath => _activeHandle?.file.path;
+  final Map<
+    LockCachingAudioSource,
+    ({String path, StreamSubscription<double> watch})
+  >
+  _downloads = {};
+  final Map<String, int> _retainedPaths = {};
+  Set<String> get _downloadingPaths =>
+      _downloads.values.map((download) => download.path).toSet();
+  bool _disposed = false;
   final Set<String> _pendingClearPaths = {};
   bool _prunePending = false;
   bool _pruneRequested = false;
@@ -68,38 +89,70 @@ class AudioCacheManager implements AudioCache {
     Song song,
     PlayableResolution resolution,
   ) async {
+    if (_disposed) throw StateError('Audio cache is disposed');
     final key = _resourceKey(song, resolution);
     final extension = _extension(resolution.url, resolution.quality);
     final file = File(p.join(_directory.path, '$key$extension'));
-    final exists = await file.exists();
-    if (exists) await file.setLastModified(DateTime.now());
+    var exists = await file.exists();
+    if (exists) {
+      try {
+        await file.setLastModified(DateTime.now());
+      } on FileSystemException {
+        exists = false;
+      }
+    }
     AppLog.debug(
       '音频缓存 ${exists ? '命中' : '未命中'} song=${song.id} '
       'quality=${resolution.quality.name}',
       target: 'player.cache',
     );
 
-    final source = LockCachingAudioSource(
+    late final LockCachingAudioSource source;
+    source = _ObservedCachingSource(
       Uri.parse(resolution.url),
       cacheFile: file,
+      onFailure: () => _finishDownload(source),
+      onStart: () {
+        if (exists || _disposed) return;
+        final watch = source.downloadProgressStream.listen(
+          (progress) {
+            if (progress >= 1) _finishDownload(source);
+          },
+          onError: (Object _) => _finishDownload(source),
+          onDone: () => _finishDownload(source),
+        );
+        _downloads[source] = (path: file.path, watch: watch);
+      },
     );
-    if (!exists) {
-      _downloadingPaths.add(file.path);
-      unawaited(_watchCompletion(source, file.path));
-    }
-    return CachedAudioHandle(source: source, file: file);
+    _retainedPaths.update(file.path, (count) => count + 1, ifAbsent: () => 1);
+    return CachedAudioHandle(
+      source: source,
+      file: file,
+      onRelease: () {
+        final count = (_retainedPaths[file.path] ?? 1) - 1;
+        if (count == 0) {
+          _retainedPaths.remove(file.path);
+        } else {
+          _retainedPaths[file.path] = count;
+        }
+        if (!_disposed) unawaited(_cleanupReleased(file.path));
+      },
+    );
   }
 
   @override
   void setActive(CachedAudioHandle? handle) {
     final previousPath = _activePath;
-    _activePath = handle?.file.path;
+    final previous = _activeHandle;
+    _activeHandle = handle;
+    if (!identical(previous, handle)) previous?.release();
     final clearPrevious =
         previousPath != null &&
         previousPath != _activePath &&
-        _pendingClearPaths.remove(previousPath) &&
-        !_downloadingPaths.contains(previousPath);
+        _pendingClearPaths.contains(previousPath) &&
+        !_isProtected(previousPath);
     if (clearPrevious) {
+      _pendingClearPaths.remove(previousPath);
       unawaited(_deletePendingFile(previousPath));
     } else if (_prunePending && previousPath != _activePath) {
       unawaited(prune());
@@ -155,20 +208,24 @@ class AudioCacheManager implements AudioCache {
       _prunePending = false;
       return;
     }
-    final files = await _audioFiles();
-    var total = files.fold<int>(0, (sum, file) => sum + file.lengthSync());
-    if (total <= _maxBytes) {
-      _prunePending = false;
-      return;
+    final files = <({File file, int size, DateTime modified})>[];
+    for (final file in await _audioFiles()) {
+      try {
+        final stat = await file.stat();
+        if (stat.type == FileSystemEntityType.file) {
+          files.add((file: file, size: stat.size, modified: stat.modified));
+        }
+      } on FileSystemException {
+        /* Concurrent cleanup. */
+      }
     }
-
-    files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
-    for (final file in files) {
+    var total = files.fold<int>(0, (sum, entry) => sum + entry.size);
+    files.sort((a, b) => a.modified.compareTo(b.modified));
+    for (final entry in files) {
       if (total <= _maxBytes) break;
-      if (_isProtected(file.path)) continue;
-      final length = file.lengthSync();
-      await _deleteWithSidecars(file);
-      total -= length;
+      if (_isProtected(entry.file.path)) continue;
+      await _deleteWithSidecars(entry.file);
+      total -= entry.size;
     }
     _prunePending = total > _maxBytes;
   }
@@ -176,6 +233,7 @@ class AudioCacheManager implements AudioCache {
   Future<void> clear() async {
     if (!await _directory.exists()) return;
     _pendingClearPaths.addAll(_downloadingPaths);
+    _pendingClearPaths.addAll(_retainedPaths.keys);
     if (_activePath != null) _pendingClearPaths.add(_activePath!);
     for (final file in await _directory.list().where(_isFile).toList()) {
       if (_isProtected(file.path)) continue;
@@ -190,24 +248,34 @@ class AudioCacheManager implements AudioCache {
           .where((file) => !file.path.endsWith('.part'))
           .toList(growable: false);
 
-  Future<void> _watchCompletion(
-    LockCachingAudioSource source,
-    String path,
-  ) async {
+  void _finishDownload(LockCachingAudioSource source) {
+    final download = _downloads.remove(source);
+    unawaited(download?.watch.cancel());
+    if (download != null && !_disposed) {
+      unawaited(_cleanupReleased(download.path));
+    }
+  }
+
+  Future<void> _cleanupReleased(String path) async {
     try {
-      await source.downloadProgressStream.firstWhere((value) => value >= 1);
-    } catch (_) {
-      // The next source request can restart an interrupted download.
-    } finally {
-      _downloadingPaths.remove(path);
-      if (_pendingClearPaths.contains(path) && path != _activePath) {
+      if (_pendingClearPaths.contains(path) && !_isProtected(path)) {
         _pendingClearPaths.remove(path);
         await _deleteWithSidecars(File(path));
-        if (_prunePending) await prune();
-      } else {
-        await prune();
       }
+      await prune();
+    } catch (error) {
+      AppLog.warn('整理音频缓存失败', target: 'player.cache', error: error);
     }
+  }
+
+  Future<void> dispose() async {
+    _disposed = true;
+    for (final download in _downloads.values.toList()) {
+      await download.watch.cancel();
+    }
+    _downloads.clear();
+    _retainedPaths.clear();
+    await _pruneOperation;
   }
 
   Future<void> _removeStalePartials() async {
@@ -242,7 +310,11 @@ class AudioCacheManager implements AudioCache {
   }
 
   bool _isProtected(String path) {
-    final protectedPaths = <String>{?_activePath, ..._downloadingPaths};
+    final protectedPaths = <String>{
+      ?_activePath,
+      ..._downloadingPaths,
+      ..._retainedPaths.keys,
+    };
     return protectedPaths.any(
       (base) => path == base || path == '$base.mime' || path == '$base.part',
     );
@@ -292,4 +364,32 @@ class AudioCacheManager implements AudioCache {
 
 Future<Directory> _temporaryDirectory() async {
   return getTemporaryDirectory();
+}
+
+// Observe failed HTTP requests as well as successful download progress. The
+// underlying caching source otherwise leaves its progress stream open on error.
+class _ObservedCachingSource extends LockCachingAudioSource {
+  _ObservedCachingSource(
+    super.uri, {
+    required File cacheFile,
+    required this.onFailure,
+    required this.onStart,
+  }) : super(cacheFile: cacheFile);
+  final void Function() onFailure;
+  final void Function() onStart;
+  bool _started = false;
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    if (!_started) {
+      _started = true;
+      onStart();
+    }
+    try {
+      return await super.request(start, end);
+    } catch (_) {
+      onFailure();
+      rethrow;
+    }
+  }
 }
