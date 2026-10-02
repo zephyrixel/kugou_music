@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_overlays.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 
 Future<bool> confirmDialog(
@@ -7,8 +8,9 @@ Future<bool> confirmDialog(
   String? content,
   String cancelLabel = '取消',
   String confirmLabel = '确认',
+  bool destructive = false,
 }) async {
-  final accepted = await showDialog<bool>(
+  final accepted = await showKgDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       scrollable: true,
@@ -20,6 +22,12 @@ Future<bool> confirmDialog(
           child: Text(cancelLabel),
         ),
         FilledButton(
+          style: destructive
+              ? FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
+                )
+              : null,
           onPressed: () => Navigator.pop(context, true),
           child: Text(confirmLabel),
         ),
@@ -38,7 +46,7 @@ Future<({String name, bool private})?> promptPlaylistName(
   bool initialPrivate = false,
   bool showPrivate = true,
 }) async {
-  final result = await showDialog<_PlaylistDraft>(
+  final result = await showKgDialog<_PlaylistDraft>(
     context: context,
     builder: (_) => _PlaylistFormDialog(
       title: title,
@@ -59,7 +67,7 @@ promptPlaylistEdit(
   required String intro,
   required String tags,
   required bool private,
-}) => showDialog<_PlaylistDraft>(
+}) => showKgDialog<_PlaylistDraft>(
   context: context,
   builder: (_) => _PlaylistFormDialog(
     title: '编辑歌单',

@@ -104,6 +104,12 @@ class HomeSongShelfSkeleton extends StatelessWidget {
                       height: 14,
                       radius: KgRadii.small,
                     ),
+                    const SizedBox(height: 7),
+                    KgSkeleton(
+                      width: cardWidth * 0.45,
+                      height: 10,
+                      radius: KgRadii.small,
+                    ),
                   ],
                 ),
               ),

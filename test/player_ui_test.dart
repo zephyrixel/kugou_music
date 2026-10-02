@@ -7,11 +7,56 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
+import 'package:kgmusic/features/player/player_backdrop.dart';
 import 'package:kgmusic/features/player/mini_player.dart';
 
 import 'support/player_ui_harness.dart';
 
 void main() {
+  testWidgets(
+    'ambient motion resumes after a route returns and stops offscreen',
+    (tester) async {
+      final handler = PlayerUiHandler();
+      addTearDown(handler.close);
+      await tester.pumpWidget(
+        playerUiApp(
+          handler: handler,
+          home: Scaffold(
+            body: PlayerBackdrop(
+              handler: handler,
+              item: handler.mediaItem.value!,
+            ),
+          ),
+        ),
+      );
+      await handler.play();
+      await tester.pump();
+      expect(tester.hasRunningAnimations, isTrue);
+
+      final navigator = Navigator.of(
+        tester.element(find.byType(PlayerBackdrop)),
+      );
+      final coveringRoute = MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(body: Text('覆盖页面')),
+      );
+      navigator.push<void>(coveringRoute);
+      await tester.pumpAndSettle();
+      expect(tester.hasRunningAnimations, isFalse);
+
+      navigator.pop();
+      await tester.pump();
+      // Let the route finish without waiting for the intentionally looping motion.
+      await tester.pump(coveringRoute.reverseTransitionDuration);
+      await tester.pump();
+      expect(tester.hasRunningAnimations, isTrue);
+
+      await handler.pause();
+      await tester.pumpAndSettle();
+      expect(tester.hasRunningAnimations, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'the dock can appear with reduced motion and yield space to the keyboard',
     (tester) async {

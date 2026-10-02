@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
 import 'package:kgmusic/core/widgets/playback_insets.dart';
@@ -70,30 +71,37 @@ class HomeScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const DiscoverHeader(),
+                          const KgEntrance(child: DiscoverHeader()),
                           const SizedBox(height: KgSpacing.xl),
                           LayoutBuilder(
                             builder: (context, constraints) {
-                              final hero = DailyRecommendationHero(
-                                songs: songs,
-                                loading:
-                                    recommendations.isLoading && songs.isEmpty,
-                                failed:
-                                    recommendations.hasError && songs.isEmpty,
-                                onRetry: () => ref.invalidate(
-                                  dailyRecommendationsProvider,
+                              final hero = KgEntrance(
+                                order: 1,
+                                ready:
+                                    !recommendations.isLoading ||
+                                    songs.isNotEmpty,
+                                child: DailyRecommendationHero(
+                                  songs: songs,
+                                  loading:
+                                      recommendations.isLoading &&
+                                      songs.isEmpty,
+                                  failed:
+                                      recommendations.hasError && songs.isEmpty,
+                                  onRetry: () => ref.invalidate(
+                                    dailyRecommendationsProvider,
+                                  ),
+                                  onPlay: songs.isEmpty
+                                      ? null
+                                      : () => _playHomeCollection(
+                                          context,
+                                          ref,
+                                          songs.first,
+                                          songs,
+                                          '每日推荐',
+                                          PlaybackQueueOriginKind
+                                              .dailyRecommendations,
+                                        ),
                                 ),
-                                onPlay: songs.isEmpty
-                                    ? null
-                                    : () => _playHomeCollection(
-                                        context,
-                                        ref,
-                                        songs.first,
-                                        songs,
-                                        '每日推荐',
-                                        PlaybackQueueOriginKind
-                                            .dailyRecommendations,
-                                      ),
                               );
                               if (constraints.maxWidth >= 840 &&
                                   MediaQuery.textScalerOf(context).scale(14) <=
@@ -104,8 +112,11 @@ class HomeScreen extends ConsumerWidget {
                                     Expanded(child: hero),
                                     const SizedBox(width: 24),
                                     const Expanded(
-                                      child: RecommendationCards(
-                                        minCardHeight: 100,
+                                      child: KgEntrance(
+                                        order: 2,
+                                        child: RecommendationCards(
+                                          minCardHeight: 100,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -115,12 +126,18 @@ class HomeScreen extends ConsumerWidget {
                                 children: [
                                   hero,
                                   const SizedBox(height: KgSpacing.section),
-                                  const RecommendationCards(),
+                                  const KgEntrance(
+                                    order: 2,
+                                    child: RecommendationCards(),
+                                  ),
                                 ],
                               );
                             },
                           ),
-                          const _RecentlyPlayedShelf(),
+                          const KgEntrance(
+                            order: 3,
+                            child: _RecentlyPlayedShelf(),
+                          ),
                         ],
                       ),
                     ),

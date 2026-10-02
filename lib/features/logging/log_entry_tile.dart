@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/logging/app_log_entry.dart';
 import 'package:kgmusic/core/logging/app_log_level.dart';
@@ -10,6 +11,10 @@ class LogEntryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ExpansionTile(
+    expansionAnimationStyle: AnimationStyle(
+      duration: KgMotion.resolve(context, KgMotion.medium),
+      curve: KgMotion.standard,
+    ),
     leading: Icon(
       _icon(entry.level),
       color: _color(context, entry.level),

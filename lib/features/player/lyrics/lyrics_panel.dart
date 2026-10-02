@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -156,12 +158,7 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: SizedBox.square(
-          dimension: 28,
-          child: CircularProgressIndicator(strokeWidth: 2.5),
-        ),
-      );
+      return const KgLoadingView();
     }
     if (_error != null) {
       return _LyricsMessage(
@@ -220,20 +217,24 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
                 ),
               ),
             ),
-            if (!_following)
-              Positioned(
-                right: 8,
-                bottom: 8,
-                child: FilledButton.tonalIcon(
-                  onPressed: _resumeFollowing,
-                  icon: const Icon(Icons.my_location_rounded, size: 16),
-                  label: const Text('回到当前歌词'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                ),
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: KgStateTransition(
+                alignment: Alignment.bottomRight,
+                child: _following
+                    ? const SizedBox.shrink()
+                    : FilledButton.tonalIcon(
+                        onPressed: _resumeFollowing,
+                        icon: const Icon(Icons.my_location_rounded, size: 16),
+                        label: const Text('回到当前歌词'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                      ),
               ),
+            ),
           ],
         );
       },
@@ -315,12 +316,15 @@ class _PrimaryLyricText extends StatelessWidget {
       height: 1.25,
     );
     if (!active || line.words.isEmpty) {
-      return Text(
-        line.text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
+      return AnimatedDefaultTextStyle(
+        duration: KgMotion.resolve(context, KgMotion.fast),
         style: active ? baseStyle.copyWith(color: KgColors.accent) : baseStyle,
+        child: Text(
+          line.text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
       );
     }
     return Text.rich(

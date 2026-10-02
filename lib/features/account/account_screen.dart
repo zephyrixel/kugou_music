@@ -122,13 +122,14 @@ class _ProfileCard extends StatelessWidget {
       child: profile.when(
         loading: () => const SizedBox(
           height: 90,
-          child: Center(child: CircularProgressIndicator()),
+          child: Center(child: KgBusyIndicator(size: 28)),
         ),
         error: (error, _) => const Text('个人资料暂时无法加载，请稍后重试'),
         data: (user) => Row(
           children: [
             SongArtwork(
               url: user.avatarUrl,
+              placeholderIcon: Icons.person_outline_rounded,
               cacheId:
                   'user:${user.userId ?? user.username ?? user.displayName}',
               size: 56,
@@ -257,6 +258,7 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     title: '退出登录？',
     content: '本机保存的账号信息和音乐库数据将被清除。',
     confirmLabel: '退出',
+    destructive: true,
   );
   if (accepted) await ref.read(authControllerProvider).logout();
 }

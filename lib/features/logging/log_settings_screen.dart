@@ -203,6 +203,7 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
       title: '清空诊断日志？',
       content: '这会删除 Flutter、Rust bridge 和 SDK 的现有日志，且无法恢复。',
       confirmLabel: '清空',
+      destructive: true,
     );
     if (accepted != true) return;
     try {

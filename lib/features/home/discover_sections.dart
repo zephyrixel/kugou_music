@@ -86,7 +86,8 @@ class DailyRecommendationHero extends StatelessWidget {
         ],
       );
       return KgSurface(
-        color: const Color(0x0FFFFFFF),
+        color: const Color(0x16FFFFFF),
+        gradient: KgGradients.surface,
         padding: const EdgeInsets.all(KgSpacing.lg),
         radius: KgRadii.hero,
         child: ConstrainedBox(

@@ -10,6 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
+import 'package:kgmusic/core/widgets/kg_choice_tabs.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 import 'package:kgmusic/features/player/mini_player.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
 
@@ -99,14 +102,19 @@ void main() {
         ),
       );
       addTearDown(() => tester.binding.setSurfaceSize(null));
+      const reviewLayout = String.fromEnvironment('UI_REVIEW_LAYOUT');
 
       for (final configuration in [
         (name: 'phone', size: const Size(390, 844), scale: 1.0),
         (name: 'narrow', size: const Size(320, 568), scale: 1.0),
+        (name: 'narrow-large-text', size: const Size(320, 568), scale: 2.0),
         (name: 'large-text', size: const Size(390, 844), scale: 2.0),
         (name: 'landscape', size: const Size(844, 390), scale: 1.0),
         (name: 'desktop', size: const Size(1280, 800), scale: 1.0),
       ]) {
+        if (reviewLayout.isNotEmpty && reviewLayout != configuration.name) {
+          continue;
+        }
         await tester.binding.setSurfaceSize(configuration.size);
         final harness = await UiAppHarness.create(
           songs: songs,
@@ -199,15 +207,35 @@ void main() {
           }
 
           await record(12);
-          await tester.tap(
-            find.descendant(
-              of: find.byType(MiniPlayer),
-              matching: find.text(songs.first.title),
-            ),
-          );
+          await tester.tap(find.byKey(const ValueKey('mini-player-open')));
           await record(42);
           await tester.tap(find.byTooltip('收起播放器'));
           await record(36);
+          await tester.tap(find.byTooltip('播放队列'));
+          await record(28);
+          Navigator.of(
+            tester.element(find.text('播放队列')),
+            rootNavigator: true,
+          ).pop();
+          await record(24);
+          harness.router.push<void>('/account/settings');
+          await record(28);
+          harness.router.pop();
+          await record(24);
+          harness.router.go('/search');
+          await record(24);
+          await tester.tap(find.text('歌单'));
+          await record(24);
+          harness.router.go('/library');
+          await record(24);
+          await tester.tap(find.byTooltip('创建歌单'));
+          await record(24);
+          final press = await tester.startGesture(
+            tester.getCenter(find.text('取消')),
+          );
+          await record(6);
+          await press.up();
+          await record(24);
           await tester.pumpAndSettle();
           await tester.pumpWidget(
             harness.app(
@@ -218,7 +246,7 @@ void main() {
           );
           await tester.pumpAndSettle();
         }
-        if (configuration.name == 'phone') {
+        {
           await tester.tap(find.byTooltip('播放队列'));
           await capture('queue');
           Navigator.of(
@@ -235,19 +263,53 @@ void main() {
         }
         harness.router.go('/library');
         await capture('library');
+        await Scrollable.ensureVisible(
+          tester.element(find.byTooltip('创建歌单')),
+          alignment: 0.25,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('创建歌单'));
+        await capture('playlist-dialog');
+        await tester.tap(find.text('创建').last);
+        await capture('playlist-dialog-error');
+        await tester.tap(find.text('取消'));
+        await tester.pumpAndSettle();
         harness.router.push<void>('/account/settings');
         await capture('settings');
-        if (configuration.name == 'phone') {
+        await tester.tap(find.text('默认播放音质'));
+        await capture('quality');
+        Navigator.of(
+          tester.element(find.text('默认播放音质').last),
+          rootNavigator: true,
+        ).pop();
+        await tester.pumpAndSettle();
+        {
           harness.router.go('/search');
           await tester.pumpAndSettle();
           await tester.enterText(find.byType(TextField), '海');
           await tester.pump(const Duration(milliseconds: 500));
           FocusManager.instance.primaryFocus?.unfocus();
           await capture('search');
+          await tester.tap(find.text('歌单'));
+          await capture('search-playlists');
           harness.router.push<void>('/account');
           await capture('account');
+          harness.router.push<void>('/account/logs');
+          await capture('logs');
           harness.auth.expire();
           await capture('login');
+          if (configuration.name == 'phone') {
+            final navigator = Navigator.of(
+              tester.element(find.text('登录 KGMusic')),
+              rootNavigator: true,
+            );
+            navigator.push<void>(
+              MaterialPageRoute(builder: (_) => const _ComponentStates()),
+            );
+            await capture('components');
+            navigator.pop();
+            await tester.pumpAndSettle();
+          }
         }
         // The reduced-motion path must leave neither a ghost full-screen player
         // nor an overlay intercepting routes once playback UI has been replaced.
@@ -290,6 +352,10 @@ ThemeData _reviewTheme() {
         theme.navigationRailTheme.unselectedLabelTextStyle,
       ),
     ),
+    dialogTheme: theme.dialogTheme.copyWith(
+      titleTextStyle: font(theme.dialogTheme.titleTextStyle),
+      contentTextStyle: font(theme.dialogTheme.contentTextStyle),
+    ),
     listTileTheme: theme.listTileTheme.copyWith(
       titleTextStyle: font(theme.listTileTheme.titleTextStyle),
       subtitleTextStyle: font(theme.listTileTheme.subtitleTextStyle),
@@ -305,6 +371,65 @@ ThemeData _reviewTheme() {
     ),
     snackBarTheme: theme.snackBarTheme.copyWith(
       contentTextStyle: font(theme.snackBarTheme.contentTextStyle),
+    ),
+  );
+}
+
+// An explicit review surface, never registered as an application route.
+class _ComponentStates extends StatelessWidget {
+  const _ComponentStates();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('组件状态预览')),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('操作与选择'),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              FilledButton(onPressed: () {}, child: const Text('播放全部')),
+              const FilledButton(onPressed: null, child: Text('暂不可用')),
+              OutlinedButton(onPressed: () {}, child: const Text('重试')),
+              const OutlinedButton(onPressed: null, child: KgBusyIndicator()),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: KgChoiceTabs<int>(
+              options: const {0: '封面', 1: '歌词'},
+              value: 0,
+              pill: true,
+              onChanged: (_) {},
+            ),
+          ),
+          const SizedBox(height: 24),
+          const TextField(
+            decoration: InputDecoration(labelText: '歌单名称', hintText: '为歌单取个名字'),
+          ),
+          const SizedBox(height: 16),
+          const TextField(
+            decoration: InputDecoration(
+              labelText: '歌单名称',
+              errorText: '请输入歌单名称',
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text('内容加载'),
+          const SizedBox(height: 8),
+          const KgSongListSkeleton(rows: 2),
+          const SizedBox(height: 16),
+          const KgEntrance(
+            child: KgEmptyView('没有找到匹配结果', icon: Icons.search_off_rounded),
+          ),
+        ],
+      ),
     ),
   );
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
@@ -22,7 +23,11 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
-  final _scrollController = ScrollController();
+  final _songScrollController = ScrollController();
+  final _playlistScrollController = ScrollController();
+  ScrollController get _scrollController => _kind == SearchKind.songs
+      ? _songScrollController
+      : _playlistScrollController;
   Timer? _debounce;
   SearchKind _kind = SearchKind.songs;
   String _keyword = '';
@@ -95,7 +100,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
     _songPager.addListener(_onPagerChanged);
     _playlistPager.addListener(_onPagerChanged);
-    _scrollController.addListener(_onScroll);
+    _songScrollController.addListener(_onScroll);
+    _playlistScrollController.addListener(_onScroll);
   }
 
   @override
@@ -105,7 +111,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     _playlistPager.removeListener(_onPagerChanged);
     _songPager.dispose();
     _playlistPager.dispose();
-    _scrollController.dispose();
+    _songScrollController.dispose();
+    _playlistScrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -170,13 +177,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             decoration: InputDecoration(
               hintText: _kind == SearchKind.songs ? '歌曲、歌手或专辑' : '搜索公开歌单',
               prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: _controller.text.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: '清空搜索',
-                      onPressed: _clearSearch,
-                      icon: const Icon(Icons.close_rounded),
-                    ),
+              suffixIcon: KgStateTransition(
+                alignment: Alignment.center,
+                child: _controller.text.isEmpty
+                    ? const SizedBox(width: 48)
+                    : IconButton(
+                        tooltip: '清空搜索',
+                        onPressed: _clearSearch,
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+              ),
             ),
           );
           final tabs = KgChoiceTabs<SearchKind>(
@@ -227,10 +237,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ),
               Expanded(
-                child: AnimatedSwitcher(
+                child: KgStateTransition(
+                  retainOutgoing: false,
                   duration: KgMotion.resolve(context, KgMotion.medium),
-                  switchInCurve: KgMotion.standard,
-                  switchOutCurve: Curves.easeInCubic,
                   child: SearchResults(
                     key: ValueKey(_bodyKey),
                     kind: _kind,

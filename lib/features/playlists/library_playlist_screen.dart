@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -90,6 +91,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
           if (!playlist.isSystem)
             PopupMenuButton<String>(
               useRootNavigator: true,
+              popUpAnimationStyle: KgMotion.menuStyle(context),
               onSelected: (value) {
                 if (value == 'edit' && !playlist.isCollected) {
                   unawaited(_edit(playlist));
@@ -168,6 +170,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
     final accepted = await confirmDialog(
       context,
       title: playlist.isCollected ? '取消收藏歌单？' : '删除歌单？',
+      destructive: true,
       content: playlist.isCollected ? '取消收藏后，这个歌单将从音乐库中移除。' : '删除后将无法恢复，请谨慎操作。',
     );
     if (!accepted) return;

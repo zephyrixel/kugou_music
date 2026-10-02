@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 
 class KgPageHeader extends StatelessWidget {
   const KgPageHeader({
@@ -88,12 +89,14 @@ class KgSurface extends StatelessWidget {
     this.padding = const EdgeInsets.all(KgSpacing.lg),
     this.color = KgColors.surface,
     this.radius = KgRadii.large,
+    this.gradient = KgGradients.surface,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color color;
   final double radius;
+  final Gradient? gradient;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -103,7 +106,68 @@ class KgSurface extends StatelessWidget {
       side: const BorderSide(color: KgColors.borderSubtle),
     ),
     clipBehavior: Clip.antiAlias,
-    child: Padding(padding: padding, child: child),
+    child: Ink(
+      decoration: BoxDecoration(gradient: gradient),
+      child: Padding(padding: padding, child: child),
+    ),
+  );
+}
+
+/// A single Material/InkWell pair for actionable content cards.
+class KgInteractiveSurface extends StatefulWidget {
+  const KgInteractiveSurface({
+    super.key,
+    required this.child,
+    required this.onTap,
+    this.padding = const EdgeInsets.all(KgSpacing.md),
+    this.gradient = KgGradients.surface,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final EdgeInsetsGeometry padding;
+  final Gradient? gradient;
+
+  @override
+  State<KgInteractiveSurface> createState() => _KgInteractiveSurfaceState();
+}
+
+class _KgInteractiveSurfaceState extends State<KgInteractiveSurface> {
+  final _states = WidgetStatesController();
+
+  @override
+  void dispose() {
+    _states.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: KgColors.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(KgRadii.large),
+      side: const BorderSide(color: KgColors.borderSubtle),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      statesController: _states,
+      onTap: widget.onTap,
+      child: Ink(
+        decoration: BoxDecoration(gradient: widget.gradient),
+        child: Padding(
+          padding: widget.padding,
+          child: ListenableBuilder(
+            listenable: _states,
+            child: widget.child,
+            builder: (context, child) => KgPressFeedback(
+              states: _states.value,
+              pressedScale: 0.985,
+              child: child!,
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }
 

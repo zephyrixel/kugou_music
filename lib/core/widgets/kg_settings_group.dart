@@ -32,9 +32,17 @@ class KgSettingsTile extends StatelessWidget {
         : null;
     return ListTile(
       enabled: enabled,
-      minLeadingWidth: 24,
-      horizontalTitleGap: KgSpacing.md,
-      leading: Icon(icon, color: color, size: 22),
+      minLeadingWidth: 32,
+      horizontalTitleGap: KgSpacing.sm,
+      leading: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: KgColors.borderSubtle,
+          borderRadius: BorderRadius.circular(KgRadii.small),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
       title: Text(title, style: color == null ? null : TextStyle(color: color)),
       subtitle: subtitle == null
           ? null
@@ -72,7 +80,7 @@ class KgSettingsGroup extends StatelessWidget {
     child: Column(
       children: [
         for (var index = 0; index < children.length; index++) ...[
-          if (index > 0) const Divider(height: 1, indent: 56, endIndent: 16),
+          if (index > 0) const Divider(height: 1, indent: 60, endIndent: 16),
           children[index],
         ],
       ],

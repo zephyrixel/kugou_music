@@ -45,6 +45,7 @@ class MembershipCard extends ConsumerWidget {
     data: (value) {
       final summary = buildMembershipSummary(value);
       return KgSurface(
+        gradient: KgGradients.warm,
         padding: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(KgSpacing.lg),
@@ -54,7 +55,7 @@ class MembershipCard extends ConsumerWidget {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final stacked =
-                      constraints.maxWidth < 300 ||
+                      constraints.maxWidth < 220 ||
                       MediaQuery.textScalerOf(context).scale(14) > 21;
                   final action = TextButton(
                     onPressed: () => showMembershipActions(context, userId),

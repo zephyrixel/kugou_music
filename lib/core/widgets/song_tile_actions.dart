@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -29,6 +30,7 @@ class SongTileActions extends ConsumerWidget {
       dimension: 48,
       child: PopupMenuButton<_SongAction>(
         useRootNavigator: true,
+        popUpAnimationStyle: KgMotion.menuStyle(context),
         tooltip: '更多操作',
         padding: EdgeInsets.zero,
         iconSize: 20,

@@ -18,7 +18,16 @@ class KgBusyIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox.square(
     dimension: size,
-    child: CircularProgressIndicator(strokeWidth: strokeWidth, color: color),
+    child: Semantics(
+      label: '正在加载',
+      child: ExcludeSemantics(
+        child: CircularProgressIndicator(
+          value: MediaQuery.disableAnimationsOf(context) ? 0.7 : null,
+          strokeWidth: strokeWidth,
+          color: color,
+        ),
+      ),
+    ),
   );
 }
 
@@ -35,9 +44,9 @@ class KgLoadingView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox.square(
-            dimension: compact ? 22 : 30,
-            child: CircularProgressIndicator(strokeWidth: compact ? 2 : 2.5),
+          KgBusyIndicator(
+            size: compact ? 22 : 30,
+            strokeWidth: compact ? 2 : 2.5,
           ),
           if (label != null) ...[
             const SizedBox(height: KgSpacing.sm),
@@ -86,30 +95,32 @@ class KgSongListSkeleton extends StatelessWidget {
     child: Column(
       children: List.generate(
         rows,
-        (index) => const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            children: [
-              KgSkeleton(height: 48, width: 48),
-              SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FractionallySizedBox(
-                      widthFactor: 0.7,
-                      child: KgSkeleton(height: 14, radius: 4),
-                    ),
-                    SizedBox(height: 10),
-                    FractionallySizedBox(
-                      widthFactor: 0.4,
-                      child: KgSkeleton(height: 10, radius: 4),
-                    ),
-                  ],
+        (index) => const ExcludeSemantics(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: KgSpacing.xs),
+            child: ListTile(
+              minTileHeight: 72,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: KgSpacing.sm,
+                vertical: 6,
+              ),
+              horizontalTitleGap: KgSpacing.sm,
+              leading: KgSkeleton(height: 48, width: 48),
+              title: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: 0.7,
+                child: KgSkeleton(height: 14, radius: 4),
+              ),
+              subtitle: Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 0.4,
+                  child: KgSkeleton(height: 10, radius: 4),
                 ),
               ),
-              SizedBox(width: 24),
-            ],
+              trailing: SizedBox(width: 24),
+            ),
           ),
         ),
       ),
@@ -136,7 +147,7 @@ class KgErrorView extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!compact) ...[
-          const Icon(Icons.cloud_off_rounded, size: 42),
+          const _StatusIcon(Icons.cloud_off_rounded),
           const SizedBox(height: 12),
         ],
         Text(message, textAlign: TextAlign.center),
@@ -190,7 +201,7 @@ class KgEmptyView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (constraints.maxHeight >= 200) ...[
-              Icon(icon, color: KgColors.textMuted, size: 32),
+              _StatusIcon(icon),
               const SizedBox(height: 16),
             ],
             Text(
@@ -203,6 +214,22 @@ class KgEmptyView extends StatelessWidget {
         ),
       ),
     ),
+  );
+}
+
+class _StatusIcon extends StatelessWidget {
+  const _StatusIcon(this.icon);
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: KgGradients.warm,
+      border: Border.all(color: KgColors.borderSubtle),
+    ),
+    child: Icon(icon, color: KgColors.accentSecondary, size: 32),
   );
 }
 

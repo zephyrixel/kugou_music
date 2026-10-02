@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_overlays.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -35,10 +36,8 @@ Future<void> showAddToPlaylist(
   Song song,
 ) async {
   try {
-    final selected = await showModalBottomSheet<String>(
+    final selected = await showKgModalBottomSheet<String>(
       context: context,
-      useRootNavigator: true,
-      showDragHandle: true,
       builder: (_) => const _AddToPlaylistSheet(),
     );
     if (selected == null || !context.mounted) return;

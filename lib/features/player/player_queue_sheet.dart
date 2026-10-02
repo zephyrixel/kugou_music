@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/widgets/kg_overlays.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
 import 'package:kgmusic/core/player/playback_queue.dart';
@@ -10,9 +12,8 @@ Future<void> showPlayerQueueSheet(
   BuildContext context,
   MusicAudioHandler handler,
 ) async {
-  await showModalBottomSheet<void>(
+  await showKgModalBottomSheet<void>(
     context: context,
-    useRootNavigator: true,
     isScrollControlled: true,
     builder: (context) => _PlayerQueueSheet(handler: handler),
   );
@@ -40,6 +41,26 @@ class _PlayerQueueSheet extends StatelessWidget {
               _QueueHeader(handler: handler, state: state),
               Expanded(
                 child: ReorderableListView.builder(
+                  proxyDecorator: (child, index, animation) => AnimatedBuilder(
+                    animation: animation,
+                    child: child,
+                    builder: (context, child) {
+                      final lift = MediaQuery.disableAnimationsOf(context)
+                          ? 0.0
+                          : KgMotion.standard.transform(animation.value);
+                      return Transform.scale(
+                        scale: 1 + 0.015 * lift,
+                        child: Material(
+                          color: KgColors.elevatedHigh,
+                          elevation: 8 * lift,
+                          shadowColor: Colors.black38,
+                          borderRadius: BorderRadius.circular(KgRadii.medium),
+                          clipBehavior: Clip.antiAlias,
+                          child: child,
+                        ),
+                      );
+                    },
+                  ),
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
                   itemCount: state.songs.length,
                   onReorderItem: (oldIndex, newIndex) => handler.moveQueueItem(
@@ -106,6 +127,7 @@ class _QueueHeader extends StatelessWidget {
             ),
             PopupMenuButton<PlaybackOrder>(
               useRootNavigator: true,
+              popUpAnimationStyle: KgMotion.menuStyle(context),
               tooltip: '播放顺序',
               initialValue: state.order,
               onSelected: handler.setPlaybackOrder,
@@ -134,6 +156,7 @@ class _QueueHeader extends StatelessWidget {
             ),
             PopupMenuButton<String>(
               useRootNavigator: true,
+              popUpAnimationStyle: KgMotion.menuStyle(context),
               tooltip: '队列操作',
               onSelected: (value) {
                 if (value == 'clear') handler.clearUpcoming();

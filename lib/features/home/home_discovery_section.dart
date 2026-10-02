@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -78,10 +79,8 @@ class HomeDiscoverySection extends ConsumerWidget {
         );
       },
     );
-    return AnimatedSwitcher(
+    return KgStateTransition(
       duration: KgMotion.resolve(context, KgMotion.fast),
-      switchInCurve: KgMotion.standard,
-      switchOutCurve: Curves.easeInCubic,
       child: child,
     );
   }

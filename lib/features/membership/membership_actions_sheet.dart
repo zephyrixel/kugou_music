@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_overlays.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/widgets/app_dialogs.dart';
@@ -7,9 +8,8 @@ import 'package:kgmusic/features/membership/membership_controller.dart';
 import 'package:kgmusic/features/membership/membership_presenter.dart';
 
 Future<void> showMembershipActions(BuildContext context, int userId) =>
-    showModalBottomSheet<void>(
+    showKgModalBottomSheet<void>(
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => _MembershipActionsSheet(userId: userId),
     );

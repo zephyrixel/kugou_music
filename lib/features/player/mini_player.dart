@@ -44,9 +44,16 @@ class MiniPlayer extends ConsumerWidget {
                     child: ArtworkBackdrop(
                       url: item.artUri?.toString(),
                       cacheId: 'song:${item.id}',
-                      opacity: 0.32,
-                      scrim: 0.72,
+                      opacity: 0.48,
+                      scrim: 0.60,
                       blurSigma: 20,
+                    ),
+                  ),
+                ),
+                const Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(gradient: KgGradients.surface),
                     ),
                   ),
                 ),

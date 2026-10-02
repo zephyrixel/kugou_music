@@ -14,8 +14,8 @@ class AnimatedBranchContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fadeDuration = KgMotion.resolve(context, KgMotion.fast);
-    final slideDuration = KgMotion.resolve(context, KgMotion.medium);
+    final fadeDuration = KgMotion.resolve(context, KgMotion.navigation);
+    final slideDuration = KgMotion.resolve(context, KgMotion.navigation);
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -24,8 +24,8 @@ class AnimatedBranchContainer extends StatelessWidget {
             key: ValueKey(index),
             active: index == currentIndex,
             offset: index < currentIndex
-                ? const Offset(-0.025, 0)
-                : const Offset(0.025, 0),
+                ? Offset(-16 / MediaQuery.sizeOf(context).width, 0)
+                : Offset(16 / MediaQuery.sizeOf(context).width, 0),
             fadeDuration: fadeDuration,
             slideDuration: slideDuration,
             child: children[index],
@@ -93,9 +93,12 @@ class _AnimatedBranchState extends State<_AnimatedBranch> {
             offset: widget.active ? Offset.zero : widget.offset,
             duration: widget.slideDuration,
             curve: KgMotion.standard,
-            child: TickerMode(
+            child: HeroMode(
               enabled: widget.active,
-              child: RepaintBoundary(child: widget.child),
+              child: TickerMode(
+                enabled: widget.active,
+                child: RepaintBoundary(child: widget.child),
+              ),
             ),
           ),
         ),

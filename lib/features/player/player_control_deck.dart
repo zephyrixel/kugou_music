@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
@@ -31,56 +32,69 @@ class PlayerControlDeck extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      AnimatedSwitcher(
-        duration: KgMotion.resolve(context, KgMotion.medium),
-        child: _TrackHeading(
-          key: ValueKey(item.id),
-          item: item,
-          song: song,
-          compact: compact,
+      _ControlReveal(
+        order: 0,
+        child: KgStateTransition(
+          duration: KgMotion.resolve(context, KgMotion.medium),
+          child: _TrackHeading(
+            key: ValueKey(item.id),
+            item: item,
+            song: song,
+            compact: compact,
+          ),
         ),
       ),
       SizedBox(height: compact ? 8 : 16),
-      RepaintBoundary(
-        child: PlaybackProgressBar(
-          durationStream: handler.durationStream,
-          positionStream: handler.positionStream,
-          bufferedPositionStream: handler.bufferedPositionStream,
-          initialDuration: item.duration,
-          initialPosition: handler.position,
-          initialBufferedPosition: handler.playbackState.value.bufferedPosition,
-          onSeek: handler.seek,
-          compact: compact,
+      _ControlReveal(
+        order: 1,
+        child: RepaintBoundary(
+          child: PlaybackProgressBar(
+            durationStream: handler.durationStream,
+            positionStream: handler.positionStream,
+            bufferedPositionStream: handler.bufferedPositionStream,
+            initialDuration: item.duration,
+            initialPosition: handler.position,
+            initialBufferedPosition:
+                handler.playbackState.value.bufferedPosition,
+            onSeek: handler.seek,
+            compact: compact,
+          ),
         ),
       ),
       SizedBox(height: compact ? 12 : 20),
-      PlayerPlaybackControls(handler: handler, compact: compact),
+      _ControlReveal(
+        order: 2,
+        child: PlayerPlaybackControls(handler: handler, compact: compact),
+      ),
       if (song != null) ...[
         SizedBox(height: compact ? 8 : 16),
-        Row(
-          children: [
-            Flexible(
-              child: PlayerQualitySelector(
-                handler: handler,
-                song: song!,
-                compact: compact,
+        _ControlReveal(
+          order: 2,
+          child: Row(
+            children: [
+              Flexible(
+                child: PlayerQualitySelector(
+                  handler: handler,
+                  song: song!,
+                  compact: compact,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            AddToPlaylistButton(song: song!),
-            if (handler.isRecommendationQueue)
-              IconButton(
-                tooltip: '不感兴趣',
-                icon: const Icon(Icons.thumb_down_alt_outlined, size: 21),
-                onPressed: () async {
-                  try {
-                    await handler.dislikeCurrent();
-                  } catch (_) {
-                    if (context.mounted) showAppError(context, '操作失败，请重试');
-                  }
-                },
-              ),
-          ],
+              const SizedBox(width: 8),
+              AddToPlaylistButton(song: song!),
+              if (handler.isRecommendationQueue)
+                IconButton(
+                  tooltip: '不感兴趣',
+                  icon: const Icon(Icons.thumb_down_alt_outlined, size: 21),
+                  onPressed: () async {
+                    try {
+                      await handler.dislikeCurrent();
+                    } catch (_) {
+                      if (context.mounted) showAppError(context, '操作失败，请重试');
+                    }
+                  },
+                ),
+            ],
+          ),
         ),
       ],
     ],
@@ -151,6 +165,43 @@ class _TrackHeading extends StatelessWidget {
           SongFavoriteButton(song: song!),
         ],
       ],
+    );
+  }
+}
+
+/// Driven by the route itself, including reversed and cancelled drag gestures.
+/// No independent controller can drift away from the cover's Hero flight.
+class _ControlReveal extends StatelessWidget {
+  const _ControlReveal({required this.order, required this.child});
+  final int order;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || MediaQuery.disableAnimationsOf(context)) {
+      return child;
+    }
+    final progress = animation.drive(
+      CurveTween(
+        curve: Interval(0.25 + order * 0.10, 1, curve: KgMotion.standard),
+      ),
+    );
+    return FadeTransition(
+      opacity: progress,
+      child: AnimatedBuilder(
+        animation: progress,
+        // Each group moves independently. Retain its paint, rather than
+        // repainting the entire control deck for every reveal frame.
+        child: RepaintBoundary(child: child),
+        builder: (context, child) => IgnorePointer(
+          ignoring: progress.value < 0.1,
+          child: Transform.translate(
+            offset: Offset(0, 12 * (1 - progress.value)),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }

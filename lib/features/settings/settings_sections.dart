@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/widgets/kg_overlays.dart';
 import 'package:kgmusic/core/cache/audio_cache.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/formatters.dart';
@@ -168,10 +170,8 @@ class SettingsActionGroup extends StatelessWidget {
 Future<AudioQuality?> showQualityPicker(
   BuildContext context, {
   required AudioQuality selected,
-}) => showModalBottomSheet<AudioQuality>(
+}) => showKgModalBottomSheet<AudioQuality>(
   context: context,
-  useRootNavigator: true,
-  showDragHandle: true,
   builder: (context) => SafeArea(
     child: ListView(
       shrinkWrap: true,
@@ -181,19 +181,34 @@ Future<AudioQuality?> showQualityPicker(
           child: Text('默认播放音质', style: Theme.of(context).textTheme.titleLarge),
         ),
         for (final quality in AudioQuality.values)
-          ListTile(
-            selected: quality == selected,
-            selectedColor: KgColors.accent,
-            selectedTileColor: KgColors.selected,
-            leading: Icon(
-              quality == selected
-                  ? Icons.check_circle_rounded
-                  : Icons.radio_button_unchecked_rounded,
-              color: quality == selected ? KgColors.accent : KgColors.textMuted,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(KgRadii.medium),
+              clipBehavior: Clip.antiAlias,
+              child: Ink(
+                decoration: BoxDecoration(
+                  gradient: quality == selected ? KgGradients.selected : null,
+                ),
+                child: ListTile(
+                  selected: quality == selected,
+                  selectedColor: KgColors.accent,
+                  selectedTileColor: Colors.transparent,
+                  leading: Icon(
+                    quality == selected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: quality == selected
+                        ? KgColors.accent
+                        : KgColors.textMuted,
+                  ),
+                  title: Text(quality.label),
+                  subtitle: Text(quality.detail),
+                  onTap: () => Navigator.pop(context, quality),
+                ),
+              ),
             ),
-            title: Text(quality.label),
-            subtitle: Text(quality.detail),
-            onTap: () => Navigator.pop(context, quality),
           ),
         const SizedBox(height: 8),
       ],

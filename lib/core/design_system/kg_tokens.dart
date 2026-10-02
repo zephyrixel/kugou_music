@@ -32,17 +32,36 @@ abstract final class KgShadows {
 }
 
 abstract final class KgMotion {
+  static const press = Duration(milliseconds: 100);
   static const fast = Duration(milliseconds: 160);
   static const medium = Duration(milliseconds: 260);
   static const slow = Duration(milliseconds: 320);
+  static const selection = Duration(milliseconds: 280);
+  static const navigation = Duration(milliseconds: 240);
+  static const pageEnter = Duration(milliseconds: 300);
+  static const pageExit = Duration(milliseconds: 220);
+  static const sheetEnter = Duration(milliseconds: 360);
+  static const sheetExit = Duration(milliseconds: 240);
+  static const dialogEnter = Duration(milliseconds: 240);
+  static const dialogExit = Duration(milliseconds: 180);
+  static const menuEnter = Duration(milliseconds: 180);
+  static const menuExit = Duration(milliseconds: 140);
   static const playerEnter = Duration(milliseconds: 420);
   static const ambient = Duration(seconds: 12);
 
   static const Curve standard = Curves.easeOutCubic;
   static const Curve emphasized = Curves.easeInOutCubicEmphasized;
+  static const Curve rebound = Curves.easeOutBack;
 
   static Duration resolve(BuildContext context, Duration duration) =>
       MediaQuery.disableAnimationsOf(context) ? Duration.zero : duration;
+
+  static AnimationStyle menuStyle(BuildContext context) => AnimationStyle(
+    duration: resolve(context, menuEnter),
+    reverseDuration: resolve(context, menuExit),
+    curve: standard,
+    reverseCurve: Curves.easeInCubic,
+  );
 }
 
 abstract final class KgBreakpoints {

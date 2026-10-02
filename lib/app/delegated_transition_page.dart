@@ -31,13 +31,20 @@ class DelegatedCustomTransitionPage<T> extends CustomTransitionPage<T> {
 }
 
 class PlayerTransitionPage<T> extends DelegatedCustomTransitionPage<T> {
-  const PlayerTransitionPage({required super.child, super.key})
-    : super(
-        transitionDuration: KgMotion.playerEnter,
-        reverseTransitionDuration: KgMotion.slow,
-        transitionsBuilder: _buildPlayerTransition,
-        delegatedTransitionsBuilder: _buildPlayerDelegatedTransition,
-      );
+  const PlayerTransitionPage({
+    required super.child,
+    super.key,
+    bool reduceMotion = false,
+  }) : super(
+         transitionDuration: reduceMotion
+             ? Duration.zero
+             : KgMotion.playerEnter,
+         reverseTransitionDuration: reduceMotion
+             ? Duration.zero
+             : KgMotion.slow,
+         transitionsBuilder: _buildPlayerTransition,
+         delegatedTransitionsBuilder: _buildPlayerDelegatedTransition,
+       );
 
   @override
   Route<T> createRoute(BuildContext context) => _PlayerPageRoute<T>(this);
@@ -116,7 +123,9 @@ class _PlayerPageRoute<T> extends _DelegatedCustomTransitionPageRoute<T> {
     } else {
       controller!.animateTo(
         1,
-        duration: KgMotion.medium,
+        duration: MediaQuery.disableAnimationsOf(navigator!.context)
+            ? Duration.zero
+            : KgMotion.medium,
         curve: KgMotion.standard,
       );
     }

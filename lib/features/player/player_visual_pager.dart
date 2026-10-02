@@ -102,21 +102,29 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
               SizedBox(
                 height: selectorHeight,
                 child: Center(
-                  child: KgChoiceTabs<int>(
-                    pill: true,
-                    options: const {0: '封面', 1: '歌词'},
-                    value: _page,
-                    onChanged: (page) {
-                      if (MediaQuery.disableAnimationsOf(context)) {
-                        _controller.jumpToPage(page);
-                      } else {
-                        _controller.animateToPage(
-                          page,
-                          duration: KgMotion.medium,
-                          curve: KgMotion.standard,
-                        );
-                      }
-                    },
+                  child: AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, _) => KgChoiceTabs<int>(
+                      pill: true,
+                      options: const {0: '封面', 1: '歌词'},
+                      value: _page,
+                      selectionPosition:
+                          _controller.hasClients &&
+                              _controller.position.hasContentDimensions
+                          ? _controller.page ?? _page.toDouble()
+                          : _page.toDouble(),
+                      onChanged: (page) {
+                        if (MediaQuery.disableAnimationsOf(context)) {
+                          _controller.jumpToPage(page);
+                        } else {
+                          _controller.animateToPage(
+                            page,
+                            duration: KgMotion.selection,
+                            curve: KgMotion.emphasized,
+                          );
+                        }
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -143,21 +151,27 @@ class _ArtworkShadow extends StatelessWidget {
     return IgnorePointer(
       child: ExcludeSemantics(
         child: AnimatedBuilder(
-          animation: Listenable.merge([controller, ?routeAnimation]),
-          child: DecoratedBox(
-            key: const ValueKey('player-artwork-shadow'),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(KgRadii.medium),
-              boxShadow: KgShadows.artwork,
+          animation: controller,
+          child: RepaintBoundary(
+            child: DecoratedBox(
+              key: const ValueKey('player-artwork-shadow'),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(KgRadii.medium),
+                boxShadow: KgShadows.artwork,
+              ),
             ),
           ),
           builder: (context, child) {
             final page = controller.hasClients ? controller.page ?? 0.0 : 0.0;
-            return Opacity(
-              opacity:
-                  (1 - page.abs()).clamp(0, 1) * (routeAnimation?.value ?? 1),
-              child: Transform.translate(
-                offset: Offset(direction * page * pageWidth, 0),
+            final visibility = (1 - page.abs()).clamp(0.0, 1.0);
+            return Transform.translate(
+              offset: Offset(direction * page * pageWidth, 0),
+              child: FadeTransition(
+                // Route ticks update only the opacity layer. They must not
+                // repaint the blurred shadow or the surrounding player body.
+                opacity: routeAnimation == null
+                    ? AlwaysStoppedAnimation(visibility)
+                    : routeAnimation.drive(Tween(begin: 0.0, end: visibility)),
                 child: child,
               ),
             );

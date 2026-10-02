@@ -14,7 +14,7 @@ List<Widget> loadMoreFooters({
     return const [
       Padding(
         padding: EdgeInsets.all(20),
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        child: Center(child: KgBusyIndicator(size: 22)),
       ),
     ];
   }

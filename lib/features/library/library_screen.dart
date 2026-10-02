@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,24 +44,30 @@ class LibraryScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const LibraryHeader(),
+                      const KgEntrance(child: LibraryHeader()),
                       const SizedBox(height: KgSpacing.xl),
                       LayoutBuilder(
                         builder: (context, constraints) {
                           final stacked =
                               MediaQuery.textScalerOf(context).scale(14) > 21;
-                          final favorites = LibraryCollectionCard(
-                            icon: Icons.favorite_rounded,
-                            title: '我喜欢',
-                            subtitle:
-                                '${favorite?.availableTrackCount ?? 0} 首歌曲',
-                            onTap: () => context.go('/library/favorites'),
+                          final favorites = KgEntrance(
+                            order: 1,
+                            child: LibraryCollectionCard(
+                              icon: Icons.favorite_rounded,
+                              title: '我喜欢',
+                              subtitle:
+                                  '${favorite?.availableTrackCount ?? 0} 首歌曲',
+                              onTap: () => context.go('/library/favorites'),
+                            ),
                           );
-                          final history = LibraryCollectionCard(
-                            icon: Icons.history_rounded,
-                            title: '最近播放',
-                            subtitle: '$historyCount 条记录',
-                            onTap: () => context.go('/library/history'),
+                          final history = KgEntrance(
+                            order: 2,
+                            child: LibraryCollectionCard(
+                              icon: Icons.history_rounded,
+                              title: '最近播放',
+                              subtitle: '$historyCount 条记录',
+                              onTap: () => context.go('/library/history'),
+                            ),
                           );
                           if (stacked) {
                             return Column(

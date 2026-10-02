@@ -60,12 +60,14 @@ class _CompactBottomDock extends StatelessWidget {
   Widget build(BuildContext context) => DecoratedBox(
     decoration: const BoxDecoration(
       color: KgColors.surface,
+      gradient: KgGradients.surface,
       border: Border(top: BorderSide(color: KgColors.divider, width: 0.5)),
     ),
     child: SafeArea(
       top: false,
       child: NavigationBar(
         height: KgNavigation.barHeight,
+        animationDuration: KgMotion.resolve(context, KgMotion.navigation),
         backgroundColor: Colors.transparent,
         selectedIndex: selectedIndex,
         onDestinationSelected: onDestinationSelected,

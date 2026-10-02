@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
+import 'package:kgmusic/core/widgets/kg_motion.dart';
 
 const kgSystemUiOverlayStyle = SystemUiOverlayStyle(
   statusBarColor: Colors.transparent,
@@ -35,6 +36,28 @@ abstract final class KgColors {
   static const disabled = Color(0x61F5F2EB);
   static const warning = Color(0xFFF1CE86);
   static const error = Color(0xFFFFA59A);
+}
+
+/// Translucent ink decorations keep press/focus feedback above the surface.
+abstract final class KgGradients {
+  static const surface = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x09FFFFFF), Color(0x00FFFFFF)],
+  );
+  static const warm = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x24E7B36A), Color(0x08E7B36A), Color(0x00E7B36A)],
+  );
+  static const selected = LinearGradient(
+    colors: [Color(0x2BE7B36A), Color(0x0CE7B36A)],
+  );
+  static const button = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0x24FFFFFF), Color(0x00FFFFFF), Color(0x08000000)],
+  );
 }
 
 ThemeData buildKgTheme() {
@@ -205,7 +228,11 @@ ThemeData buildKgTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: KgColors.surface,
+      fillColor: WidgetStateColor.resolveWith(
+        (states) => states.contains(WidgetState.focused)
+            ? KgColors.elevated
+            : KgColors.surface,
+      ),
       hintStyle: const TextStyle(color: KgColors.textMuted, fontSize: 14),
       labelStyle: const TextStyle(color: KgColors.textMuted, fontSize: 14),
       helperStyle: const TextStyle(color: KgColors.textMuted, height: 1.4),
@@ -276,16 +303,24 @@ ThemeData buildKgTheme() {
       space: 1,
     ),
     filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        disabledForegroundColor: KgColors.disabled,
-        disabledBackgroundColor: KgColors.elevatedHigh,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KgRadii.medium),
-        ),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-      ).copyWith(overlayColor: _controlOverlay(KgColors.onAccent)),
+      style:
+          FilledButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            disabledForegroundColor: KgColors.disabled,
+            disabledBackgroundColor: KgColors.elevatedHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(KgRadii.medium),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ).copyWith(
+            overlayColor: _controlOverlay(KgColors.onAccent),
+            foregroundBuilder: _buttonFeedback,
+            backgroundBuilder: _buttonSheen,
+          ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style:
@@ -299,6 +334,7 @@ ThemeData buildKgTheme() {
             ),
           ).copyWith(
             overlayColor: _controlOverlay(KgColors.accent),
+            foregroundBuilder: _buttonFeedback,
             side: WidgetStateProperty.resolveWith(
               (states) => BorderSide(
                 color: states.contains(WidgetState.focused)
@@ -311,18 +347,29 @@ ThemeData buildKgTheme() {
           ),
     ),
     iconButtonTheme: IconButtonThemeData(
-      style: IconButton.styleFrom(
-        minimumSize: const Size.square(48),
-        foregroundColor: KgColors.textPrimary,
-        disabledForegroundColor: KgColors.disabled,
-      ).copyWith(overlayColor: _controlOverlay(KgColors.accent)),
+      style:
+          IconButton.styleFrom(
+            minimumSize: const Size.square(48),
+            foregroundColor: KgColors.textPrimary,
+            disabledForegroundColor: KgColors.disabled,
+          ).copyWith(
+            overlayColor: _controlOverlay(KgColors.accent),
+            foregroundBuilder: _buttonFeedback,
+          ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        disabledForegroundColor: KgColors.disabled,
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-      ).copyWith(overlayColor: _controlOverlay(KgColors.accent)),
+      style:
+          TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            disabledForegroundColor: KgColors.disabled,
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ).copyWith(
+            overlayColor: _controlOverlay(KgColors.accent),
+            foregroundBuilder: _buttonFeedback,
+          ),
     ),
     tabBarTheme: const TabBarThemeData(
       dividerColor: Colors.transparent,
@@ -440,6 +487,10 @@ ThemeData buildKgTheme() {
       ),
     ),
     expansionTileTheme: ExpansionTileThemeData(
+      expansionAnimationStyle: const AnimationStyle(
+        duration: KgMotion.medium,
+        curve: KgMotion.standard,
+      ),
       tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       iconColor: KgColors.accent,
@@ -454,6 +505,24 @@ ThemeData buildKgTheme() {
     ),
   );
 }
+
+Widget _buttonFeedback(
+  BuildContext context,
+  Set<WidgetState> states,
+  Widget? child,
+) => KgPressFeedback(states: states, child: child ?? const SizedBox.shrink());
+
+Widget _buttonSheen(
+  BuildContext context,
+  Set<WidgetState> states,
+  Widget? child,
+) => Ink(
+  decoration: BoxDecoration(
+    borderRadius: BorderRadius.circular(KgRadii.medium),
+    gradient: states.contains(WidgetState.disabled) ? null : KgGradients.button,
+  ),
+  child: child,
+);
 
 WidgetStateProperty<Color?> _controlOverlay(Color color) =>
     WidgetStateProperty.resolveWith((states) {

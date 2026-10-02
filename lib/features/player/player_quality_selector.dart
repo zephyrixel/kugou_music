@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/models/playback.dart';
@@ -25,6 +26,7 @@ class PlayerQualitySelector extends StatelessWidget {
       final state = snapshot.data ?? handler.qualityState;
       return PopupMenuButton<AudioQuality>(
         useRootNavigator: true,
+        popUpAnimationStyle: KgMotion.menuStyle(context),
         tooltip: '切换播放音质',
         enabled: !state.switching,
         onSelected: (quality) => _switchQuality(context, quality),
@@ -39,7 +41,9 @@ class PlayerQualitySelector extends StatelessWidget {
                       state.requested == quality
                           ? Icons.check_circle_rounded
                           : Icons.radio_button_unchecked_rounded,
-                      color: state.requested == quality
+                      color: !quality.isAvailableFor(song)
+                          ? KgColors.disabled
+                          : state.requested == quality
                           ? KgColors.accent
                           : KgColors.textMuted,
                     ),
@@ -52,7 +56,12 @@ class PlayerQualitySelector extends StatelessWidget {
             .toList(growable: false),
         child: Container(
           constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: KgColors.borderSubtle,
+            borderRadius: BorderRadius.circular(KgRadii.pill),
+            border: Border.all(color: KgColors.borderSubtle),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

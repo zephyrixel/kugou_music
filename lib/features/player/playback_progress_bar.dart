@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 
 class PlaybackProgressBar extends StatefulWidget {
@@ -66,37 +68,51 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                 children: [
                   SizedBox(
                     height: 48,
-                    child: Slider(
-                      semanticFormatterCallback: (value) =>
-                          formatDuration(Duration(milliseconds: value.round())),
-                      value: value,
-                      max: max,
-                      secondaryTrackValue: buffered,
-                      onChangeStart: max <= 1
-                          ? null
-                          : (_) => setState(() {
-                              _dragging = true;
-                              _dragValue = value;
-                            }),
-                      onChanged: max <= 1
-                          ? null
-                          : (next) => setState(() {
-                              _dragging = true;
-                              _dragValue = next;
-                            }),
-                      onChangeEnd: max <= 1
-                          ? null
-                          : (next) {
-                              setState(() {
-                                _dragging = false;
-                                _dragValue = null;
-                              });
-                              unawaited(
-                                widget.onSeek(
-                                  Duration(milliseconds: next.round()),
-                                ),
-                              );
-                            },
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(end: _dragging ? 1.0 : 0.0),
+                      duration: KgMotion.resolve(context, KgMotion.press),
+                      builder: (context, emphasis, child) => SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3 + emphasis,
+                          thumbShape: RoundSliderThumbShape(
+                            enabledThumbRadius: 5 + emphasis * 3,
+                          ),
+                        ),
+                        child: child!,
+                      ),
+                      child: Slider(
+                        semanticFormatterCallback: (value) => formatDuration(
+                          Duration(milliseconds: value.round()),
+                        ),
+                        value: value,
+                        max: max,
+                        secondaryTrackValue: buffered,
+                        onChangeStart: max <= 1
+                            ? null
+                            : (_) => setState(() {
+                                _dragging = true;
+                                _dragValue = value;
+                              }),
+                        onChanged: max <= 1
+                            ? null
+                            : (next) => setState(() {
+                                _dragging = true;
+                                _dragValue = next;
+                              }),
+                        onChangeEnd: max <= 1
+                            ? null
+                            : (next) {
+                                setState(() {
+                                  _dragging = false;
+                                  _dragValue = null;
+                                });
+                                unawaited(
+                                  widget.onSeek(
+                                    Duration(milliseconds: next.round()),
+                                  ),
+                                );
+                              },
+                      ),
                     ),
                   ),
                   Row(
@@ -107,7 +123,9 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                         style: TextStyle(
                           fontSize: 12,
                           fontFeatures: const [FontFeature.tabularFigures()],
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: _dragging
+                              ? KgColors.accent
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Text(

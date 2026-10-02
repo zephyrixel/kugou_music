@@ -60,7 +60,9 @@ class UiAppHarness {
       appSettingsControllerProvider.overrideWith((ref) => settings),
       appLoggingControllerProvider.overrideWith((ref) => _UiLogging()),
       audioCacheProvider.overrideWithValue(_UiCache()),
-      musicRepositoryProvider.overrideWithValue(_UiMusic(handler.songs)),
+      musicRepositoryProvider.overrideWithValue(
+        _UiMusic(handler.songs, playlists),
+      ),
       libraryRepositoryProvider.overrideWithValue(_UiLibrary(handler.songs)),
       libraryReadyProvider.overrideWithValue(true),
       songIsFavoriteProvider.overrideWith((ref, id) => const AsyncData(false)),
@@ -163,7 +165,8 @@ class _UiCache extends Fake implements AudioCacheManager {
 }
 
 class _UiMusic extends Fake implements MusicRepository {
-  _UiMusic(this.songs);
+  _UiMusic(this.songs, this.playlists);
+  final List<Playlist> playlists;
   final List<Song> songs;
 
   @override
@@ -179,6 +182,31 @@ class _UiMusic extends Fake implements MusicRepository {
       page: page,
       pageSize: pageSize,
       total: songs.length,
+    ),
+  );
+
+  @override
+  Stream<PlaylistSearchPage> searchPlaylists(
+    String keyword, {
+    int? userId,
+    int page = 1,
+    int pageSize = 30,
+    CacheLoadMode mode = CacheLoadMode.normal,
+  }) => Stream.value(
+    PlaylistSearchPage(
+      items: [
+        for (final playlist in playlists)
+          PlaylistSearchHit(
+            name: playlist.name,
+            globalCollectionId: playlist.globalCollectionId ?? playlist.localId,
+            artworkUrl: playlist.artworkUrl,
+            creatorName: playlist.creatorName,
+            songCount: playlist.count,
+          ),
+      ],
+      page: page,
+      pageSize: pageSize,
+      total: playlists.length,
     ),
   );
 

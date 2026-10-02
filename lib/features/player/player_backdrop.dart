@@ -25,6 +25,7 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
   );
   StreamSubscription<PlaybackState>? _subscription;
   late final AppLifecycleListener _lifecycle;
+  Animation<double>? _routeAnimation;
   bool _playing = false;
   bool _visible = false;
   bool _foreground = true;
@@ -66,6 +67,12 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final animation = ModalRoute.of(context)?.animation;
+    if (_routeAnimation != animation) {
+      _routeAnimation?.removeStatusListener(_routeStatusChanged);
+      _routeAnimation = animation;
+      _routeAnimation?.addStatusListener(_routeStatusChanged);
+    }
     _visible =
         TickerMode.valuesOf(context).enabled &&
         !MediaQuery.disableAnimationsOf(context) &&
@@ -73,8 +80,15 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
     _syncMotion();
   }
 
+  void _routeStatusChanged(AnimationStatus _) => _syncMotion();
+
   void _syncMotion() {
-    if (_playing && _visible && _foreground) {
+    // The route already moves the full-screen blur. Do not run a second
+    // transform inside it until the route settles; keep the retained layer
+    // stable through opening, dismissal and cancelled dismiss gestures.
+    final routeSettled =
+        _routeAnimation == null || _routeAnimation!.isCompleted;
+    if (_playing && _visible && _foreground && routeSettled) {
       if (!_motion.isAnimating) _motion.repeat(reverse: true);
     } else {
       _motion.stop();
@@ -84,29 +98,32 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
   @override
   void dispose() {
     _subscription?.cancel();
+    _routeAnimation?.removeStatusListener(_routeStatusChanged);
     _lifecycle.dispose();
     _motion.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => ClipRect(
-    child: AnimatedBuilder(
-      animation: _motion,
-      child: ArtworkBackdrop(
-        url: widget.item.artUri?.toString(),
-        cacheId: 'song:${widget.item.id}',
-        opacity: 0.82,
-        scrim: 0.52,
-        decodePixelSize: 320,
-        blurSigma: 42,
-      ),
-      builder: (context, child) => FractionalTranslation(
-        translation: Offset(
-          (_motion.value - 0.5) * 0.025,
-          (_motion.value - 0.5) * 0.015,
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: ClipRect(
+      child: AnimatedBuilder(
+        animation: _motion,
+        child: ArtworkBackdrop(
+          url: widget.item.artUri?.toString(),
+          cacheId: 'song:${widget.item.id}',
+          opacity: 0.82,
+          scrim: 0.52,
+          decodePixelSize: 320,
+          blurSigma: 42,
         ),
-        child: Transform.scale(scale: 1.06, child: child),
+        builder: (context, child) => FractionalTranslation(
+          translation: Offset(
+            (_motion.value - 0.5) * 0.025,
+            (_motion.value - 0.5) * 0.015,
+          ),
+          child: Transform.scale(scale: 1.06, child: child),
+        ),
       ),
     ),
   );

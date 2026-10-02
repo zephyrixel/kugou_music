@@ -64,12 +64,64 @@
   弹窗持有，随完整退出转场结束后销毁。名称、简介、标签及私密状态的业务接口不变。
 - 添加歌单弹层立即打开，在可见弹层内订阅歌单数据，提供加载、失败重试和空内容说明，
   并以可滚动列表展示可写歌单。音质选择保留可用性限制并明确标记选中项。
-- 会员卡在窄屏或大字号下将操作移到下一行；会员记录加载文案允许换行。日志筛选项在
+- 会员卡仅在内容空间不足或大字号下将操作移到下一行，普通手机宽度保留右侧操作；
+  会员记录加载文案允许换行。日志筛选项在
   窄屏／大字号下纵向排列，修复 320dp 下的横向溢出。
 
-## 渲染预览
+## 组件与动效收尾（2026-10-03）
 
-以下为上一轮存档的 Flutter 示例数据截图，本次组件精修不更新截图。它们不是真实账号或
+- 保留原生 Material 点击、焦点和语义，通过 `KgPressFeedback` 接入按钮状态；按下缩放与
+  释放回弹只改变绘制，不缩小触控区域。按钮高光、当前歌曲渐变、推荐卡片和会员卡暖色
+  高光沿用共享主题，不引入额外动画依赖。
+- `KgChoiceTabs` 连续移动指示器，播放器标签跟随分页手势；`KgStateTransition` 让离场
+  内容退出点击、焦点、语义与 ticker。搜索结果先卸载旧滚动视图，避免共享控制器冲突；
+  隐藏主导航分支禁用 Hero，避免搜索和音乐库中的同一封面同时参与转场。
+- 普通路由、弹层、菜单和对话框使用统一 motion tokens。首页首屏内容组一次性入场，
+  播放器控制组使用路由进度显现，收藏请求期间阻断重复操作，进度拖动突出时间与滑块，
+  歌词保持行高并平滑切换高亮。减少动画模式跳过程序动效，保留操作能力。
+- 会员卡原先以内部宽度 300dp 作为换行门槛，扣除页面与卡片边距后，常见手机宽度也会
+  提前换行。现在保留 320/360/390dp 普通字号的右侧入口，仅在空间确实不足或大字号时
+  使用右对齐的下一行，不改变领取业务。
+- 播放器性能优化不改变封面分辨率、模糊强度、阴影参数和展开／收起时长：
+  - 阴影路由淡入由 `FadeTransition` 更新合成层，分页滚动才更新其位置；阴影绘制单独保留。
+  - 控制区按独立运动的分组隔离绘制，淡入更新合成层，避免反复绘制整组文字与按钮。
+  - 背景整体运动隔离在独立绘制边界中；路由转场时暂停内部缓慢漂移，完成后继续，避免
+    同时运行两层变换。后台、隐藏页面和暂停播放时沿用原有停动画行为。
+  这些改动减少可确定的重复更新，但尚未在 Android profile 模式测量掉帧改善。
+
+### 本轮对比与演示
+
+以下仍为 Flutter 示例数据渲染，并非真实账号或实机录屏。改造前图片来自上一会话保存的
+`build/ui-polish-before/`；会员窄屏对比来自本次修复前的 `build/ui-polish-after/`。
+当前图片来自本次重新生成的六尺寸预览，完整输出位于 `build/ui-polish-final/`。
+
+| 场景 | 本轮改造前 | 当前 |
+| --- | --- | --- |
+| 发现 | [截图](images/ui-polish/before-phone-home.png) | [截图](images/ui-polish/phone-home.png) |
+| 音乐库 | [截图](images/ui-polish/before-phone-library.png) | [截图](images/ui-polish/phone-library.png) |
+| 播放器 | [截图](images/ui-polish/before-phone-player.png) | [截图](images/ui-polish/phone-player.png) |
+| 320dp 会员入口 | [修复前](images/ui-polish/before-narrow-account.png) | [修复后](images/ui-polish/narrow-account.png) |
+
+[组件状态](images/ui-polish/phone-components.png) ·
+[队列](images/ui-polish/phone-queue.png) ·
+[表单错误状态](images/ui-polish/phone-playlist-dialog-error.png) ·
+[窄屏双倍字号会员卡](images/ui-polish/narrow-large-text-account.png)
+
+[本轮动效演示](images/ui-polish/ui-motion.mp4) 覆盖播放器展开与收起、队列弹层、普通页面、
+主导航与搜索标签、创建歌单对话框及按钮按压。320 帧按 16ms 测试时钟推进，视频按
+62.5fps 编码以保持原始动画时长；此数值不是设备实测帧率。视频只用于检查转场衔接。
+
+```sh
+flutter test --no-pub --dart-define=UI_REVIEW_DIR=build/ui-polish-final \
+  --dart-define=UI_MOTION=true tool/preview_ui_test.dart
+ffmpeg -framerate 62.5 -i build/ui-polish-final/motion/%03d.png \
+  -c:v libx264 -crf 20 -pix_fmt yuv420p -movflags +faststart \
+  build/ui-polish-final/ui-motion.mp4
+```
+
+## 上轮渲染存档
+
+以下为较早一轮存档的 Flutter 示例数据截图，本次另附上节对比，不覆盖旧图。它们不是真实账号或
 Android 实机截图。封面图片仅用于
 评审，使用 [森林](https://images.unsplash.com/photo-1448375240586-882707db888b)、
 [海面](https://images.unsplash.com/photo-1518837695005-2083093ee35b)、
@@ -104,8 +156,11 @@ flutter test --no-pub --dart-define=UI_MOTION=true tool/preview_ui_test.dart
 ## 验证记录
 
 - `flutter analyze --no-pub`：通过。
-- `flutter test --no-pub`：217 项通过。
-- `flutter build apk --debug --no-pub`：通过。
+- `flutter test --no-pub`：223 项通过（2026-10-03 重跑）。
+- `flutter build apk --debug --no-pub`：通过，产物为
+  `build/app/outputs/flutter-apk/app-debug.apk`。
+- 六种尺寸预览及动效帧导出：通过，涵盖 390×844、320×568、844×390、1280×800，
+  以及普通手机与窄屏的双倍字号。
 - 逐页检查手机、桌面、320dp 窄屏、短横屏和 2 倍字号的渲染；重点检查布局、真实文字、
   封面、层级与状态。截图只用于人工评审，不作为锁定像素的自动化测试。
 - 行为测试覆盖跨页面播放不中断、连续点击展开只产生一个播放器、返回来源页、列表末项
@@ -117,5 +172,6 @@ flutter test --no-pub --dart-define=UI_MOTION=true tool/preview_ui_test.dart
 - 在真实阴影开启的测试中采样分页边界两侧的小范围绘制，验证阴影连续衰减，以及切到歌词
   后阴影消失；人工检查五种尺寸的页面、弹层和转场帧。
 - 本轮测试只断言关键交互和相对遮挡关系，不锁定颜色、圆角、布局层级、动效时长或整页像素。
+  新增会员入口相对位置／可达性及背景动画隐藏／恢复检查；动效性能不设机器相关的耗时断言。
 - 本机未连接 Android 设备，未完成 60/120Hz 实机帧耗时、真实手势体感及系统媒体控制验证。
   软件渲染截图与测试不能代替性能数据；没有声称取得已测量的帧率提升。

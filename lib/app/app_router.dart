@@ -30,8 +30,22 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
   ),
   observers: [KeyboardDismissNavigatorObserver()],
   routes: [
-    GoRoute(path: '/launch', builder: (_, _) => const LaunchPlaceholder()),
-    GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+    GoRoute(
+      path: '/launch',
+      pageBuilder: (context, state) => NoTransitionPage<void>(
+        key: state.pageKey,
+        child: const LaunchPlaceholder(),
+      ),
+    ),
+    GoRoute(
+      path: '/login',
+      pageBuilder: (context, state) => _contentPage(
+        context: context,
+        state: state,
+        child: const LoginScreen(),
+        fadeOnly: true,
+      ),
+    ),
     ShellRoute(
       observers: [KeyboardDismissNavigatorObserver()],
       builder: (context, state, child) =>
@@ -70,14 +84,22 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
                   routes: [
                     GoRoute(
                       path: 'favorites',
-                      builder: (_, _) => const LibraryCollectionScreen(
-                        kind: LibraryCollectionKind.favorites,
+                      pageBuilder: (context, state) => _contentPage(
+                        context: context,
+                        state: state,
+                        child: const LibraryCollectionScreen(
+                          kind: LibraryCollectionKind.favorites,
+                        ),
                       ),
                     ),
                     GoRoute(
                       path: 'history',
-                      builder: (_, _) => const LibraryCollectionScreen(
-                        kind: LibraryCollectionKind.history,
+                      pageBuilder: (context, state) => _contentPage(
+                        context: context,
+                        state: state,
+                        child: const LibraryCollectionScreen(
+                          kind: LibraryCollectionKind.history,
+                        ),
                       ),
                     ),
                   ],
@@ -88,22 +110,32 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
         ),
         GoRoute(
           path: '/account',
-          pageBuilder: (_, state) =>
-              _fadeThroughPage(state: state, child: const AccountScreen()),
+          pageBuilder: (context, state) => _contentPage(
+            context: context,
+            state: state,
+            child: const AccountScreen(),
+          ),
         ),
         GoRoute(
           path: '/account/settings',
-          pageBuilder: (_, state) =>
-              _fadeThroughPage(state: state, child: const SettingsScreen()),
+          pageBuilder: (context, state) => _contentPage(
+            context: context,
+            state: state,
+            child: const SettingsScreen(),
+          ),
         ),
         GoRoute(
           path: '/account/logs',
-          pageBuilder: (_, state) =>
-              _fadeThroughPage(state: state, child: const LogSettingsScreen()),
+          pageBuilder: (context, state) => _contentPage(
+            context: context,
+            state: state,
+            child: const LogSettingsScreen(),
+          ),
         ),
         GoRoute(
           path: '/playlist',
-          pageBuilder: (_, state) => _fadeThroughPage(
+          pageBuilder: (context, state) => _contentPage(
+            context: context,
             state: state,
             child: PlaylistDetailScreen(
               source: PlaylistTarget.parse(state.extra),
@@ -114,30 +146,43 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
     ),
     GoRoute(
       path: '/player',
-      pageBuilder: (_, state) => PlayerTransitionPage<void>(
+      pageBuilder: (context, state) => PlayerTransitionPage<void>(
         key: state.pageKey,
+        reduceMotion: MediaQuery.disableAnimationsOf(context),
         child: const PlayerScreen(),
       ),
     ),
   ],
 );
 
-CustomTransitionPage<void> _fadeThroughPage({
+CustomTransitionPage<void> _contentPage({
+  required BuildContext context,
   required GoRouterState state,
   required Widget child,
+  bool fadeOnly = false,
 }) => CustomTransitionPage<void>(
   key: state.pageKey,
-  transitionDuration: KgMotion.medium,
-  reverseTransitionDuration: KgMotion.fast,
+  transitionDuration: KgMotion.resolve(
+    context,
+    fadeOnly ? KgMotion.fast : KgMotion.pageEnter,
+  ),
+  reverseTransitionDuration: KgMotion.resolve(
+    context,
+    fadeOnly ? KgMotion.fast : KgMotion.pageExit,
+  ),
   child: child,
   transitionsBuilder: (context, animation, secondary, child) {
     if (MediaQuery.disableAnimationsOf(context)) return child;
-    final curved = CurvedAnimation(parent: animation, curve: KgMotion.standard);
+    final progress = animation.drive(CurveTween(curve: KgMotion.standard));
     return FadeTransition(
-      opacity: curved,
-      child: ScaleTransition(
-        scale: Tween(begin: 0.985, end: 1.0).animate(curved),
+      opacity: progress,
+      child: AnimatedBuilder(
+        animation: progress,
         child: child,
+        builder: (context, child) => Transform.translate(
+          offset: Offset(0, fadeOnly ? 0 : 24 * (1 - progress.value)),
+          child: child,
+        ),
       ),
     );
   },

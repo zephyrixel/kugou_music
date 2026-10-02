@@ -47,14 +47,23 @@ class PlayerPlaybackControls extends StatelessWidget {
                 : (playing ? '暂停' : '播放'),
             iconSize: compact ? 31 : 36,
             padding: EdgeInsets.zero,
-            style: IconButton.styleFrom(
-              fixedSize: Size.square(playButtonSize),
-              backgroundColor: KgColors.accent,
-              disabledBackgroundColor: KgColors.accent,
-              foregroundColor: KgColors.onAccent,
-              disabledForegroundColor: KgColors.onAccent,
-              elevation: 0,
-            ),
+            style:
+                IconButton.styleFrom(
+                  fixedSize: Size.square(playButtonSize),
+                  backgroundColor: KgColors.accent,
+                  disabledBackgroundColor: KgColors.accent,
+                  foregroundColor: KgColors.onAccent,
+                  disabledForegroundColor: KgColors.onAccent,
+                  elevation: 0,
+                ).copyWith(
+                  backgroundBuilder: (context, states, child) => Ink(
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: KgGradients.button,
+                    ),
+                    child: child,
+                  ),
+                ),
             onPressed: busy ? null : (playing ? handler.pause : handler.play),
             icon: busy
                 ? KgBusyIndicator(

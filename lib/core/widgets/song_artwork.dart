@@ -16,6 +16,7 @@ class SongArtwork extends StatelessWidget {
     this.radius = KgRadii.medium,
     this.decodePixelSize,
     this.filterQuality = FilterQuality.low,
+    this.placeholderIcon = Icons.album_outlined,
   });
 
   final String? url;
@@ -26,6 +27,7 @@ class SongArtwork extends StatelessWidget {
   /// Overrides the decoded texture size without changing layout dimensions.
   final int? decodePixelSize;
   final FilterQuality filterQuality;
+  final IconData placeholderIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +53,7 @@ class SongArtwork extends StatelessWidget {
         ),
       ),
       child: Icon(
-        Icons.album_outlined,
+        placeholderIcon,
         size: (size * 0.36).clamp(16, 40),
         color: KgColors.textMuted,
       ),
@@ -92,6 +94,8 @@ class SongArtwork extends StatelessWidget {
         // PNG re-encoded copy per size against the object-count cap.
         memCacheWidth: requestedSize,
         filterQuality: filterQuality,
+        fadeInDuration: KgMotion.resolve(context, KgMotion.medium),
+        fadeOutDuration: KgMotion.resolve(context, KgMotion.fast),
         placeholder: (_, _) => placeholder,
         errorWidget: (_, _, _) => placeholder,
       ),
