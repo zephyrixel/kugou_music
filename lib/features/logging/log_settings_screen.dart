@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
@@ -126,7 +127,11 @@ class _LogSettingsScreenState extends ConsumerState<LogSettingsScreen> {
                   ),
                 ),
               ),
-            const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+            SliverPadding(
+              padding: EdgeInsets.only(
+                bottom: PlaybackInsets.scrollPadding(context, extra: 32),
+              ),
+            ),
           ],
         ),
       ),

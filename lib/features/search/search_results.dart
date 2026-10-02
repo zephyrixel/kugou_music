@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -48,16 +49,14 @@ class SearchResults extends ConsumerWidget {
 
   Widget _buildSongResults(BuildContext context, WidgetRef ref) => _buildState(
     pager: songPager,
-    errorMessage: '歌曲搜索暂时不可用，请稍后重试',
+    errorMessage: '歌曲搜索失败',
     results: () {
       final songs = songPager.items;
       final footers = pagedListFooters(songPager);
       return ListView.builder(
         controller: scrollController,
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
-        ),
+        padding: EdgeInsets.only(bottom: PlaybackInsets.scrollPadding(context)),
         itemCount: songs.length + footers.length + 1,
         itemBuilder: (context, index) {
           if (index == 0) {
@@ -96,7 +95,7 @@ class SearchResults extends ConsumerWidget {
 
   Widget _buildPlaylistResults(BuildContext context) => _buildState(
     pager: playlistPager,
-    errorMessage: '歌单搜索暂时不可用，请稍后重试',
+    errorMessage: '歌单搜索失败',
     results: () {
       final playlists = playlistPager.items;
       final footers = pagedListFooters(playlistPager);
@@ -107,7 +106,7 @@ class SearchResults extends ConsumerWidget {
           KgSpacing.sm,
           0,
           KgSpacing.sm,
-          MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
+          PlaybackInsets.scrollPadding(context),
         ),
         itemCount: playlists.length + footers.length + 1,
         itemBuilder: (context, index) {
@@ -145,7 +144,7 @@ class SearchResults extends ConsumerWidget {
     required Widget Function() results,
   }) {
     if (pager.initialLoading && pager.items.isEmpty) {
-      return const KgLoadingView();
+      return const SingleChildScrollView(child: KgSongListSkeleton());
     }
     if (pager.initialError != null && pager.items.isEmpty) {
       return KgErrorView(message: errorMessage, onRetry: pager.reset);

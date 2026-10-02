@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/app/app_shell.dart';
+import 'package:kgmusic/app/playback_shell.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
@@ -22,8 +23,10 @@ void main() {
       final router = GoRouter(
         routes: [
           StatefulShellRoute.indexedStack(
-            builder: (context, state, shell) =>
-                AppShell(navigationShell: shell),
+            builder: (context, state, shell) => PlaybackShell(
+              location: state.uri.path,
+              child: AppShell(navigationShell: shell),
+            ),
             branches: [
               for (final path in ['/', '/search', '/library'])
                 StatefulShellBranch(
@@ -141,14 +144,16 @@ void main() {
     },
   );
 
-  testWidgets('lyrics scrolling and seeking do not dismiss the player', (
+  testWidgets('lyrics and seeking remain usable with reduced motion', (
     tester,
   ) async {
     final handler = PlayerUiHandler();
     addTearDown(handler.close);
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(playerUiApp(handler: handler, home: _Launcher()));
+    await tester.pumpWidget(
+      playerUiApp(handler: handler, home: _Launcher(), reduceMotion: true),
+    );
     await tester.tap(find.text('打开播放器'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('歌词'));

@@ -59,10 +59,13 @@ class _KgMusicAppState extends ConsumerState<KgMusicApp> {
     scaffoldMessengerKey: _scaffoldMessengerKey,
     routerConfig: _router,
     builder: (context, child) {
-      final content = AppErrorListener(
-        bus: ref.watch(appErrorBusProvider),
-        messengerKey: _scaffoldMessengerKey,
-        child: child ?? const SizedBox.shrink(),
+      final content = AnnotatedRegion<SystemUiOverlayStyle>(
+        value: kgSystemUiOverlayStyle,
+        child: AppErrorListener(
+          bus: ref.watch(appErrorBusProvider),
+          messengerKey: _scaffoldMessengerKey,
+          child: child ?? const SizedBox.shrink(),
+        ),
       );
       if (!_supportsDesktopShortcuts) return content;
       return CallbackShortcuts(

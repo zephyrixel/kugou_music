@@ -124,8 +124,13 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
     // the viewport center at exactly index * itemExtent.
     final target = index * _lineExtent;
     final position = _scrollController.position;
+    final offset = target.clamp(0.0, position.maxScrollExtent).toDouble();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scrollController.jumpTo(offset);
+      return;
+    }
     _scrollController.animateTo(
-      target.clamp(0.0, position.maxScrollExtent).toDouble(),
+      offset,
       duration: KgMotion.resolve(context, KgMotion.slow),
       curve: KgMotion.standard,
     );
@@ -188,16 +193,30 @@ class _LyricsPanelState extends ConsumerState<LyricsPanel> {
                 }
                 return false;
               },
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: EdgeInsets.symmetric(vertical: centerPadding),
-                itemExtent: _lineExtent,
-                itemCount: document.lines.length,
-                itemBuilder: (context, index) => _LyricLineTile(
-                  line: document.lines[index],
-                  active: index == _activeLine,
-                  playedWords: index == _activeLine ? _playedWords : 0,
-                  onTap: () => _seekTo(index),
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) => const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.white,
+                    Colors.white,
+                    Colors.transparent,
+                  ],
+                  stops: [0, 0.1, 0.9, 1],
+                ).createShader(bounds),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.symmetric(vertical: centerPadding),
+                  itemExtent: _lineExtent,
+                  itemCount: document.lines.length,
+                  itemBuilder: (context, index) => _LyricLineTile(
+                    line: document.lines[index],
+                    active: index == _activeLine,
+                    playedWords: index == _activeLine ? _playedWords : 0,
+                    onTap: () => _seekTo(index),
+                  ),
                 ),
               ),
             ),

@@ -91,102 +91,121 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
     );
     return Scaffold(
-      body: SafeArea(
-        child: KgContentWidth(
-          maxWidth: 480,
-          child: AutofillGroup(
-            child: ListView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.fromLTRB(
-                24,
-                MediaQuery.viewInsetsOf(context).bottom > 0 ? 24 : 56,
-                24,
-                32,
-              ),
-              children: [
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Icon(
-                    Icons.graphic_eq_rounded,
-                    size: 40,
-                    color: KgColors.accent,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(-0.8, -0.9),
+            radius: 1.3,
+            colors: [Color(0xFF28241F), KgColors.background],
+          ),
+        ),
+        child: SafeArea(
+          child: KgContentWidth(
+            maxWidth: 480,
+            child: AutofillGroup(
+              child: ListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  MediaQuery.viewInsetsOf(context).bottom > 0 ? 24 : 56,
+                  24,
+                  32,
+                ),
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Icon(
+                      Icons.graphic_eq_rounded,
+                      size: 40,
+                      color: KgColors.accent,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  '登录 KGMusic',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  '使用酷狗账号的手机号登录',
-                  style: TextStyle(color: KgColors.textMuted),
-                ),
-                const SizedBox(height: 36),
-                TextField(
-                  controller: _mobile,
-                  keyboardType: TextInputType.phone,
-                  autofillHints: const [AutofillHints.telephoneNumberNational],
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _codeFocus.requestFocus(),
-                  onChanged: (_) {
-                    if (_mobileError != null) {
-                      setState(() => _mobileError = null);
-                    }
-                  },
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                  ],
-                  decoration: InputDecoration(
-                    labelText: '手机号',
-                    errorText: _mobileError,
+                  const SizedBox(height: 28),
+                  Text(
+                    '登录 KGMusic',
+                    style: Theme.of(context).textTheme.headlineLarge,
                   ),
-                ),
-                const SizedBox(height: 16),
-                if (MediaQuery.textScalerOf(context).scale(14) > 21)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [codeField, const SizedBox(height: 12), sendCode],
-                  )
-                else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: codeField),
-                      const SizedBox(width: 12),
-                      sendCode,
+                  const SizedBox(height: 8),
+                  const Text(
+                    '使用酷狗账号的手机号登录',
+                    style: TextStyle(color: KgColors.textMuted),
+                  ),
+                  const SizedBox(height: 36),
+                  TextField(
+                    controller: _mobile,
+                    keyboardType: TextInputType.phone,
+                    autofillHints: const [
+                      AutofillHints.telephoneNumberNational,
                     ],
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => _codeFocus.requestFocus(),
+                    onChanged: (_) {
+                      if (_mobileError != null) {
+                        setState(() => _mobileError = null);
+                      }
+                    },
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: '手机号',
+                      errorText: _mobileError,
+                    ),
                   ),
-                KgAnimatedSize(
-                  duration: KgMotion.resolve(context, KgMotion.fast),
-                  child: auth.message == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Text(
-                            auth.message!,
-                            style: const TextStyle(color: KgColors.warning),
+                  const SizedBox(height: 16),
+                  if (MediaQuery.textScalerOf(context).scale(14) > 21)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        codeField,
+                        const SizedBox(height: 12),
+                        sendCode,
+                      ],
+                    )
+                  else
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: codeField),
+                        const SizedBox(width: 12),
+                        sendCode,
+                      ],
+                    ),
+                  KgAnimatedSize(
+                    duration: KgMotion.resolve(context, KgMotion.fast),
+                    child: auth.message == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 16),
+                            child: Text(
+                              auth.message!,
+                              style: const TextStyle(color: KgColors.warning),
+                            ),
                           ),
-                        ),
-                ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: auth.busy ? null : _submitLogin,
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
                   ),
-                  child: auth.status == AuthStatus.signingIn
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            KgBusyIndicator(size: 20, color: KgColors.onAccent),
-                            SizedBox(width: 10),
-                            Text('正在登录'),
-                          ],
-                        )
-                      : const Text('登录'),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: auth.busy ? null : _submitLogin,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                    ),
+                    child: auth.status == AuthStatus.signingIn
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              KgBusyIndicator(
+                                size: 20,
+                                color: KgColors.onAccent,
+                              ),
+                              SizedBox(width: 10),
+                              Text('正在登录'),
+                            ],
+                          )
+                        : const Text('登录'),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

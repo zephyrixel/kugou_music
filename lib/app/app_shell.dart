@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:kgmusic/core/widgets/kg_animated_size.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
-import 'package:kgmusic/features/player/mini_player.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({super.key, required this.navigationShell});
@@ -32,7 +31,7 @@ class AppShell extends StatelessWidget {
       }
       return Scaffold(
         body: navigationShell,
-        bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+        bottomNavigationBar: PlaybackInsets.keyboardVisibleOf(context)
             ? null
             : _CompactBottomDock(
                 selectedIndex: navigationShell.currentIndex,
@@ -65,22 +64,12 @@ class _CompactBottomDock extends StatelessWidget {
     ),
     child: SafeArea(
       top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          KgAnimatedSize(
-            duration: KgMotion.resolve(context, KgMotion.medium),
-            alignment: Alignment.bottomCenter,
-            child: const MiniPlayer(),
-          ),
-          NavigationBar(
-            height: 64,
-            backgroundColor: Colors.transparent,
-            selectedIndex: selectedIndex,
-            onDestinationSelected: onDestinationSelected,
-            destinations: AppShell.destinations,
-          ),
-        ],
+      child: NavigationBar(
+        height: KgNavigation.barHeight,
+        backgroundColor: Colors.transparent,
+        selectedIndex: selectedIndex,
+        onDestinationSelected: onDestinationSelected,
+        destinations: AppShell.destinations,
       ),
     ),
   );
@@ -97,6 +86,7 @@ class _WideShell extends StatelessWidget {
       child: Row(
         children: [
           NavigationRail(
+            minWidth: KgNavigation.railWidthOf(context),
             selectedIndex: navigationShell.currentIndex,
             onDestinationSelected: (index) => navigationShell.goBranch(
               index,
@@ -124,26 +114,7 @@ class _WideShell extends StatelessWidget {
                 .toList(growable: false),
           ),
           const VerticalDivider(width: 1),
-          Expanded(
-            child: Column(
-              children: [
-                Expanded(child: navigationShell),
-                ColoredBox(
-                  color: KgColors.surface,
-                  child: KgAnimatedSize(
-                    duration: KgMotion.resolve(context, KgMotion.medium),
-                    alignment: Alignment.bottomCenter,
-                    child: Align(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 760),
-                        child: const MiniPlayer(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Expanded(child: navigationShell),
         ],
       ),
     ),

@@ -9,11 +9,13 @@ class KgChoiceTabs<T> extends StatelessWidget {
     required this.options,
     required this.value,
     required this.onChanged,
+    this.pill = false,
   });
 
   final Map<T, String> options;
   final T value;
   final ValueChanged<T> onChanged;
+  final bool pill;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -27,7 +29,9 @@ class KgChoiceTabs<T> extends StatelessWidget {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(KgRadii.small),
+                borderRadius: BorderRadius.circular(
+                  pill ? KgRadii.pill : KgRadii.small,
+                ),
                 onTap: () {
                   if (entry.key != value) onChanged(entry.key);
                 },
@@ -42,14 +46,22 @@ class KgChoiceTabs<T> extends StatelessWidget {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: entry.key == value
-                            ? KgColors.accent
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
+                    color: pill && entry.key == value
+                        ? Colors.white.withValues(alpha: 0.09)
+                        : null,
+                    borderRadius: pill
+                        ? BorderRadius.circular(KgRadii.pill)
+                        : null,
+                    border: pill
+                        ? null
+                        : Border(
+                            bottom: BorderSide(
+                              color: entry.key == value
+                                  ? KgColors.accent
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
                   ),
                   child: Text(
                     entry.value,

@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
+
+const kgSystemUiOverlayStyle = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.light,
+  statusBarBrightness: Brightness.dark,
+  systemStatusBarContrastEnforced: false,
+  systemNavigationBarColor: Colors.transparent,
+  systemNavigationBarIconBrightness: Brightness.light,
+  systemNavigationBarContrastEnforced: false,
+  systemNavigationBarDividerColor: Colors.transparent,
+);
 
 abstract final class KgColors {
   static const background = Color(0xFF101012);
@@ -47,6 +59,13 @@ ThemeData buildKgTheme() {
     scaffoldBackgroundColor: KgColors.background,
     colorScheme: scheme,
     splashFactory: InkRipple.splashFactory,
+    hoverColor: const Color(0x0DFFFFFF),
+    focusColor: KgColors.accent.withValues(alpha: 0.16),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: KgColors.accent,
+      selectionColor: KgColors.accent.withValues(alpha: 0.28),
+      selectionHandleColor: KgColors.accent,
+    ),
     visualDensity: VisualDensity.standard,
     textTheme: const TextTheme(
       headlineLarge: TextStyle(
@@ -124,6 +143,7 @@ ThemeData buildKgTheme() {
       ),
     ),
     appBarTheme: const AppBarTheme(
+      systemOverlayStyle: kgSystemUiOverlayStyle,
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,

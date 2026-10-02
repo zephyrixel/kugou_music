@@ -89,6 +89,7 @@ class _LibraryPlaylistScreenState extends ConsumerState<LibraryPlaylistScreen> {
         appBarActions: [
           if (!playlist.isSystem)
             PopupMenuButton<String>(
+              useRootNavigator: true,
               onSelected: (value) {
                 if (value == 'edit' && !playlist.isCollected) {
                   unawaited(_edit(playlist));

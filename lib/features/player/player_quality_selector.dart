@@ -24,6 +24,7 @@ class PlayerQualitySelector extends StatelessWidget {
     builder: (context, snapshot) {
       final state = snapshot.data ?? handler.qualityState;
       return PopupMenuButton<AudioQuality>(
+        useRootNavigator: true,
         tooltip: '切换播放音质',
         enabled: !state.switching,
         onSelected: (quality) => _switchQuality(context, quality),

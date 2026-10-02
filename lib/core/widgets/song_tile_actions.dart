@@ -28,6 +28,7 @@ class SongTileActions extends ConsumerWidget {
     return SizedBox.square(
       dimension: 48,
       child: PopupMenuButton<_SongAction>(
+        useRootNavigator: true,
         tooltip: '更多操作',
         padding: EdgeInsets.zero,
         iconSize: 20,

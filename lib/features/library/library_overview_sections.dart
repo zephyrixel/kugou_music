@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
-import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 
@@ -16,44 +15,34 @@ class LibraryHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider).value;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        KgPageHeader(
-          title: '我的',
-          padding: EdgeInsets.zero,
-          actions: [
-            IconButton(
-              tooltip: '设置',
-              onPressed: () => context.push('/account/settings'),
-              icon: const Icon(Icons.settings_outlined),
-            ),
-          ],
-        ),
-        const SizedBox(height: KgSpacing.lg),
-        Material(
-          color: Colors.transparent,
+        Expanded(
           child: ListTile(
             contentPadding: EdgeInsets.zero,
             leading: SongArtwork(
               url: profile?.avatarUrl,
               cacheId: 'user:${profile?.userId}',
-              size: 52,
-              radius: 26,
+              size: 48,
+              radius: 24,
             ),
             title: Text(
-              profile?.displayName ?? '账号',
+              '我的音乐',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            subtitle: Text(
+              profile?.displayName ?? '账号与会员',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: const TextStyle(color: KgColors.textMuted),
             ),
-            subtitle: const Text(
-              '账号与会员',
-              style: TextStyle(color: KgColors.textMuted),
-            ),
-            trailing: const Icon(Icons.chevron_right_rounded, size: 20),
             onTap: () => context.push('/account'),
           ),
+        ),
+        IconButton(
+          tooltip: '设置',
+          onPressed: () => context.push('/account/settings'),
+          icon: const Icon(Icons.settings_outlined),
         ),
       ],
     );
@@ -83,14 +72,21 @@ class LibraryCollectionCard extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(KgSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Icon(icon, color: KgColors.accent, size: 24),
-            const SizedBox(height: KgSpacing.md),
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            Icon(icon, color: KgColors.accentSecondary, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
           ],
         ),
       ),

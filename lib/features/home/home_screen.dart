@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/widgets/artwork_backdrop.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/cache/cache_policy.dart';
@@ -21,92 +24,125 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final recommendations = ref.watch(dailyRecommendationsProvider);
     final songs = recommendations.value ?? const <Song>[];
-    return SafeArea(
-      bottom: false,
-      child: KgContentWidth(
-        child: RefreshIndicator(
-          onRefresh: () => _refresh(context, ref),
-          child: CustomScrollView(
-            key: const PageStorageKey('discover-scroll'),
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  KgSpacing.lg,
-                  KgSpacing.xl,
-                  KgSpacing.lg,
-                  KgSpacing.section,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const DiscoverHeader(),
-                      const SizedBox(height: KgSpacing.xl),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final hero = DailyRecommendationHero(
-                            songs: songs,
-                            loading: recommendations.isLoading && songs.isEmpty,
-                            failed: recommendations.hasError && songs.isEmpty,
-                            onRetry: () =>
-                                ref.invalidate(dailyRecommendationsProvider),
-                            onPlay: songs.isEmpty
-                                ? null
-                                : () => _playHomeCollection(
-                                    context,
-                                    ref,
-                                    songs.first,
-                                    songs,
-                                    '每日推荐',
-                                    PlaybackQueueOriginKind
-                                        .dailyRecommendations,
-                                  ),
-                          );
-                          if (constraints.maxWidth >= 840 &&
-                              MediaQuery.textScalerOf(context).scale(14) <=
-                                  21) {
-                            return Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(child: hero),
-                                const SizedBox(width: 24),
-                                const Expanded(
-                                  child: RecommendationCards(
-                                    minCardHeight: 180,
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                          return Column(
-                            children: [
-                              hero,
-                              const SizedBox(height: KgSpacing.section),
-                              const RecommendationCards(),
-                            ],
-                          );
-                        },
-                      ),
-                      const _RecentlyPlayedShelf(),
-                    ],
-                  ),
-                ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 440,
+          child: IgnorePointer(
+            child: ArtworkBackdrop(
+              url: songs.firstOrNull?.artworkUrl,
+              cacheId: 'song:${songs.firstOrNull?.id ?? 'daily'}',
+              opacity: 0.65,
+              overlayGradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0x50101012),
+                  Color(0xA0101012),
+                  KgColors.background,
+                ],
+                stops: [0, 0.45, 1],
               ),
-              SliverList.builder(
-                itemCount: homeDiscoveryCardIds.length,
-                itemBuilder: (context, index) =>
-                    HomeDiscoverySection(cardId: homeDiscoveryCardIds[index]),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      ),
+        SafeArea(
+          bottom: false,
+          child: KgContentWidth(
+            child: RefreshIndicator(
+              onRefresh: () => _refresh(context, ref),
+              child: CustomScrollView(
+                key: const PageStorageKey('discover-scroll'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      KgSpacing.lg,
+                      KgSpacing.xl,
+                      KgSpacing.lg,
+                      KgSpacing.section,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const DiscoverHeader(),
+                          const SizedBox(height: KgSpacing.xl),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final hero = DailyRecommendationHero(
+                                songs: songs,
+                                loading:
+                                    recommendations.isLoading && songs.isEmpty,
+                                failed:
+                                    recommendations.hasError && songs.isEmpty,
+                                onRetry: () => ref.invalidate(
+                                  dailyRecommendationsProvider,
+                                ),
+                                onPlay: songs.isEmpty
+                                    ? null
+                                    : () => _playHomeCollection(
+                                        context,
+                                        ref,
+                                        songs.first,
+                                        songs,
+                                        '每日推荐',
+                                        PlaybackQueueOriginKind
+                                            .dailyRecommendations,
+                                      ),
+                              );
+                              if (constraints.maxWidth >= 840 &&
+                                  MediaQuery.textScalerOf(context).scale(14) <=
+                                      21) {
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: hero),
+                                    const SizedBox(width: 24),
+                                    const Expanded(
+                                      child: RecommendationCards(
+                                        minCardHeight: 100,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Column(
+                                children: [
+                                  hero,
+                                  const SizedBox(height: KgSpacing.section),
+                                  const RecommendationCards(),
+                                ],
+                              );
+                            },
+                          ),
+                          const _RecentlyPlayedShelf(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverList.builder(
+                    itemCount: homeDiscoveryCardIds.length,
+                    itemBuilder: (context, index) => HomeDiscoverySection(
+                      cardId: homeDiscoveryCardIds[index],
+                      rowLayout: index.isOdd,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: PlaybackInsets.scrollPadding(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

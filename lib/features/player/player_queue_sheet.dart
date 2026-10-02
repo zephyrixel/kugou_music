@@ -12,6 +12,7 @@ Future<void> showPlayerQueueSheet(
 ) async {
   await showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true,
     isScrollControlled: true,
     builder: (context) => _PlayerQueueSheet(handler: handler),
   );
@@ -104,6 +105,7 @@ class _QueueHeader extends StatelessWidget {
               ),
             ),
             PopupMenuButton<PlaybackOrder>(
+              useRootNavigator: true,
               tooltip: '播放顺序',
               initialValue: state.order,
               onSelected: handler.setPlaybackOrder,
@@ -131,6 +133,7 @@ class _QueueHeader extends StatelessWidget {
               icon: const Icon(Icons.repeat_rounded),
             ),
             PopupMenuButton<String>(
+              useRootNavigator: true,
               tooltip: '队列操作',
               onSelected: (value) {
                 if (value == 'clear') handler.clearUpcoming();

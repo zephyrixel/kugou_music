@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -122,7 +123,7 @@ class LibraryScreen extends ConsumerWidget {
                 _playlistSliver(context, ref, playlists),
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: MediaQuery.paddingOf(context).bottom + KgSpacing.xxl,
+                  height: PlaybackInsets.scrollPadding(context, extra: 32),
                 ),
               ),
             ],

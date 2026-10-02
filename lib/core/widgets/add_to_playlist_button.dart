@@ -42,6 +42,7 @@ Future<void> showAddToPlaylist(
     if (!context.mounted) return;
     final selected = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       showDragHandle: true,
       builder: (context) => SafeArea(
         child: ListView(

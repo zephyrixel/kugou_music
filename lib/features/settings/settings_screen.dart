@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -42,11 +43,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: KgContentWidth(
         maxWidth: KgBreakpoints.readingMaxWidth,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             KgSpacing.lg,
             KgSpacing.sm,
             KgSpacing.lg,
-            KgSpacing.xxl,
+            PlaybackInsets.scrollPadding(context, extra: 32),
           ),
           children: [
             const KgSectionHeader(title: '播放'),

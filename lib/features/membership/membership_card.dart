@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
@@ -18,7 +19,14 @@ class MembershipCard extends ConsumerWidget {
     loading: () => const KgSurface(
       child: SizedBox(
         height: 86,
-        child: Center(child: CircularProgressIndicator()),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            KgSkeleton(height: 20, width: 140),
+            SizedBox(height: 16),
+            KgSkeleton(height: 12, width: 200),
+          ],
+        ),
       ),
     ),
     error: (error, _) => KgSurface(
@@ -26,7 +34,6 @@ class MembershipCard extends ConsumerWidget {
         contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.workspace_premium_outlined),
         title: const Text('会员状态加载失败'),
-        subtitle: const Text('暂时无法读取会员信息，请稍后重试'),
         trailing: IconButton(
           tooltip: '重试',
           onPressed: () => ref.invalidate(userVipProvider),

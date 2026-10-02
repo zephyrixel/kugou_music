@@ -3,6 +3,7 @@ import 'package:kgmusic/core/models/playlist.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/animated_branch_container.dart';
 import 'package:kgmusic/app/app_shell.dart';
+import 'package:kgmusic/app/playback_shell.dart';
 import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/app/navigation_focus_policy.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
@@ -31,77 +32,91 @@ GoRouter createAppRouter(AuthController auth) => GoRouter(
   routes: [
     GoRoute(path: '/launch', builder: (_, _) => const LaunchPlaceholder()),
     GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
-    StatefulShellRoute(
-      builder: (context, state, navigationShell) =>
-          AppShell(navigationShell: navigationShell),
-      navigatorContainerBuilder: (context, navigationShell, children) =>
-          AnimatedBranchContainer(
-            currentIndex: navigationShell.currentIndex,
-            children: children,
-          ),
-      branches: [
-        StatefulShellBranch(
-          observers: [KeyboardDismissNavigatorObserver()],
-          routes: [GoRoute(path: '/', builder: (_, _) => const HomeScreen())],
-        ),
-        StatefulShellBranch(
-          observers: [KeyboardDismissNavigatorObserver()],
-          routes: [
-            GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
-          ],
-        ),
-        StatefulShellBranch(
-          observers: [KeyboardDismissNavigatorObserver()],
-          routes: [
-            GoRoute(
-              path: '/library',
-              builder: (_, _) => const LibraryScreen(),
+    ShellRoute(
+      observers: [KeyboardDismissNavigatorObserver()],
+      builder: (context, state, child) =>
+          PlaybackShell(location: state.uri.path, child: child),
+      routes: [
+        StatefulShellRoute(
+          builder: (context, state, navigationShell) =>
+              AppShell(navigationShell: navigationShell),
+          navigatorContainerBuilder: (context, navigationShell, children) =>
+              AnimatedBranchContainer(
+                currentIndex: navigationShell.currentIndex,
+                children: children,
+              ),
+          branches: [
+            StatefulShellBranch(
+              observers: [KeyboardDismissNavigatorObserver()],
+              routes: [
+                GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
+              ],
+            ),
+            StatefulShellBranch(
+              observers: [KeyboardDismissNavigatorObserver()],
               routes: [
                 GoRoute(
-                  path: 'favorites',
-                  builder: (_, _) => const LibraryCollectionScreen(
-                    kind: LibraryCollectionKind.favorites,
-                  ),
+                  path: '/search',
+                  builder: (_, _) => const SearchScreen(),
                 ),
+              ],
+            ),
+            StatefulShellBranch(
+              observers: [KeyboardDismissNavigatorObserver()],
+              routes: [
                 GoRoute(
-                  path: 'history',
-                  builder: (_, _) => const LibraryCollectionScreen(
-                    kind: LibraryCollectionKind.history,
-                  ),
+                  path: '/library',
+                  builder: (_, _) => const LibraryScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'favorites',
+                      builder: (_, _) => const LibraryCollectionScreen(
+                        kind: LibraryCollectionKind.favorites,
+                      ),
+                    ),
+                    GoRoute(
+                      path: 'history',
+                      builder: (_, _) => const LibraryCollectionScreen(
+                        kind: LibraryCollectionKind.history,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ],
         ),
+        GoRoute(
+          path: '/account',
+          pageBuilder: (_, state) =>
+              _fadeThroughPage(state: state, child: const AccountScreen()),
+        ),
+        GoRoute(
+          path: '/account/settings',
+          pageBuilder: (_, state) =>
+              _fadeThroughPage(state: state, child: const SettingsScreen()),
+        ),
+        GoRoute(
+          path: '/account/logs',
+          pageBuilder: (_, state) =>
+              _fadeThroughPage(state: state, child: const LogSettingsScreen()),
+        ),
+        GoRoute(
+          path: '/playlist',
+          pageBuilder: (_, state) => _fadeThroughPage(
+            state: state,
+            child: PlaylistDetailScreen(
+              source: PlaylistTarget.parse(state.extra),
+            ),
+          ),
+        ),
       ],
-    ),
-    GoRoute(
-      path: '/account',
-      pageBuilder: (_, state) =>
-          _fadeThroughPage(state: state, child: const AccountScreen()),
-    ),
-    GoRoute(
-      path: '/account/settings',
-      pageBuilder: (_, state) =>
-          _fadeThroughPage(state: state, child: const SettingsScreen()),
-    ),
-    GoRoute(
-      path: '/account/logs',
-      pageBuilder: (_, state) =>
-          _fadeThroughPage(state: state, child: const LogSettingsScreen()),
     ),
     GoRoute(
       path: '/player',
       pageBuilder: (_, state) => PlayerTransitionPage<void>(
         key: state.pageKey,
         child: const PlayerScreen(),
-      ),
-    ),
-    GoRoute(
-      path: '/playlist',
-      pageBuilder: (_, state) => _fadeThroughPage(
-        state: state,
-        child: PlaylistDetailScreen(source: PlaylistTarget.parse(state.extra)),
       ),
     ),
   ],

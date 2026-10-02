@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
@@ -205,7 +206,7 @@ class _SongCollectionView extends ConsumerWidget {
         controller: scrollController,
         padding: EdgeInsets.only(
           top: KgSpacing.xs,
-          bottom: MediaQuery.paddingOf(context).bottom + KgSpacing.xl,
+          bottom: PlaybackInsets.scrollPadding(context),
         ),
         itemCount: songs.length + 1 + footers.length,
         itemBuilder: (context, index) {

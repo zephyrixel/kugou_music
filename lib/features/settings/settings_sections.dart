@@ -170,6 +170,7 @@ Future<AudioQuality?> showQualityPicker(
   required AudioQuality selected,
 }) => showModalBottomSheet<AudioQuality>(
   context: context,
+  useRootNavigator: true,
   showDragHandle: true,
   builder: (context) => SafeArea(
     child: ListView(

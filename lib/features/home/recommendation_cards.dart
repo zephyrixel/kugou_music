@@ -92,45 +92,44 @@ class _RecommendationCard extends StatelessWidget {
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: minHeight),
       child: Material(
-        color: KgColors.surface,
+        color: const Color(0x0CFFFFFF),
         borderRadius: BorderRadius.circular(KgRadii.large),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: enabled ? onTap : null,
           child: Padding(
-            padding: const EdgeInsets.all(KgSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      personal
-                          ? Icons.radio_rounded
-                          : Icons.favorite_border_rounded,
-                      size: 24,
-                      color: KgColors.accent,
-                    ),
-                    const Spacer(),
-                    if (loading)
-                      const KgBusyIndicator(size: 18)
-                    else
-                      const Icon(
-                        Icons.play_arrow_rounded,
-                        size: 22,
-                        color: KgColors.textMuted,
+                if (loading)
+                  const KgBusyIndicator(size: 24)
+                else
+                  Icon(
+                    personal
+                        ? Icons.radio_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 24,
+                    color: personal
+                        ? KgColors.accentSecondary
+                        : KgColors.accent,
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        kind.title,
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
-                  ],
-                ),
-                const SizedBox(height: KgSpacing.md),
-                Text(
-                  kind.title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  personal ? '发现新的喜欢' : '从收藏继续听',
-                  style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: 3),
+                      Text(
+                        personal ? '个性推荐' : '从喜欢出发',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

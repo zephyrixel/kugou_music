@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
@@ -38,11 +39,11 @@ class AccountScreen extends ConsumerWidget {
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               KgSpacing.lg,
               KgSpacing.sm,
               KgSpacing.lg,
-              KgSpacing.xxl,
+              PlaybackInsets.scrollPadding(context, extra: 32),
             ),
             children: [
               _ProfileCard(

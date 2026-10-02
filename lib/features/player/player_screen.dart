@@ -19,24 +19,14 @@ class PlayerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final handler = ref.watch(audioHandlerProvider);
-    const overlayStyle = SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      statusBarBrightness: Brightness.dark,
-      systemStatusBarContrastEnforced: false,
-      systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness: Brightness.light,
-      systemNavigationBarContrastEnforced: false,
-      systemNavigationBarDividerColor: Colors.transparent,
-    );
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlayStyle,
+      value: kgSystemUiOverlayStyle,
       child: Scaffold(
         extendBodyBehindAppBar: true,
         backgroundColor: KgColors.background,
         appBar: AppBar(
           forceMaterialTransparency: true,
-          systemOverlayStyle: overlayStyle,
+          systemOverlayStyle: kgSystemUiOverlayStyle,
           leading: IconButton(
             tooltip: '收起播放器',
             onPressed: () => Navigator.of(context).maybePop(),

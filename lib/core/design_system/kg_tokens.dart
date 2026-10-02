@@ -14,7 +14,7 @@ abstract final class KgSpacing {
 abstract final class KgRadii {
   static const small = 8.0;
   static const medium = 12.0;
-  static const large = 18.0;
+  static const large = 20.0;
   static const hero = 24.0;
   static const pill = 999.0;
 }
@@ -39,4 +39,14 @@ abstract final class KgBreakpoints {
   static const navigationRail = 840.0;
   static const contentMaxWidth = 1180.0;
   static const readingMaxWidth = 760.0;
+}
+
+abstract final class KgNavigation {
+  static const barHeight = 64.0;
+
+  static double railWidthOf(BuildContext context) =>
+      (MediaQuery.textScalerOf(context).scale(12) * 2 + 32).clamp(
+        80.0,
+        double.infinity,
+      );
 }

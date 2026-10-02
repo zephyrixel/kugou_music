@@ -9,6 +9,7 @@ import 'package:kgmusic/features/membership/membership_presenter.dart';
 Future<void> showMembershipActions(BuildContext context, int userId) =>
     showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => _MembershipActionsSheet(userId: userId),
     );

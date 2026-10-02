@@ -87,13 +87,20 @@ class _PlayerVisualPagerState extends State<PlayerVisualPager> {
             height: selectorHeight,
             child: Center(
               child: KgChoiceTabs<int>(
+                pill: true,
                 options: const {0: '封面', 1: '歌词'},
                 value: _page,
-                onChanged: (page) => _controller.animateToPage(
-                  page,
-                  duration: KgMotion.resolve(context, KgMotion.medium),
-                  curve: KgMotion.standard,
-                ),
+                onChanged: (page) {
+                  if (MediaQuery.disableAnimationsOf(context)) {
+                    _controller.jumpToPage(page);
+                  } else {
+                    _controller.animateToPage(
+                      page,
+                      duration: KgMotion.medium,
+                      curve: KgMotion.standard,
+                    );
+                  }
+                },
               ),
             ),
           ),
@@ -114,6 +121,8 @@ class _ArtworkPage extends StatelessWidget {
     child: Hero(
       tag: 'player-artwork:${item.id}',
       transitionOnUserGestures: true,
+      createRectTween: (begin, end) =>
+          MaterialRectCenterArcTween(begin: begin, end: end),
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(KgRadii.medium),
@@ -126,6 +135,12 @@ class _ArtworkPage extends StatelessWidget {
           ],
         ),
         child: AnimatedSwitcher(
+          // Match the Hero's bounds throughout expansion and dismissal.
+          layoutBuilder: (child, previous) => Stack(
+            fit: StackFit.passthrough,
+            alignment: Alignment.center,
+            children: [...previous, ?child],
+          ),
           duration: KgMotion.resolve(context, KgMotion.medium),
           child: SongArtwork(
             key: ValueKey(item.id),

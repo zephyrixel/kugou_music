@@ -40,76 +40,81 @@ class SongTile extends StatelessWidget {
           : null,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: KgSpacing.xs),
-        child: ListTile(
-          minTileHeight: style == SongTileVariant.compact ? 64 : 72,
-          selected: current,
-          selectedColor: KgColors.accent,
-          selectedTileColor: KgColors.accentSoft.withValues(alpha: 0.45),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: KgSpacing.sm,
-            vertical: 6,
-          ),
-          horizontalTitleGap: KgSpacing.sm,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(KgRadii.medium),
-          ),
-          hoverColor: KgColors.elevated,
-          splashColor: KgColors.accent.withValues(alpha: 0.08),
-          onTap: onTap,
-          leading: switch (style) {
-            SongTileVariant.artwork => SongArtwork(
-              url: song.artworkUrl,
-              cacheId: 'song:${song.id}',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(KgRadii.medium),
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            minTileHeight: style == SongTileVariant.compact ? 64 : 72,
+            selected: current,
+            selectedColor: KgColors.accent,
+            selectedTileColor: KgColors.accentSoft.withValues(alpha: 0.45),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: KgSpacing.sm,
+              vertical: 6,
             ),
-            SongTileVariant.indexed => SizedBox(
-              width: 32,
-              child: current
-                  ? Icon(
-                      playback == SongTilePlayback.playing
-                          ? Icons.graphic_eq_rounded
-                          : Icons.pause_rounded,
-                      size: 20,
-                      color: KgColors.accent,
-                    )
-                  : Text(
-                      index.toString(),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: KgColors.textMuted,
-                        fontWeight: FontWeight.w400,
+            horizontalTitleGap: KgSpacing.sm,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(KgRadii.medium),
+            ),
+            hoverColor: KgColors.elevated,
+            splashColor: KgColors.accent.withValues(alpha: 0.08),
+            onTap: onTap,
+            leading: switch (style) {
+              SongTileVariant.artwork => SongArtwork(
+                url: song.artworkUrl,
+                cacheId: 'song:${song.id}',
+              ),
+              SongTileVariant.indexed => SizedBox(
+                width: 32,
+                child: current
+                    ? Icon(
+                        playback == SongTilePlayback.playing
+                            ? Icons.graphic_eq_rounded
+                            : Icons.pause_rounded,
+                        size: 20,
+                        color: KgColors.accent,
+                      )
+                    : Text(
+                        index.toString(),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: KgColors.textMuted,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
-                    ),
+              ),
+              SongTileVariant.compact => null,
+            },
+            title: Text(
+              song.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: current ? KgColors.accent : KgColors.textPrimary,
+              ),
             ),
-            SongTileVariant.compact => null,
-          },
-          title: Text(
-            song.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: current ? KgColors.accent : KgColors.textPrimary,
+            subtitle: Text(
+              '${song.artistLabel}${song.album == null ? '' : ' · ${song.album}'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: KgColors.textMuted,
+              ),
             ),
+            trailing:
+                trailing ??
+                (song.durationSecs == null
+                    ? null
+                    : Text(
+                        formatDuration(Duration(seconds: song.durationSecs!)),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      )),
           ),
-          subtitle: Text(
-            '${song.artistLabel}${song.album == null ? '' : ' · ${song.album}'}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              height: 1.4,
-              color: KgColors.textMuted,
-            ),
-          ),
-          trailing:
-              trailing ??
-              (song.durationSecs == null
-                  ? null
-                  : Text(
-                      formatDuration(Duration(seconds: song.durationSecs!)),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    )),
         ),
       ),
     );

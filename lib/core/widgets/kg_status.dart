@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kgmusic/core/widgets/playback_insets.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 
@@ -48,7 +49,8 @@ class KgLoadingView extends StatelessWidget {
   );
 }
 
-class KgSkeleton extends StatefulWidget {
+/// Static placeholders preserve geometry without adding background tickers.
+class KgSkeleton extends StatelessWidget {
   const KgSkeleton({
     super.key,
     required this.height,
@@ -61,53 +63,56 @@ class KgSkeleton extends StatefulWidget {
   final double radius;
 
   @override
-  State<KgSkeleton> createState() => _KgSkeletonState();
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: KgColors.elevatedHigh.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    ),
+  );
 }
 
-class _KgSkeletonState extends State<KgSkeleton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  );
+class KgSongListSkeleton extends StatelessWidget {
+  const KgSongListSkeleton({super.key, this.rows = 5});
+
+  final int rows;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context) ||
-        !TickerMode.valuesOf(context).enabled) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.disableAnimationsOf(context)) {
-      return _box(0.72);
-    }
-    return FadeTransition(
-      opacity: Tween(
-        begin: 0.48,
-        end: 0.86,
-      ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
-      child: _box(1),
-    );
-  }
-
-  Widget _box(double opacity) => Container(
-    width: widget.width,
-    height: widget.height,
-    decoration: BoxDecoration(
-      color: KgColors.elevatedHigh.withValues(alpha: opacity),
-      borderRadius: BorderRadius.circular(widget.radius),
+  Widget build(BuildContext context) => Semantics(
+    label: '正在加载歌曲',
+    child: Column(
+      children: List.generate(
+        rows,
+        (index) => const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              KgSkeleton(height: 48, width: 48),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FractionallySizedBox(
+                      widthFactor: 0.7,
+                      child: KgSkeleton(height: 14, radius: 4),
+                    ),
+                    SizedBox(height: 10),
+                    FractionallySizedBox(
+                      widthFactor: 0.4,
+                      child: KgSkeleton(height: 10, radius: 4),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 24),
+            ],
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -146,7 +151,12 @@ class KgErrorView extends StatelessWidget {
     if (compact) return body;
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          24 + PlaybackInsets.bottomOf(context),
+        ),
         child: body,
       ),
     );
@@ -170,7 +180,12 @@ class KgEmptyView extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) => Center(
       child: SingleChildScrollView(
-        padding: EdgeInsets.all(constraints.maxHeight < 200 ? 16 : 28),
+        padding: EdgeInsets.fromLTRB(
+          28,
+          24,
+          28,
+          24 + PlaybackInsets.bottomOf(context),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

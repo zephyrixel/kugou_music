@@ -31,7 +31,15 @@ class PlayerControlDeck extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _TrackHeading(item: item, song: song, compact: compact),
+      AnimatedSwitcher(
+        duration: KgMotion.resolve(context, KgMotion.medium),
+        child: _TrackHeading(
+          key: ValueKey(item.id),
+          item: item,
+          song: song,
+          compact: compact,
+        ),
+      ),
       SizedBox(height: compact ? 8 : 16),
       RepaintBoundary(
         child: PlaybackProgressBar(
@@ -81,6 +89,7 @@ class PlayerControlDeck extends StatelessWidget {
 
 class _TrackHeading extends StatelessWidget {
   const _TrackHeading({
+    super.key,
     required this.item,
     required this.song,
     required this.compact,

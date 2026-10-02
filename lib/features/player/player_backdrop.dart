@@ -96,8 +96,8 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
       child: ArtworkBackdrop(
         url: widget.item.artUri?.toString(),
         cacheId: 'song:${widget.item.id}',
-        opacity: 0.62,
-        scrim: 0.64,
+        opacity: 0.82,
+        scrim: 0.52,
         decodePixelSize: 320,
         blurSigma: 42,
       ),

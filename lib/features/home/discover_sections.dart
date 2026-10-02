@@ -34,13 +34,25 @@ class DailyRecommendationHero extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final stacked = MediaQuery.textScalerOf(context).scale(14) > 21;
-      final coverSize = constraints.maxWidth < 340 ? 100.0 : 132.0;
+      final coverSize = constraints.maxWidth < 340 ? 100.0 : 144.0;
       final song = songs.firstOrNull;
-      final artwork = SongArtwork(
-        url: song?.artworkUrl,
-        cacheId: 'song:${song?.id ?? 'daily'}',
-        size: coverSize,
-        radius: KgRadii.medium,
+      final artwork = DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KgRadii.large),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 28,
+              offset: Offset(0, 14),
+            ),
+          ],
+        ),
+        child: SongArtwork(
+          url: song?.artworkUrl,
+          cacheId: 'song:${song?.id ?? 'daily'}',
+          size: coverSize,
+          radius: KgRadii.large,
+        ),
       );
       final content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,15 +81,16 @@ class DailyRecommendationHero extends StatelessWidget {
                     failed ? Icons.refresh_rounded : Icons.play_arrow_rounded,
                     size: 22,
                   ),
-            label: Text(failed ? '重试' : '播放'),
+            label: Text(failed ? '重试' : '播放全部'),
           ),
         ],
       );
       return KgSurface(
+        color: const Color(0x0FFFFFFF),
         padding: const EdgeInsets.all(KgSpacing.lg),
         radius: KgRadii.hero,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 140),
+          constraints: const BoxConstraints(minHeight: 156),
           child: stacked
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
