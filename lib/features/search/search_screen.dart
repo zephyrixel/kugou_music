@@ -213,11 +213,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       const SizedBox(height: 8),
                       tabs,
                     ],
-                    if (_keyword.isNotEmpty && _activePager.initialLoading)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 8),
-                        child: LinearProgressIndicator(minHeight: 2),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: SizedBox(
+                        height: 2,
+                        child:
+                            _keyword.isNotEmpty && _activePager.initialLoading
+                            ? const LinearProgressIndicator(minHeight: 2)
+                            : null,
                       ),
+                    ),
                   ],
                 ),
               ),

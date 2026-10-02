@@ -1,7 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:kgmusic/app/player_navigation.dart';
 
 /// Turns notification clicks into an idempotent navigation action.
 ///
@@ -37,9 +36,7 @@ class NotificationNavigationController {
 
       try {
         if (hasMediaItem()) {
-          if (!_isAt(playerPath)) {
-            unawaited(router.push<void>(playerPath));
-          }
+          openPlayer(router);
         } else if (!_isAt(homePath)) {
           router.go(homePath);
         }

@@ -41,6 +41,7 @@ class LogLevelPanel extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<AppLogLevel>(
+          isExpanded: true,
           key: ValueKey(level),
           initialValue: level,
           decoration: const InputDecoration(labelText: '记录等级'),
@@ -127,38 +128,47 @@ class LogFilters extends StatelessWidget {
   final ValueChanged<AppLogLevel> onMinimumLevelChanged;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: DropdownButtonFormField<String>(
-          key: ValueKey(source),
-          initialValue: source,
-          decoration: const InputDecoration(labelText: '来源'),
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('全部')),
-            DropdownMenuItem(value: 'flutter', child: Text('Flutter')),
-            DropdownMenuItem(value: 'native', child: Text('Native / SDK')),
-          ],
-          onChanged: (value) => onSourceChanged(value ?? 'all'),
-        ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: DropdownButtonFormField<AppLogLevel>(
-          key: ValueKey(minimumLevel),
-          initialValue: minimumLevel,
-          decoration: const InputDecoration(labelText: '最低等级'),
-          items: AppLogLevel.values
-              .where((level) => level != AppLogLevel.off)
-              .map(
-                (level) =>
-                    DropdownMenuItem(value: level, child: Text(level.label)),
-              )
-              .toList(growable: false),
-          onChanged: (value) =>
-              onMinimumLevelChanged(value ?? AppLogLevel.trace),
-        ),
-      ),
-    ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final sourceField = DropdownButtonFormField<String>(
+        isExpanded: true,
+        key: ValueKey(source),
+        initialValue: source,
+        decoration: const InputDecoration(labelText: '来源'),
+        items: const [
+          DropdownMenuItem(value: 'all', child: Text('全部')),
+          DropdownMenuItem(value: 'flutter', child: Text('Flutter')),
+          DropdownMenuItem(value: 'native', child: Text('Native / SDK')),
+        ],
+        onChanged: (value) => onSourceChanged(value ?? 'all'),
+      );
+      final levelField = DropdownButtonFormField<AppLogLevel>(
+        isExpanded: true,
+        key: ValueKey(minimumLevel),
+        initialValue: minimumLevel,
+        decoration: const InputDecoration(labelText: '最低等级'),
+        items: AppLogLevel.values
+            .where((level) => level != AppLogLevel.off)
+            .map(
+              (level) =>
+                  DropdownMenuItem(value: level, child: Text(level.label)),
+            )
+            .toList(growable: false),
+        onChanged: (value) => onMinimumLevelChanged(value ?? AppLogLevel.trace),
+      );
+      if (constraints.maxWidth < 320 ||
+          MediaQuery.textScalerOf(context).scale(14) > 21) {
+        return Column(
+          children: [sourceField, const SizedBox(height: 16), levelField],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: sourceField),
+          const SizedBox(width: 12),
+          Expanded(child: levelField),
+        ],
+      );
+    },
   );
 }

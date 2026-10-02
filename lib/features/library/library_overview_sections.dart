@@ -66,7 +66,10 @@ class LibraryCollectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: KgColors.surface,
-    borderRadius: BorderRadius.circular(KgRadii.large),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(KgRadii.large),
+      side: const BorderSide(color: KgColors.borderSubtle),
+    ),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,

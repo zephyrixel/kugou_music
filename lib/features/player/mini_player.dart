@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kgmusic/app/providers.dart';
+import 'package:kgmusic/app/player_navigation.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
 import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/player/music_audio_handler.dart';
@@ -11,29 +12,11 @@ import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:kgmusic/core/widgets/song_artwork.dart';
 import 'package:kgmusic/features/player/player_queue_sheet.dart';
 
-class MiniPlayer extends ConsumerStatefulWidget {
+class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
 
   @override
-  ConsumerState<MiniPlayer> createState() => _MiniPlayerState();
-}
-
-class _MiniPlayerState extends ConsumerState<MiniPlayer> {
-  bool _opening = false;
-
-  Future<void> _open() async {
-    final router = GoRouter.of(context);
-    if (_opening || router.routerDelegate.state.uri.path == '/player') return;
-    _opening = true;
-    try {
-      await router.push<void>('/player');
-    } finally {
-      _opening = false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final handler = ref.watch(audioHandlerProvider);
     return StreamBuilder<MediaItem?>(
       stream: handler.mediaItem,
@@ -41,23 +24,18 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
       builder: (context, snapshot) {
         final item = snapshot.data;
         if (item == null) return const SizedBox.shrink();
+        final shape = RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KgRadii.hero),
+          side: const BorderSide(color: KgColors.borderHighlight),
+        );
         return DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(KgRadii.hero),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x50000000),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
+            boxShadow: KgShadows.floating,
           ),
           child: Material(
             color: KgColors.elevated,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(KgRadii.hero),
-              side: const BorderSide(color: Color(0x20FFFFFF)),
-            ),
+            shape: shape,
             clipBehavior: Clip.antiAlias,
             child: Stack(
               children: [
@@ -72,128 +50,69 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                     ),
                   ),
                 ),
-                Material(
-                  color: Colors.transparent,
+                ExcludeSemantics(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ConstrainedBox(
-                        constraints: const BoxConstraints(minHeight: 66),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Semantics(
-                                button: true,
-                                label: '打开播放器',
-                                child: InkWell(
-                                  onTap: _open,
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      12,
-                                      10,
-                                      4,
-                                      10,
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Hero(
-                                          tag: 'player-artwork:${item.id}',
-                                          transitionOnUserGestures: true,
-                                          createRectTween: (begin, end) =>
-                                              MaterialRectCenterArcTween(
-                                                begin: begin,
-                                                end: end,
-                                              ),
-                                          child: AnimatedSwitcher(
-                                            // Preserve the Hero's tight flight
-                                            // bounds instead of snapping to
-                                            // the destination thumbnail size.
-                                            layoutBuilder: (child, previous) =>
-                                                Stack(
-                                                  fit: StackFit.passthrough,
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    ...previous,
-                                                    ?child,
-                                                  ],
-                                                ),
-                                            duration: KgMotion.resolve(
-                                              context,
-                                              KgMotion.medium,
-                                            ),
-                                            child: SongArtwork(
-                                              key: ValueKey(item.id),
-                                              url: item.artUri?.toString(),
-                                              cacheId: 'song:${item.id}',
-                                              size: 44,
-                                              radius: 12,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: AnimatedSwitcher(
-                                            duration: KgMotion.resolve(
-                                              context,
-                                              KgMotion.medium,
-                                            ),
-                                            child: Column(
-                                              key: ValueKey(item.id),
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Align(
-                                                  alignment:
-                                                      Alignment.centerLeft,
-                                                  child: Text(
-                                                    item.title,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  item.artist ?? '未知歌手',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: Theme.of(
-                                                    context,
-                                                  ).textTheme.bodySmall,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            _MiniTransport(handler: handler),
-                            IconButton(
-                              tooltip: '播放队列',
-                              onPressed: () =>
-                                  showPlayerQueueSheet(context, handler),
-                              icon: const Icon(
-                                Icons.queue_music_rounded,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                          ],
+                        constraints: const BoxConstraints(minHeight: 68),
+                        child: Padding(
+                          // Reserve two independent 48dp buttons and the
+                          // trailing inset, without splitting the tap surface.
+                          padding: const EdgeInsets.fromLTRB(12, 10, 104, 10),
+                          child: _MiniTrackInfo(item: item),
                         ),
                       ),
                       _MiniProgress(handler: handler),
                     ],
+                  ),
+                ),
+                // Paint ink above artwork and progress. Buttons are siblings
+                // of the opening surface, so their gestures never open it.
+                Positioned.fill(
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Semantics(
+                            button: true,
+                            label:
+                                '打开播放器，${item.title}，${item.artist ?? '未知歌手'}',
+                            child: InkWell(
+                              key: const ValueKey('mini-player-open'),
+                              customBorder: shape,
+                              onTap: () => openPlayer(GoRouter.of(context)),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 0,
+                          bottom: 2,
+                          right: 4,
+                          child: Row(
+                            children: [
+                              SizedBox.square(
+                                dimension: 48,
+                                child: _MiniTransport(handler: handler),
+                              ),
+                              SizedBox.square(
+                                dimension: 48,
+                                child: IconButton(
+                                  tooltip: '播放队列',
+                                  onPressed: () =>
+                                      showPlayerQueueSheet(context, handler),
+                                  icon: const Icon(
+                                    Icons.queue_music_rounded,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -203,6 +122,71 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
       },
     );
   }
+}
+
+class _MiniTrackInfo extends StatelessWidget {
+  const _MiniTrackInfo({required this.item});
+  final MediaItem item;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Hero(
+        tag: 'player-artwork:${item.id}',
+        transitionOnUserGestures: true,
+        createRectTween: (begin, end) =>
+            MaterialRectCenterArcTween(begin: begin, end: end),
+        child: AnimatedSwitcher(
+          // Preserve the tight Hero flight bounds in both directions.
+          layoutBuilder: (child, previous) => Stack(
+            fit: StackFit.passthrough,
+            alignment: Alignment.center,
+            children: [...previous, ?child],
+          ),
+          duration: KgMotion.resolve(context, KgMotion.medium),
+          child: SongArtwork(
+            key: ValueKey(item.id),
+            url: item.artUri?.toString(),
+            cacheId: 'song:${item.id}',
+            size: 44,
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: AnimatedSwitcher(
+          duration: KgMotion.resolve(context, KgMotion.medium),
+          child: Column(
+            key: ValueKey(item.id),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.artist ?? '未知歌手',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 class _MiniTransport extends StatelessWidget {
@@ -219,27 +203,34 @@ class _MiniTransport extends StatelessWidget {
       final loading =
           state?.processingState == AudioProcessingState.loading ||
           state?.processingState == AudioProcessingState.buffering;
-      return IconButton(
-        tooltip: loading
-            ? '正在加载'
-            : playing
-            ? '暂停'
-            : '播放',
-        onPressed: loading
-            ? null
-            : playing
-            ? handler.pause
-            : handler.play,
-        icon: loading
-            ? const KgBusyIndicator(size: 20)
-            : AnimatedSwitcher(
-                duration: KgMotion.resolve(context, KgMotion.fast),
-                child: Icon(
-                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  key: ValueKey(playing),
-                  size: 28,
+      return GestureDetector(
+        // A disabled button still owns its area; taps must not fall through
+        // to the full-surface opening action behind it.
+        behavior: HitTestBehavior.opaque,
+        excludeFromSemantics: true,
+        onTap: loading ? () {} : null,
+        child: IconButton(
+          tooltip: loading
+              ? '正在加载'
+              : playing
+              ? '暂停'
+              : '播放',
+          onPressed: loading
+              ? null
+              : playing
+              ? handler.pause
+              : handler.play,
+          icon: loading
+              ? const KgBusyIndicator(size: 20)
+              : AnimatedSwitcher(
+                  duration: KgMotion.resolve(context, KgMotion.fast),
+                  child: Icon(
+                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    key: ValueKey(playing),
+                    size: 28,
+                  ),
                 ),
-              ),
+        ),
       );
     },
   );

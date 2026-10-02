@@ -66,57 +66,37 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                 children: [
                   SizedBox(
                     height: 48,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              value: max <= 1 ? 0 : buffered / max,
-                              minHeight: 3,
-                              backgroundColor: Colors.white12,
-                              valueColor: const AlwaysStoppedAnimation(
-                                Colors.white38,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Slider(
-                          semanticFormatterCallback: (value) => formatDuration(
-                            Duration(milliseconds: value.round()),
-                          ),
-                          value: value,
-                          max: max,
-                          onChangeStart: max <= 1
-                              ? null
-                              : (_) => setState(() {
-                                  _dragging = true;
-                                  _dragValue = value;
-                                }),
-                          onChanged: max <= 1
-                              ? null
-                              : (next) => setState(() {
-                                  _dragging = true;
-                                  _dragValue = next;
-                                }),
-                          onChangeEnd: max <= 1
-                              ? null
-                              : (next) {
-                                  setState(() {
-                                    _dragging = false;
-                                    _dragValue = null;
-                                  });
-                                  unawaited(
-                                    widget.onSeek(
-                                      Duration(milliseconds: next.round()),
-                                    ),
-                                  );
-                                },
-                        ),
-                      ],
+                    child: Slider(
+                      semanticFormatterCallback: (value) =>
+                          formatDuration(Duration(milliseconds: value.round())),
+                      value: value,
+                      max: max,
+                      secondaryTrackValue: buffered,
+                      onChangeStart: max <= 1
+                          ? null
+                          : (_) => setState(() {
+                              _dragging = true;
+                              _dragValue = value;
+                            }),
+                      onChanged: max <= 1
+                          ? null
+                          : (next) => setState(() {
+                              _dragging = true;
+                              _dragValue = next;
+                            }),
+                      onChangeEnd: max <= 1
+                          ? null
+                          : (next) {
+                              setState(() {
+                                _dragging = false;
+                                _dragValue = null;
+                              });
+                              unawaited(
+                                widget.onSeek(
+                                  Duration(milliseconds: next.round()),
+                                ),
+                              );
+                            },
                     ),
                   ),
                   Row(
@@ -125,14 +105,16 @@ class _PlaybackProgressBarState extends State<PlaybackProgressBar> {
                       Text(
                         formatDuration(_dragging ? visiblePosition : position),
                         style: TextStyle(
-                          fontSize: widget.compact ? 11 : 12,
+                          fontSize: 12,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Text(
                         formatDuration(duration),
                         style: TextStyle(
-                          fontSize: widget.compact ? 11 : 12,
+                          fontSize: 12,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),

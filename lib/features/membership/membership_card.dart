@@ -3,6 +3,7 @@ import 'package:kgmusic/core/widgets/kg_status.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kgmusic/app/providers.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/account.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 import 'package:kgmusic/features/membership/membership_actions_sheet.dart';
@@ -45,47 +46,70 @@ class MembershipCard extends ConsumerWidget {
       final summary = buildMembershipSummary(value);
       return KgSurface(
         padding: EdgeInsets.zero,
-        child: Container(
-          padding: const EdgeInsets.all(18),
+        child: Padding(
+          padding: const EdgeInsets.all(KgSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: KgColors.accent.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.workspace_premium_rounded,
-                      color: KgColors.accent,
-                    ),
-                  ),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          summary.primary?.label ?? '普通用户',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          summary.statusLabel,
-                          style: const TextStyle(color: KgColors.textMuted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextButton(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked =
+                      constraints.maxWidth < 300 ||
+                      MediaQuery.textScalerOf(context).scale(14) > 21;
+                  final action = TextButton(
                     onPressed: () => showMembershipActions(context, userId),
                     child: const Text('领取权益'),
-                  ),
-                ],
+                  );
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: KgColors.accentSoft,
+                              borderRadius: BorderRadius.circular(
+                                KgRadii.medium,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: KgColors.accent,
+                            ),
+                          ),
+                          const SizedBox(width: KgSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  summary.primary?.label ?? '普通用户',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: KgSpacing.xxs),
+                                Text(
+                                  summary.statusLabel,
+                                  style: const TextStyle(
+                                    color: KgColors.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!stacked) action,
+                        ],
+                      ),
+                      if (stacked) ...[
+                        const SizedBox(height: KgSpacing.sm),
+                        Align(alignment: Alignment.centerRight, child: action),
+                      ],
+                    ],
+                  );
+                },
               ),
               if (summary.items.length > 1 ||
                   summary.items.any((item) => item.paid || item.yearly)) ...[

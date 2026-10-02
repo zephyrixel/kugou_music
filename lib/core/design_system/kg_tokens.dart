@@ -19,6 +19,18 @@ abstract final class KgRadii {
   static const pill = 999.0;
 }
 
+abstract final class KgShadows {
+  static const floating = [
+    BoxShadow(color: Color(0x38000000), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x18000000), blurRadius: 6, offset: Offset(0, 2)),
+  ];
+
+  static const artwork = [
+    BoxShadow(color: Color(0x38000000), blurRadius: 28, offset: Offset(0, 12)),
+    BoxShadow(color: Color(0x20000000), blurRadius: 8, offset: Offset(0, 3)),
+  ];
+}
+
 abstract final class KgMotion {
   static const fast = Duration(milliseconds: 160);
   static const medium = Duration(milliseconds: 260);

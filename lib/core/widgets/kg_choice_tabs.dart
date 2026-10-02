@@ -27,7 +27,21 @@ class KgChoiceTabs<T> extends StatelessWidget {
             selected: entry.key == value,
             button: true,
             child: Material(
-              color: Colors.transparent,
+              color: pill && entry.key == value
+                  ? KgColors.elevatedHigh
+                  : Colors.transparent,
+              animationDuration: KgMotion.resolve(context, KgMotion.fast),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  pill ? KgRadii.pill : KgRadii.small,
+                ),
+                side: BorderSide(
+                  color: pill && entry.key == value
+                      ? KgColors.borderHighlight
+                      : Colors.transparent,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
               child: InkWell(
                 borderRadius: BorderRadius.circular(
                   pill ? KgRadii.pill : KgRadii.small,
@@ -35,26 +49,13 @@ class KgChoiceTabs<T> extends StatelessWidget {
                 onTap: () {
                   if (entry.key != value) onChanged(entry.key);
                 },
-                child: AnimatedContainer(
-                  duration: KgMotion.resolve(context, KgMotion.fast),
-                  constraints: const BoxConstraints(
-                    minHeight: 48,
-                    minWidth: 64,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: pill && entry.key == value
-                        ? Colors.white.withValues(alpha: 0.09)
-                        : null,
-                    borderRadius: pill
-                        ? BorderRadius.circular(KgRadii.pill)
-                        : null,
-                    border: pill
-                        ? null
-                        : Border(
+                child: Ink(
+                  // Decoration is painted on the same Material as the ink,
+                  // so selection never hides pressed or keyboard focus states.
+                  decoration: pill
+                      ? null
+                      : BoxDecoration(
+                          border: Border(
                             bottom: BorderSide(
                               color: entry.key == value
                                   ? KgColors.accent
@@ -62,18 +63,29 @@ class KgChoiceTabs<T> extends StatelessWidget {
                               width: 2,
                             ),
                           ),
-                  ),
-                  child: Text(
-                    entry.value,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: entry.key == value
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      color: entry.key == value
-                          ? KgColors.textPrimary
-                          : KgColors.textMuted,
+                        ),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minHeight: 48,
+                      minWidth: 64,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Text(
+                      entry.value,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: entry.key == value
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: entry.key == value
+                            ? KgColors.textPrimary
+                            : KgColors.textMuted,
+                      ),
                     ),
                   ),
                 ),

@@ -85,7 +85,7 @@ class KgSurface extends StatelessWidget {
   const KgSurface({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(18),
+    this.padding = const EdgeInsets.all(KgSpacing.lg),
     this.color = KgColors.surface,
     this.radius = KgRadii.large,
   });
@@ -98,7 +98,10 @@ class KgSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: color,
-    borderRadius: BorderRadius.circular(radius),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(radius),
+      side: const BorderSide(color: KgColors.borderSubtle),
+    ),
     clipBehavior: Clip.antiAlias,
     child: Padding(padding: padding, child: child),
   );

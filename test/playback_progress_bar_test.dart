@@ -73,10 +73,7 @@ void main() {
     expect(slider.value, 25000);
     expect(slider.onChanged, isNotNull);
 
-    final buffer = tester.widget<LinearProgressIndicator>(
-      find.byType(LinearProgressIndicator),
-    );
-    expect(buffer.value, 0.4);
+    expect(slider.secondaryTrackValue, 40000);
     expect(find.text('0:25'), findsOneWidget);
     expect(find.text('1:40'), findsOneWidget);
   });

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 
 Future<bool> confirmDialog(
   BuildContext context, {
@@ -16,11 +16,11 @@ Future<bool> confirmDialog(
       content: content == null ? null : Text(content),
       actions: [
         TextButton(
-          onPressed: () => context.pop(false),
+          onPressed: () => Navigator.pop(context, false),
           child: Text(cancelLabel),
         ),
         FilledButton(
-          onPressed: () => context.pop(true),
+          onPressed: () => Navigator.pop(context, true),
           child: Text(confirmLabel),
         ),
       ],
@@ -38,48 +38,17 @@ Future<({String name, bool private})?> promptPlaylistName(
   bool initialPrivate = false,
   bool showPrivate = true,
 }) async {
-  final name = TextEditingController(text: initialName ?? '');
-  var private = initialPrivate;
-  final accepted = await showDialog<bool>(
+  final result = await showDialog<_PlaylistDraft>(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        scrollable: true,
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: '歌单名称'),
-            ),
-            if (showPrivate)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('设为私密'),
-                value: private,
-                onChanged: (value) => setState(() => private = value),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => context.pop(true),
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
+    builder: (_) => _PlaylistFormDialog(
+      title: title,
+      confirmLabel: confirmLabel,
+      name: initialName ?? '',
+      private: initialPrivate,
+      showPrivate: showPrivate,
     ),
   );
-  final value = name.text.trim();
-  name.dispose();
-  if (accepted != true || value.isEmpty) return null;
-  return (name: value, private: private);
+  return result == null ? null : (name: result.name, private: result.private);
 }
 
 /// Edit dialog for name / intro / tags / private.
@@ -90,67 +59,136 @@ promptPlaylistEdit(
   required String intro,
   required String tags,
   required bool private,
-}) async {
-  final nameController = TextEditingController(text: name);
-  final introController = TextEditingController(text: intro);
-  final tagsController = TextEditingController(text: tags);
-  var nextPrivate = private;
-  final accepted = await showDialog<bool>(
-    context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        scrollable: true,
-        title: const Text('编辑歌单'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: '名称'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: introController,
+}) => showDialog<_PlaylistDraft>(
+  context: context,
+  builder: (_) => _PlaylistFormDialog(
+    title: '编辑歌单',
+    confirmLabel: '保存',
+    name: name,
+    intro: intro,
+    tags: tags,
+    private: private,
+    editing: true,
+  ),
+);
+
+typedef _PlaylistDraft = ({
+  String name,
+  String intro,
+  String tags,
+  bool private,
+});
+
+/// Controllers live for the complete route lifetime, including its exit
+/// animation. Invalid input stays in the form instead of silently cancelling.
+class _PlaylistFormDialog extends StatefulWidget {
+  const _PlaylistFormDialog({
+    required this.title,
+    required this.confirmLabel,
+    required this.name,
+    required this.private,
+    this.intro = '',
+    this.tags = '',
+    this.editing = false,
+    this.showPrivate = true,
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String name;
+  final String intro;
+  final String tags;
+  final bool private;
+  final bool editing;
+  final bool showPrivate;
+
+  @override
+  State<_PlaylistFormDialog> createState() => _PlaylistFormDialogState();
+}
+
+class _PlaylistFormDialogState extends State<_PlaylistFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.name);
+  late final _intro = TextEditingController(text: widget.intro);
+  late final _tags = TextEditingController(text: widget.tags);
+  late bool _private = widget.private;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _intro.dispose();
+    _tags.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop<_PlaylistDraft>(context, (
+      name: _name.text.trim(),
+      intro: _intro.text.trim(),
+      tags: _tags.text.trim(),
+      private: _private,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: Text(widget.title),
+    content: Form(
+      key: _formKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormField(
+            controller: _name,
+            autofocus: !widget.editing,
+            textInputAction: widget.editing
+                ? TextInputAction.next
+                : TextInputAction.done,
+            onFieldSubmitted: widget.editing ? null : (_) => _submit(),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: (value) =>
+                value == null || value.trim().isEmpty ? '请输入歌单名称' : null,
+            decoration: const InputDecoration(labelText: '歌单名称'),
+          ),
+          if (widget.editing) ...[
+            const SizedBox(height: KgSpacing.md),
+            TextFormField(
+              controller: _intro,
+              minLines: 2,
               maxLines: 3,
               decoration: const InputDecoration(labelText: '简介'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: tagsController,
-              decoration: const InputDecoration(labelText: '标签（逗号分隔）'),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('私密歌单'),
-              value: nextPrivate,
-              onChanged: (value) => setState(() => nextPrivate = value),
+            const SizedBox(height: KgSpacing.md),
+            TextFormField(
+              controller: _tags,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              decoration: const InputDecoration(
+                labelText: '标签',
+                hintText: '用逗号分隔',
+              ),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => context.pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => context.pop(true),
-            child: const Text('保存'),
-          ),
+          if (widget.showPrivate) ...[
+            const SizedBox(height: KgSpacing.xs),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('设为私密'),
+              value: _private,
+              onChanged: (value) => setState(() => _private = value),
+            ),
+          ],
         ],
       ),
     ),
-  );
-  final nextName = nameController.text.trim();
-  final nextIntro = introController.text.trim();
-  final nextTags = tagsController.text.trim();
-  nameController.dispose();
-  introController.dispose();
-  tagsController.dispose();
-  if (accepted != true || nextName.isEmpty) return null;
-  return (
-    name: nextName,
-    intro: nextIntro,
-    tags: nextTags,
-    private: nextPrivate,
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('取消'),
+      ),
+      FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
+    ],
   );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/widgets/kg_layout.dart';
 
 class KgSettingsTile extends StatelessWidget {
@@ -24,25 +25,37 @@ class KgSettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? KgColors.error : null;
+    final color = !enabled
+        ? KgColors.disabled
+        : destructive
+        ? KgColors.error
+        : null;
     return ListTile(
       enabled: enabled,
-      leading: Icon(icon, color: color),
+      minLeadingWidth: 24,
+      horizontalTitleGap: KgSpacing.md,
+      leading: Icon(icon, color: color, size: 22),
       title: Text(title, style: color == null ? null : TextStyle(color: color)),
       subtitle: subtitle == null
           ? null
           : Text(
               subtitle!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
-                color: KgColors.textMuted,
+                color: enabled ? KgColors.textMuted : KgColors.disabled,
               ),
             ),
       trailing:
           trailing ??
-          (onTap == null ? null : const Icon(Icons.chevron_right_rounded)),
-      onTap: onTap,
+          (onTap == null
+              ? null
+              : Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: enabled ? KgColors.textMuted : KgColors.disabled,
+                )),
+      onTap: enabled ? onTap : null,
     );
   }
 }
@@ -59,7 +72,7 @@ class KgSettingsGroup extends StatelessWidget {
     child: Column(
       children: [
         for (var index = 0; index < children.length; index++) ...[
-          if (index > 0) const Divider(height: 1, indent: 56),
+          if (index > 0) const Divider(height: 1, indent: 56, endIndent: 16),
           children[index],
         ],
       ],

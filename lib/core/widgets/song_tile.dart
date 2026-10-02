@@ -48,7 +48,7 @@ class SongTile extends StatelessWidget {
             minTileHeight: style == SongTileVariant.compact ? 64 : 72,
             selected: current,
             selectedColor: KgColors.accent,
-            selectedTileColor: KgColors.accentSoft.withValues(alpha: 0.45),
+            selectedTileColor: KgColors.selected,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: KgSpacing.sm,
               vertical: 6,
@@ -57,8 +57,8 @@ class SongTile extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(KgRadii.medium),
             ),
-            hoverColor: KgColors.elevated,
-            splashColor: KgColors.accent.withValues(alpha: 0.08),
+            hoverColor: KgColors.hover,
+            splashColor: KgColors.pressed,
             onTap: onTap,
             leading: switch (style) {
               SongTileVariant.artwork => SongArtwork(
@@ -92,6 +92,7 @@ class SongTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 16,
+                height: 1.4,
                 fontWeight: FontWeight.w500,
                 color: current ? KgColors.accent : KgColors.textPrimary,
               ),

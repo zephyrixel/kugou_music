@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kgmusic/core/models/playlist.dart';
 import 'package:kgmusic/core/models/song.dart';
 import 'package:kgmusic/core/widgets/kg_status.dart';
+import 'package:kgmusic/app/delegated_transition_page.dart';
 import 'package:kgmusic/features/player/mini_player.dart';
 import 'package:kgmusic/features/player/player_screen.dart';
 import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
@@ -10,6 +11,103 @@ import 'package:kgmusic/features/playlists/playlist_scaffold.dart';
 import 'support/ui_app_harness.dart';
 
 void main() {
+  testWidgets('player can reopen after a declarative navigation replaces it', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final harness = await UiAppHarness.create();
+    addTearDown(harness.dispose);
+    await tester.pumpWidget(harness.app(reduceMotion: false));
+    await tester.pumpAndSettle();
+    final title = find.descendant(
+      of: find.byType(MiniPlayer),
+      matching: find.text(harness.handler.songs.first.title),
+    );
+    final originalDock = tester.state(find.byType(MiniPlayer));
+    await tester.tapAt(tester.getCenter(title));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlayerScreen), findsOneWidget);
+
+    // A declarative navigation removes the page without completing the
+    // imperative push Future in the pinned go_router version. The shell lives on.
+    harness.router.go('/library');
+    await tester.pumpAndSettle();
+    expect(find.byType(PlayerScreen), findsNothing);
+    expect(tester.state(find.byType(MiniPlayer)), same(originalDock));
+    expect(
+      find.byKey(const ValueKey('mini-player-open')).hitTestable(),
+      findsOneWidget,
+    );
+    await tester.tapAt(tester.getCenter(title));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlayerScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'animated player repeatedly reopens after button and drag exits',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final harness = await UiAppHarness.create();
+      addTearDown(harness.dispose);
+      await tester.pumpWidget(harness.app(reduceMotion: false));
+      await tester.pumpAndSettle();
+      for (var cycle = 0; cycle < 4; cycle++) {
+        final title = find.descendant(
+          of: find.byType(MiniPlayer),
+          matching: find.text(harness.handler.songs.first.title),
+        );
+        await tester.tapAt(tester.getCenter(title));
+        await tester.tapAt(tester.getCenter(title));
+        await tester.pumpAndSettle();
+        expect(find.byType(PlayerScreen), findsOneWidget);
+        if (cycle.isEven) {
+          final region = find.byType(PlayerDismissRegion).last;
+          final gesture = await tester.startGesture(tester.getCenter(region));
+          await gesture.moveBy(const Offset(0, 70));
+          await gesture.cancel();
+          await tester.pumpAndSettle();
+          expect(find.byType(PlayerScreen), findsOneWidget);
+          await tester.drag(region, const Offset(0, 400));
+        } else {
+          await tester.tap(find.byTooltip('收起播放器'));
+        }
+        await tester.pumpAndSettle();
+        expect(find.byType(PlayerScreen), findsNothing);
+        expect(
+          find.byKey(const ValueKey('mini-player-open')).hitTestable(),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
+  testWidgets('right edge and progress strip open the floating player', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final harness = await UiAppHarness.create();
+    addTearDown(harness.dispose);
+    await tester.pumpWidget(harness.app());
+    await tester.pumpAndSettle();
+    for (final progress in [false, true]) {
+      final rect = tester.getRect(find.byType(MiniPlayer));
+      await tester.tapAt(
+        progress
+            ? Offset(rect.center.dx, rect.bottom - 1)
+            : Offset(rect.right - 2, rect.center.dy),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(PlayerScreen), findsOneWidget);
+      await tester.tap(find.byTooltip('收起播放器'));
+      await tester.pumpAndSettle();
+    }
+  });
+
   testWidgets(
     'keyboard leaves search and feedback visible, then restores playback',
     (tester) async {
@@ -96,8 +194,8 @@ void main() {
         of: find.byType(MiniPlayer),
         matching: find.text(item!.title),
       );
-      await tester.tap(title);
-      await tester.tap(title);
+      await tester.tapAt(tester.getCenter(title));
+      await tester.tapAt(tester.getCenter(title));
       await tester.pumpAndSettle();
       expect(find.byType(PlayerScreen), findsOneWidget);
       await tester.tap(find.byTooltip('收起播放器'));

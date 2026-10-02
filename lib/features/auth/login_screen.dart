@@ -83,7 +83,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
     final sendCode = OutlinedButton(
       onPressed: auth.busy || auth.resendSeconds > 0 ? null : _requestCode,
-      style: OutlinedButton.styleFrom(minimumSize: const Size(112, 56)),
+      style: OutlinedButton.styleFrom(minimumSize: const Size(132, 56)),
       child: auth.status == AuthStatus.sendingCode
           ? const KgBusyIndicator(size: 20)
           : Text(

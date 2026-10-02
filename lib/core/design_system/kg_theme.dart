@@ -26,6 +26,13 @@ abstract final class KgColors {
   static const textPrimary = Color(0xFFF5F2EB);
   static const textMuted = Color(0xFFABA8A2);
   static const divider = Color(0xFF353538);
+  static const borderSubtle = Color(0x14FFFFFF);
+  static const borderHighlight = Color(0x24FFFFFF);
+  static const hover = Color(0x0AFFFFFF);
+  static const pressed = Color(0x14E7B36A);
+  static const focus = Color(0x29E7B36A);
+  static const selected = Color(0x1FE7B36A);
+  static const disabled = Color(0x61F5F2EB);
   static const warning = Color(0xFFF1CE86);
   static const error = Color(0xFFFFA59A);
 }
@@ -59,8 +66,11 @@ ThemeData buildKgTheme() {
     scaffoldBackgroundColor: KgColors.background,
     colorScheme: scheme,
     splashFactory: InkRipple.splashFactory,
-    hoverColor: const Color(0x0DFFFFFF),
-    focusColor: KgColors.accent.withValues(alpha: 0.16),
+    hoverColor: KgColors.hover,
+    focusColor: KgColors.focus,
+    splashColor: KgColors.pressed,
+    highlightColor: const Color(0x08FFFFFF),
+    disabledColor: KgColors.disabled,
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: KgColors.accent,
       selectionColor: KgColors.accent.withValues(alpha: 0.28),
@@ -159,6 +169,8 @@ ThemeData buildKgTheme() {
       backgroundColor: KgColors.surface,
       indicatorColor: KgColors.accentSoft,
       elevation: 0,
+      labelPadding: const EdgeInsets.only(top: 4),
+      overlayColor: _controlOverlay(KgColors.accent),
       indicatorShape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KgRadii.medium),
       ),
@@ -194,6 +206,15 @@ ThemeData buildKgTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: KgColors.surface,
+      hintStyle: const TextStyle(color: KgColors.textMuted, fontSize: 14),
+      labelStyle: const TextStyle(color: KgColors.textMuted, fontSize: 14),
+      helperStyle: const TextStyle(color: KgColors.textMuted, height: 1.4),
+      errorStyle: const TextStyle(color: KgColors.error, height: 1.4),
+      errorMaxLines: 3,
+      prefixIconColor: KgColors.textMuted,
+      suffixIconColor: KgColors.textMuted,
+      prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      suffixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       contentPadding: const EdgeInsets.symmetric(
         horizontal: KgSpacing.md,
         vertical: KgSpacing.md,
@@ -204,11 +225,23 @@ ThemeData buildKgTheme() {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(KgRadii.medium),
-        borderSide: const BorderSide(color: KgColors.divider),
+        borderSide: const BorderSide(color: KgColors.borderHighlight),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(KgRadii.medium),
         borderSide: const BorderSide(color: KgColors.accent, width: 1.4),
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(KgRadii.medium),
+        borderSide: const BorderSide(color: KgColors.borderSubtle),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(KgRadii.medium),
+        borderSide: const BorderSide(color: KgColors.error),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(KgRadii.medium),
+        borderSide: const BorderSide(color: KgColors.error, width: 1.4),
       ),
     ),
     cardTheme: CardThemeData(
@@ -217,6 +250,7 @@ ThemeData buildKgTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KgRadii.large),
+        side: const BorderSide(color: KgColors.borderSubtle),
       ),
     ),
     listTileTheme: const ListTileThemeData(
@@ -237,39 +271,58 @@ ThemeData buildKgTheme() {
       ),
     ),
     dividerTheme: const DividerThemeData(
-      color: KgColors.divider,
+      color: KgColors.borderSubtle,
       thickness: 1,
       space: 1,
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        disabledForegroundColor: KgColors.disabled,
+        disabledBackgroundColor: KgColors.elevatedHigh,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(KgRadii.medium),
         ),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-      ),
+      ).copyWith(overlayColor: _controlOverlay(KgColors.onAccent)),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(KgRadii.medium),
-        ),
-        side: const BorderSide(color: KgColors.divider),
-      ),
+      style:
+          OutlinedButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            foregroundColor: KgColors.textPrimary,
+            disabledForegroundColor: KgColors.disabled,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(KgRadii.medium),
+            ),
+          ).copyWith(
+            overlayColor: _controlOverlay(KgColors.accent),
+            side: WidgetStateProperty.resolveWith(
+              (states) => BorderSide(
+                color: states.contains(WidgetState.focused)
+                    ? KgColors.accent
+                    : states.contains(WidgetState.disabled)
+                    ? KgColors.borderSubtle
+                    : KgColors.borderHighlight,
+              ),
+            ),
+          ),
     ),
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         minimumSize: const Size.square(48),
         foregroundColor: KgColors.textPrimary,
-      ),
+        disabledForegroundColor: KgColors.disabled,
+      ).copyWith(overlayColor: _controlOverlay(KgColors.accent)),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         minimumSize: const Size(48, 48),
+        disabledForegroundColor: KgColors.disabled,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-      ),
+      ).copyWith(overlayColor: _controlOverlay(KgColors.accent)),
     ),
     tabBarTheme: const TabBarThemeData(
       dividerColor: Colors.transparent,
@@ -283,18 +336,34 @@ ThemeData buildKgTheme() {
       backgroundColor: KgColors.elevated,
       surfaceTintColor: Colors.transparent,
       showDragHandle: true,
+      dragHandleColor: KgColors.borderHighlight,
+      dragHandleSize: Size(32, 4),
       modalBarrierColor: Color(0x99000000),
       constraints: BoxConstraints(maxWidth: 560),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(KgRadii.hero)),
+        side: BorderSide(color: KgColors.borderSubtle),
       ),
       clipBehavior: Clip.antiAlias,
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: KgColors.elevated,
       surfaceTintColor: Colors.transparent,
+      titleTextStyle: const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        height: 1.35,
+        color: KgColors.textPrimary,
+      ),
+      contentTextStyle: const TextStyle(
+        fontSize: 14,
+        height: 1.5,
+        color: KgColors.textMuted,
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KgRadii.large),
+        side: const BorderSide(color: KgColors.borderHighlight),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -307,13 +376,17 @@ ThemeData buildKgTheme() {
       actionTextColor: KgColors.accent,
       closeIconColor: Colors.white,
       behavior: SnackBarBehavior.floating,
+      elevation: 4,
+      insetPadding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KgRadii.medium),
+        side: const BorderSide(color: KgColors.borderHighlight),
       ),
     ),
     sliderTheme: const SliderThemeData(
       activeTrackColor: KgColors.accent,
       inactiveTrackColor: KgColors.divider,
+      secondaryActiveTrackColor: Color(0x60FFFFFF),
       thumbColor: KgColors.accent,
       overlayColor: Color(0x28E7B36A),
       trackHeight: 3,
@@ -332,9 +405,67 @@ ThemeData buildKgTheme() {
     popupMenuTheme: PopupMenuThemeData(
       color: KgColors.elevatedHigh,
       surfaceTintColor: Colors.transparent,
+      elevation: 6,
+      menuPadding: const EdgeInsets.symmetric(vertical: 8),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => TextStyle(
+          fontSize: 14,
+          height: 1.4,
+          color: states.contains(WidgetState.disabled)
+              ? KgColors.disabled
+              : KgColors.textPrimary,
+        ),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KgRadii.medium),
+        side: const BorderSide(color: KgColors.borderHighlight),
+      ),
+    ),
+    tooltipTheme: TooltipThemeData(
+      waitDuration: const Duration(milliseconds: 500),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      textStyle: const TextStyle(fontSize: 12, color: KgColors.textPrimary),
+      decoration: BoxDecoration(
+        color: KgColors.elevatedHigh,
+        borderRadius: BorderRadius.circular(KgRadii.small),
+        border: Border.all(color: KgColors.borderHighlight),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      overlayColor: _controlOverlay(KgColors.accent),
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.transparent
+            : KgColors.borderHighlight,
+      ),
+    ),
+    expansionTileTheme: ExpansionTileThemeData(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      iconColor: KgColors.accent,
+      collapsedIconColor: KgColors.textMuted,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(KgRadii.medium),
       ),
+      collapsedShape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(KgRadii.medium),
+      ),
+      clipBehavior: Clip.antiAlias,
     ),
   );
 }
+
+WidgetStateProperty<Color?> _controlOverlay(Color color) =>
+    WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.disabled)) return Colors.transparent;
+      if (states.contains(WidgetState.focused)) {
+        return color.withValues(alpha: 0.18);
+      }
+      if (states.contains(WidgetState.pressed)) {
+        return color.withValues(alpha: 0.12);
+      }
+      if (states.contains(WidgetState.hovered)) {
+        return color.withValues(alpha: 0.06);
+      }
+      return null;
+    });

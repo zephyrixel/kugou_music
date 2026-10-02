@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:kgmusic/core/cache/artwork_cache.dart';
 import 'package:kgmusic/core/design_system/kg_theme.dart';
+import 'package:kgmusic/core/design_system/kg_tokens.dart';
 import 'package:kgmusic/core/models/song.dart';
 
 class SongArtwork extends StatelessWidget {
@@ -12,7 +13,7 @@ class SongArtwork extends StatelessWidget {
     this.url,
     this.cacheId,
     this.size = 48,
-    this.radius = 12,
+    this.radius = KgRadii.medium,
     this.decodePixelSize,
     this.filterQuality = FilterQuality.low,
   });
@@ -43,7 +44,11 @@ class SongArtwork extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
-        color: KgColors.elevated,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [KgColors.elevatedHigh, KgColors.surface],
+        ),
       ),
       child: Icon(
         Icons.album_outlined,
@@ -54,9 +59,8 @@ class SongArtwork extends StatelessWidget {
     final localUri = Uri.tryParse(url ?? '');
     if (localUri?.scheme == 'file') {
       final file = File.fromUri(localUri!);
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Image.file(
+      return _frame(
+        Image.file(
           file,
           width: size,
           height: size,
@@ -69,15 +73,14 @@ class SongArtwork extends StatelessWidget {
         ),
       );
     }
-    if (imageUrl == null) return placeholder;
+    if (imageUrl == null) return _frame(placeholder);
     final cacheKey = ArtworkCacheService.instance.cacheKey(
       url: imageUrl,
       cacheId: cacheId,
       pixelSize: pixelSize,
     );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: CachedNetworkImage(
+    return _frame(
+      CachedNetworkImage(
         key: ValueKey(cacheKey),
         imageUrl: imageUrl,
         width: size,
@@ -94,4 +97,13 @@ class SongArtwork extends StatelessWidget {
       ),
     );
   }
+
+  Widget _frame(Widget child) => DecoratedBox(
+    position: DecorationPosition.foreground,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: KgColors.borderSubtle),
+    ),
+    child: ClipRRect(borderRadius: BorderRadius.circular(radius), child: child),
+  );
 }

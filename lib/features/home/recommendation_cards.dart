@@ -93,12 +93,15 @@ class _RecommendationCard extends StatelessWidget {
       constraints: BoxConstraints(minHeight: minHeight),
       child: Material(
         color: const Color(0x0CFFFFFF),
-        borderRadius: BorderRadius.circular(KgRadii.large),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(KgRadii.large),
+          side: const BorderSide(color: KgColors.borderSubtle),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: enabled ? onTap : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+            padding: const EdgeInsets.all(KgSpacing.md),
             child: Row(
               children: [
                 if (loading)

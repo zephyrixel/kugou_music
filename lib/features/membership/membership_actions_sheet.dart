@@ -155,7 +155,11 @@ class _RecordStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     if (controller.action == MembershipAction.loadingRecord) {
       return const Row(
-        children: [KgBusyIndicator(), SizedBox(width: 10), Text('正在读取本月领取记录…')],
+        children: [
+          KgBusyIndicator(),
+          SizedBox(width: 12),
+          Expanded(child: Text('正在读取本月领取记录')),
+        ],
       );
     }
     if (controller.recordUnavailable) {

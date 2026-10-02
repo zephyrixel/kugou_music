@@ -182,6 +182,9 @@ Future<AudioQuality?> showQualityPicker(
         ),
         for (final quality in AudioQuality.values)
           ListTile(
+            selected: quality == selected,
+            selectedColor: KgColors.accent,
+            selectedTileColor: KgColors.selected,
             leading: Icon(
               quality == selected
                   ? Icons.check_circle_rounded
